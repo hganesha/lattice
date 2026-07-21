@@ -556,7 +556,7 @@ export interface ContractSummary {
   }
 }
 
-export type ImportFormat = 'AUTO' | 'JSON_SCHEMA' | 'OPENAPI'
+export type ImportFormat = 'AUTO' | 'JSON_SCHEMA' | 'OPENAPI' | 'RDF_XML' | 'TURTLE' | 'CSV'
 
 export interface ImportCollision {
   existingTypeId: string

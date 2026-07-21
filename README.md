@@ -15,7 +15,7 @@ The workspace includes published **counterparty exposure assurance** and **grid 
 
 - `@lattice/contracts`: typed industry workspace, shared ontology, ontology reference, concept scope, and Context Contract schemas.
 - `@lattice/compiler-core`: deterministic operation/entity resolution, policy-driven evidence and freshness enforcement, runtime approval escalation, clarification contracts, abstention, and version-pinned plans.
-- `@lattice/importer-core`: deterministic OpenAPI and JSON Schema translation into checksum-stamped ontology proposals, operation discovery, response-field flattening, and collision analysis.
+- `@lattice/importer-core`: deterministic OpenAPI, JSON Schema, RDF/XML, Turtle, and CSV translation into checksum-stamped ontology proposals, operation discovery, response-field flattening, type inference, and collision analysis.
 - `@lattice/api`: dependency-light HTTP API with a persistent contract registry, immutable assurance and review artifacts, versioned releases, safe draft restoration, runtime suspension, server-derived identity, Ed25519 plan signing, plan verification, and clarification continuation.
 - `@lattice/studio`: a React context studio with a draggable ontology canvas, schema Import Studio, Source Binding Studio, Policy Studio, Assurance Studio, Review Queue, Evidence Registry, Release Management, field mapping validation, publish gates, registry-backed drafts, and live question compilation.
 
@@ -42,7 +42,7 @@ The Studio opens on the active industry workspace's **Shared ontology**. Fundame
 
 Open **Compiler** to inspect governed objects and relationships in a domain-neutral graph or table, trace their evidence, and compile the contract's competency question. The first-run guide can compile any active published example immediately, before authoring. The Grid example resolves its outage, traverses the governed `AFFECTED_ASSET` relationship, and returns a short-lived Ed25519-signed execution plan pinned to contract `0.1.1`.
 
-Within a workspace, drag types to arrange the canvas, draw between node handles to create relationships, and edit properties in the inspector. The always-visible header save persists the active shared-ontology or contract draft; publish remains a separate governed release action. **Import schema** is available from navigation and the ontology canvas. It accepts OpenAPI or JSON Schema as YAML/JSON, previews types and references, and lets an author merge, create, or skip every collision before staging an unpublished shared-ontology draft. Switch to **Compiler** to compile questions against a contract's latest published release.
+Within a workspace, drag types to arrange the canvas, draw between node handles to create relationships, and edit properties in the inspector. The always-visible header save persists the active shared-ontology or contract draft; publish remains a separate governed release action. **Import schema** is available from navigation and the ontology canvas. It accepts OpenAPI, JSON Schema, RDF/XML, Turtle, or CSV; previews OWL classes, datatype properties, object properties, schema references, and inferred tabular fields; and lets an author merge, create, or skip every collision before staging an unpublished shared-ontology draft. Switch to **Compiler** to compile questions against a contract's latest published release.
 
 Open workspace-level **Ontology bindings** to map shared master or reference data once, or contract-level **Source bindings** for decision-specific sources. Both support Databricks, Microsoft Fabric, Snowflake, BigQuery, PostgreSQL, Kafka, S3/ADLS/OneLake, and OpenAPI. API bindings discover response fields from OpenAPI; data-platform bindings ingest a declared row or event schema. Both flows suggest property mappings and stage the endpoint, read-only resource/query scope, external credential reference, freshness limit, permissions, and source checksum. Credential values are deliberately excluded.
 
@@ -116,7 +116,7 @@ docs/
 
 ## Next slices
 
-The current milestone proves the visual schema-authoring/import/versioning loop, a provider-neutral binding catalog with validation and dispatch seams, and the compile/clarify/escalate/abstain/sign/approve/execute loop. Multi-tenant storage remains intentionally deferred. The next implementation milestones are native Fabric/PostgreSQL/Kafka/object-storage gateway packages, live provider schema discovery, release diffs and rollback, OWL/RDF and CSV import adapters, OIDC/JWKS authentication, append-only evidence and audit storage, richer purpose-aware policy expressions, and additional industry packs.
+The current milestone proves the visual schema-authoring/import/versioning loop, standards and tabular ingestion, a provider-neutral binding catalog with validation and dispatch seams, safe release-to-draft restoration with working-copy diffs, and the compile/clarify/escalate/abstain/sign/approve/execute loop. Multi-tenant storage remains intentionally deferred. The remaining implementation milestones are native Fabric/PostgreSQL/Kafka/object-storage gateway packages, live provider schema discovery, release-to-release diff exports and controlled live-pointer rollback, OIDC/JWKS authentication, append-only evidence and audit storage, richer purpose-aware policy expressions, and additional industry packs.
 
 ## Design principles
 

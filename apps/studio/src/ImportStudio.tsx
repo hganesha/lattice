@@ -142,14 +142,14 @@ export function ImportStudio({ contract, onClose, onApply }: ImportStudioProps) 
       {!proposal ? <div className="import-source-layout">
         <section className="import-source-panel">
           <div className="import-section-title"><span>01</span><div><h2>{t('importBringSchema')}</h2><p>{t('importFormats')}</p></div></div>
-          <label className="file-drop"><input type="file" accept=".json,.yaml,.yml,application/json,application/yaml" onChange={(event) => void readFile(event)} /><span>⇧</span><b>{t('importChooseFile')}</b><small>{t('importPasteAlongside')}</small></label>
+          <label className="file-drop"><input type="file" accept=".json,.yaml,.yml,.rdf,.owl,.xml,.ttl,.turtle,.csv,application/json,application/yaml,application/rdf+xml,text/turtle,text/csv" onChange={(event) => void readFile(event)} /><span>⇧</span><b>{t('importChooseFile')}</b><small>{t('importPasteAlongside')}</small></label>
           <div className="import-divider"><span>{t('importOr')}</span></div>
           <label>{t('importSchemaSource')}<textarea value={sourceText} onChange={(event) => { setSourceText(event.target.value); setProposal(undefined) }} placeholder={t('importPastePlaceholder')} autoFocus /></label>
         </section>
         <aside className="import-config-panel">
           <div className="import-section-title"><span>02</span><div><h2>{t('importSourceContext')}</h2><p>{t('importProvenanceDescription')}</p></div></div>
           <label>{t('importSourceName')}<input value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="customer-api.yaml" /></label>
-          <label>{t('importSchemaFormat')}<select value={format} onChange={(event) => setFormat(event.target.value as ImportFormat)}><option value="AUTO">{t('importDetectAutomatically')}</option><option value="OPENAPI">OpenAPI</option><option value="JSON_SCHEMA">JSON Schema</option></select></label>
+          <label>{t('importSchemaFormat')}<select value={format} onChange={(event) => setFormat(event.target.value as ImportFormat)}><option value="AUTO">{t('importDetectAutomatically')}</option><option value="OPENAPI">OpenAPI</option><option value="JSON_SCHEMA">JSON Schema</option><option value="RDF_XML">RDF/XML · OWL</option><option value="TURTLE">Turtle · OWL</option><option value="CSV">CSV</option></select></label>
           <div className="import-safety"><b>{t('importNonDestructive')}</b><p>{t('importSafety')}</p></div>
           <button className="example-button" onClick={loadExample}>{t('importLoadExample')}</button>
           {error && <div className="wizard-error" role="alert">{error}</div>}
