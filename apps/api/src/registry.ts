@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import {
@@ -13,6 +13,7 @@ import {
   type IndustryOntology,
   type IndustryWorkspace,
   type RelationshipTypeDefinition,
+  type ReleaseControlEvent,
 } from '@lattice/contracts'
 
 interface RegistryDocument {
@@ -179,6 +180,7 @@ export class ContractRegistry {
       releases: existing?.releases ?? [],
       runtimeStatus: existing?.runtimeStatus ?? 'NO_RELEASE',
       ...(existing?.activeReleaseDigest ? { activeReleaseDigest: existing.activeReleaseDigest } : {}),
+      ...(existing?.releaseEvents ? { releaseEvents: existing.releaseEvents } : {}),
     }
     this.document.entries[contract.id] = entry
     if (workspace && !workspace.contractIds.includes(contract.id)) workspace.contractIds.push(contract.id)
@@ -217,6 +219,7 @@ export class ContractRegistry {
       releases: [...(existing?.releases ?? []), release],
       runtimeStatus: 'ACTIVE',
       activeReleaseDigest: digest,
+      ...(existing?.releaseEvents ? { releaseEvents: existing.releaseEvents } : {}),
     }
     this.document.entries[contract.id] = entry
     await this.persist()
@@ -248,6 +251,42 @@ export class ContractRegistry {
     this.document.entries[contractId] = entry
     await this.persist()
     return structuredClone(entry)
+  }
+
+  async rollbackRelease(contractId: string, digest: string, rationale: string, actorId: string, now = new Date()): Promise<{ entry: ContractRegistryEntry; event: ReleaseControlEvent }> {
+    const existing = this.document.entries[contractId]
+    if (!existing) throw new Error('CONTRACT_NOT_FOUND')
+    const target = existing.releases.find((candidate) => candidate.digest === digest)
+    if (!target) throw new Error('RELEASE_NOT_FOUND')
+    const current = existing.releases.find((candidate) => candidate.digest === existing.activeReleaseDigest) ?? existing.releases.at(-1)
+    if (!current) throw new Error('CONTRACT_HAS_NO_RELEASE')
+    if (current.digest === target.digest) throw new Error('RELEASE_ALREADY_ACTIVE')
+    const normalizedRationale = rationale.trim()
+    if (!normalizedRationale) throw new Error('ROLLBACK_RATIONALE_REQUIRED')
+    const occurredAt = now.toISOString()
+    const unsigned = {
+      contractId,
+      action: 'ACTIVE_RELEASE_ROLLED_BACK' as const,
+      fromRelease: { version: current.version, digest: current.digest },
+      toRelease: { version: target.version, digest: target.digest },
+      rationale: normalizedRationale,
+      actorId,
+      occurredAt,
+    }
+    const event: ReleaseControlEvent = {
+      id: `release_event_${randomUUID()}`,
+      ...unsigned,
+      artifactDigest: `sha256:${createHash('sha256').update(JSON.stringify(unsigned)).digest('hex')}`,
+    }
+    const entry: ContractRegistryEntry = {
+      ...existing,
+      activeReleaseDigest: target.digest,
+      updatedAt: occurredAt,
+      releaseEvents: [...(existing.releaseEvents ?? []), event],
+    }
+    this.document.entries[contractId] = entry
+    await this.persist()
+    return { entry: structuredClone(entry), event: structuredClone(event) }
   }
 
   private async persist(): Promise<void> {

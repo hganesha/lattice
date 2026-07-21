@@ -49,7 +49,17 @@
 .release-versions dd { max-width: 195px; margin: 0; color: var(--text-secondary); font: 6px DM Mono; text-align: right; overflow-wrap: anywhere; }
 .restore-button { width: calc(100% - 30px); margin: 14px 15px; padding: 9px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface-raised); color: var(--text-secondary); font: 7px DM Mono; cursor: pointer; }
 .restore-button:disabled { opacity: .42; cursor: not-allowed; }
+.rollback-button { width: calc(100% - 30px); margin: 0 15px 14px; padding: 9px; border: 1px solid var(--danger); border-radius: 6px; background: var(--danger-soft); color: var(--danger); font: 7px DM Mono; cursor: pointer; }
+.rollback-button:disabled { opacity: .42; cursor: not-allowed; }
+.release-rollback-form { margin: 0 15px 15px; padding: 10px; border: 1px solid var(--danger); border-radius: 7px; background: var(--surface-raised); }
+.release-rollback-form label { color: var(--text-secondary); font: 7px DM Mono; }
+.release-rollback-form textarea { width: 100%; min-height: 68px; margin-top: 7px; padding: 8px; resize: vertical; border: 1px solid var(--border-strong); border-radius: 5px; background: var(--surface); color: var(--text); font: 7px/1.5 Inter; }
+.release-rollback-form p { margin-top: 7px; color: var(--text-muted); font-size: 7px; line-height: 1.45; }
+.release-rollback-form > div { display: flex; justify-content: flex-end; gap: 7px; margin-top: 9px; }
 .release-impact { margin-top: 11px; }
+.release-diff-controls { display: flex; align-items: end; gap: 8px; }
+.release-diff-controls label { display: grid; gap: 4px; color: var(--text-muted); font: 6px DM Mono; }
+.release-diff-controls select { min-width: 130px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text-secondary); font: 7px DM Mono; }
 .bump-pill { padding: 5px 7px; border: 1px solid var(--accent); border-radius: 4px; color: var(--accent-strong); background: var(--accent-soft); font: 6px DM Mono; }
 .bump-pill.none { border-color: var(--border); color: var(--text-muted); background: var(--surface-soft); }
 .bump-pill.major { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }

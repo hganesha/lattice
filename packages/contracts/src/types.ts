@@ -497,6 +497,51 @@ export interface ContractRelease {
   contract: ContextContract
 }
 
+export type ReleaseChangeKind =
+  | 'CONTRACT_METADATA'
+  | 'ENTITY_TYPE'
+  | 'RELATIONSHIP_TYPE'
+  | 'COMPETENCY_QUESTION'
+  | 'OPERATION'
+  | 'SOURCE_BINDING'
+  | 'POLICY'
+  | 'METRIC'
+  | 'CONTEXT_OBJECT'
+  | 'RELATIONSHIP_ASSERTION'
+  | 'EVIDENCE'
+  | 'TEST'
+
+export interface ReleaseChange {
+  id: string
+  kind: ReleaseChangeKind
+  label: string
+  change: 'ADDED' | 'REMOVED' | 'CHANGED'
+  impact: 'PATCH' | 'MINOR' | 'MAJOR'
+}
+
+export interface ReleaseDiffArtifact {
+  id: string
+  contractId: string
+  fromRelease: { version: string; digest: string }
+  toRelease: { version: string; digest: string }
+  changes: ReleaseChange[]
+  suggestedBump: 'NONE' | 'PATCH' | 'MINOR' | 'MAJOR'
+  generatedAt: string
+  artifactDigest: string
+}
+
+export interface ReleaseControlEvent {
+  id: string
+  contractId: string
+  action: 'ACTIVE_RELEASE_ROLLED_BACK'
+  fromRelease: { version: string; digest: string }
+  toRelease: { version: string; digest: string }
+  rationale: string
+  actorId: string
+  occurredAt: string
+  artifactDigest: string
+}
+
 export interface ContractRegistryEntry {
   contractId: string
   draft: ContextContract
@@ -504,6 +549,7 @@ export interface ContractRegistryEntry {
   releases: ContractRelease[]
   runtimeStatus: ReleaseRuntimeStatus
   activeReleaseDigest?: string
+  releaseEvents?: ReleaseControlEvent[]
 }
 
 export type ReleaseRuntimeStatus = 'NO_RELEASE' | 'ACTIVE' | 'SUSPENDED'

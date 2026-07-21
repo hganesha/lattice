@@ -34,6 +34,7 @@ import { ReviewStore } from './reviewStore.js'
 import { ExecutionStore } from './executionStore.js'
 import { RuntimeApprovalStore } from './runtimeApprovalStore.js'
 import { validateConnectorBinding } from './connectors.js'
+import { buildReleaseDiffArtifact } from './releaseDiff.js'
 
 const port = Number(process.env.PORT ?? 8787)
 const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
@@ -395,6 +396,48 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    const releaseDiffMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/diffs$/)
+    if (request.method === 'GET' && releaseDiffMatch?.[1]) {
+      if (!authenticate(request)) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const fromDigest = url.searchParams.get('from')
+      const toDigest = url.searchParams.get('to')
+      if (!fromDigest || !toDigest) {
+        send(response, 400, { error: 'RELEASE_DIFF_ENDPOINTS_REQUIRED' })
+        return
+      }
+      const entry = registry.get(releaseDiffMatch[1])
+      if (!entry) {
+        send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
+        return
+      }
+      const from = entry.releases.find((release) => release.digest === fromDigest)
+      const to = entry.releases.find((release) => release.digest === toDigest)
+      if (!from || !to) {
+        send(response, 404, { error: 'RELEASE_NOT_FOUND' })
+        return
+      }
+      send(response, 200, buildReleaseDiffArtifact(entry.contractId, from, to))
+      return
+    }
+
+    const releaseEventsMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/release-events$/)
+    if (request.method === 'GET' && releaseEventsMatch?.[1]) {
+      if (!authenticate(request)) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const entry = registry.get(releaseEventsMatch[1])
+      if (!entry) {
+        send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
+        return
+      }
+      send(response, 200, entry.releaseEvents ?? [])
+      return
+    }
+
     const releaseMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/releases$/)
     if (request.method === 'POST' && releaseMatch?.[1]) {
       if (!authenticate(request)) {
@@ -447,6 +490,31 @@ const server = createServer(async (request, response) => {
       } catch (error) {
         const message = error instanceof Error ? error.message : 'RUNTIME_STATUS_FAILED'
         send(response, message === 'CONTRACT_NOT_FOUND' ? 404 : 409, { error: message })
+      }
+      return
+    }
+
+    const rollbackMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/rollbacks$/)
+    if (request.method === 'POST' && rollbackMatch?.[1]) {
+      const principal = authenticate(request)
+      if (!principal) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const body = await readJson<{ digest?: string; rationale?: string }>(request)
+      if (!body.digest) {
+        send(response, 400, { error: 'RELEASE_DIGEST_REQUIRED' })
+        return
+      }
+      if (!body.rationale?.trim()) {
+        send(response, 400, { error: 'ROLLBACK_RATIONALE_REQUIRED' })
+        return
+      }
+      try {
+        send(response, 200, await registry.rollbackRelease(rollbackMatch[1], body.digest, body.rationale, principal.principalId))
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'ROLLBACK_FAILED'
+        send(response, message === 'CONTRACT_NOT_FOUND' || message === 'RELEASE_NOT_FOUND' ? 404 : 409, { error: message })
       }
       return
     }

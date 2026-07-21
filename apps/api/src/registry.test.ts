@@ -47,6 +47,29 @@ test('restores an immutable release as a new unpublished draft', async () => {
   assert.equal(restored.runtimeStatus, 'ACTIVE')
 })
 
+test('rolls back the active release pointer and appends a digest-backed audit event', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-rollback-'))
+  const file = join(directory, 'registry.json')
+  const registry = await ContractRegistry.open(file, counterpartyRiskContract)
+  const first = registry.get(counterpartyRiskContract.id)!.releases[0]!
+  const draft = structuredClone(counterpartyRiskContract)
+  draft.description = 'A later valid release.'
+  const published = await registry.publish({ contract: draft, bump: 'minor', notes: 'Later release' })
+
+  const rolledBack = await registry.rollbackRelease(counterpartyRiskContract.id, first.digest, 'Production evidence requires returning to the prior governed release.', 'principal_release_manager', new Date('2026-07-21T12:00:00.000Z'))
+
+  assert.equal(rolledBack.entry.activeReleaseDigest, first.digest)
+  assert.equal(rolledBack.entry.releases.length, 2)
+  assert.equal(rolledBack.event.fromRelease.digest, published.release.digest)
+  assert.equal(rolledBack.event.toRelease.digest, first.digest)
+  assert.equal(rolledBack.event.actorId, 'principal_release_manager')
+  assert.match(rolledBack.event.artifactDigest, /^sha256:[a-f0-9]{64}$/)
+  assert.equal(rolledBack.entry.releaseEvents?.length, 1)
+  const reopened = await ContractRegistry.open(file, counterpartyRiskContract)
+  assert.equal(reopened.get(counterpartyRiskContract.id)?.releaseEvents?.[0]?.artifactDigest, rolledBack.event.artifactDigest)
+  await assert.rejects(() => reopened.rollbackRelease(counterpartyRiskContract.id, first.digest, 'Duplicate rollback.', 'principal_release_manager'), /RELEASE_ALREADY_ACTIVE/)
+})
+
 test('creates contracts on top of the generated industry ontology', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-create-'))
   const registry = await ContractRegistry.open(join(directory, 'registry.json'), counterpartyRiskContract)

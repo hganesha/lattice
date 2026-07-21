@@ -25,6 +25,10 @@ export function downloadOntology(document: OntologyExportDocument, format: Ontol
   downloadArtifact(artifact.content, artifact.filename, artifact.mediaType)
 }
 
+export function downloadJsonArtifact(document: unknown, filename: string): void {
+  downloadArtifact(JSON.stringify(document, null, 2), filename, 'application/json')
+}
+
 function downloadArtifact(content: string, filename: string, mediaType: string): void {
   const blob = new Blob([content], { type: mediaType })
   const url = URL.createObjectURL(blob)

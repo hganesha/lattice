@@ -17,7 +17,7 @@ The workspace includes published **counterparty exposure assurance** and **grid 
 - `@lattice/compiler-core`: deterministic operation/entity resolution, policy-driven evidence and freshness enforcement, runtime approval escalation, clarification contracts, abstention, and version-pinned plans.
 - `@lattice/importer-core`: deterministic OpenAPI, JSON Schema, RDF/XML, Turtle, and CSV translation into checksum-stamped ontology proposals, operation discovery, response-field flattening, type inference, and collision analysis.
 - `@lattice/exporter-core`: deterministic OWL ontology serialization to RDF/XML and Turtle with stable IRIs, XML escaping, datatype ranges, and Lattice governance annotations.
-- `@lattice/api`: dependency-light HTTP API with a persistent contract registry, immutable assurance and review artifacts, versioned releases, safe draft restoration, runtime suspension, server-derived identity, Ed25519 plan signing, plan verification, and clarification continuation.
+- `@lattice/api`: dependency-light HTTP API with a persistent contract registry, immutable assurance and review artifacts, versioned releases, digest-backed release diffs, audited active-pointer rollback, safe draft restoration, runtime suspension, server-derived identity, Ed25519 plan signing, plan verification, and clarification continuation.
 - `@lattice/studio`: a React context studio with a draggable ontology canvas, schema Import Studio, Source Binding Studio, Policy Studio, Assurance Studio, Review Queue, Evidence Registry, Release Management, field mapping validation, publish gates, registry-backed drafts, and live question compilation.
 
 ## Start locally
@@ -57,7 +57,7 @@ Open **Review queue** to submit semantic types, source bindings, and runtime pol
 
 Open **Evidence registry** to filter provenance artifacts by class and freshness, inspect validity and content digests, and trace each artifact to dependent context objects, relationships, bindings, review decisions, or assurance runs.
 
-Open **Release history** to inspect immutable releases and their version pins, compare any release with the working contract, view semantic-version and downstream-impact suggestions, suspend or resume runtime compilation, or restore an older release as a new unpublished draft. Restoration and suspension never rewrite release history.
+Open **Release history** to inspect immutable releases and their version pins, compare any two releases or a release with the working contract, download a digest-backed JSON diff, view semantic-version and downstream-impact suggestions, suspend or resume runtime compilation, restore an older release as a new unpublished draft, or move the active runtime pointer through a rationale-backed controlled rollback. Restoration, suspension, and rollback never rewrite release history; rollback appends an actor-attributed audit event.
 
 ## Try the compiler
 
@@ -86,7 +86,10 @@ Use `Arcadia` instead of `Arcadia Capital` to exercise the typed clarification p
 | `GET /v1/contracts/:id` | Retrieve a draft and immutable release history. |
 | `PUT /v1/contracts/:id` | Atomically persist an authenticated draft. |
 | `POST /v1/contracts/:id/releases` | Validate, version, hash, and publish an immutable release. |
+| `GET /v1/contracts/:id/diffs?from=:digest&to=:digest` | Compare two immutable releases and return a digest-backed change artifact. |
 | `POST /v1/contracts/:id/restores` | Restore an immutable release as a new unpublished draft without moving the live pointer. |
+| `POST /v1/contracts/:id/rollbacks` | Move the active release pointer with an authenticated actor and mandatory rationale. |
+| `GET /v1/contracts/:id/release-events` | List append-only active-release control events. |
 | `POST /v1/contracts/:id/runtime-status` | Suspend or resume runtime compilation without mutating releases. |
 | `POST /v1/imports/preview` | Analyze an authenticated OpenAPI/JSON Schema source and return a non-mutating, checksum-stamped proposal. |
 | `POST /v1/bindings/preview` | Discover OpenAPI operations or tabular fields and flatten them for semantic mapping. |
@@ -118,7 +121,7 @@ docs/
 
 ## Next slices
 
-The current milestone proves the visual schema-authoring/import/versioning loop, standards and tabular ingestion, a provider-neutral binding catalog with validation and dispatch seams, safe release-to-draft restoration with working-copy diffs, and the compile/clarify/escalate/abstain/sign/approve/execute loop. Multi-tenant storage remains intentionally deferred. The remaining implementation milestones are native Fabric/PostgreSQL/Kafka/object-storage gateway packages, live provider schema discovery, release-to-release diff exports and controlled live-pointer rollback, OIDC/JWKS authentication, append-only evidence and audit storage, richer purpose-aware policy expressions, and additional industry packs.
+The current milestone proves the visual schema-authoring/import/versioning loop, standards and tabular ingestion, a provider-neutral binding catalog with validation and dispatch seams, digest-backed release comparison, safe release-to-draft restoration, controlled active-pointer rollback, and the compile/clarify/escalate/abstain/sign/approve/execute loop. Multi-tenant storage remains intentionally deferred. The remaining implementation milestones are native Fabric/PostgreSQL/Kafka/object-storage gateway packages, live provider schema discovery, OIDC/JWKS authentication, a dedicated append-only evidence and audit ledger, richer purpose-aware policy expressions, and additional industry packs.
 
 ## Design principles
 
