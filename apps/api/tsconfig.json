@@ -7,5 +7,10 @@
     "outDir": "dist",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../../packages/contracts" },
+    { "path": "../../packages/compiler-core" },
+    { "path": "../../packages/importer-core" }
+  ]
 }
