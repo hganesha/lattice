@@ -67,6 +67,7 @@
   --info-soft: #14212f;
   --selection: #70aef7;
   --selection-soft: #16273a;
+  --danger-soft: #2a1513;
 }
 
 :root[data-theme="light"] {
@@ -95,6 +96,7 @@
   --info-soft: #dde9fb;
   --selection: #176fc1;
   --selection-soft: #dbe9fb;
+  --danger-soft: #f6dedb;
 }
 
 html { background: var(--canvas); }
