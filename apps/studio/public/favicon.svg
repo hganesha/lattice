@@ -1,4 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <style>
+    line { stroke: #1e2632; }
+    @media (prefers-color-scheme: dark) { line { stroke: #e8ecf0; } }
+  </style>
   <g stroke="#1e2632" stroke-width="5.2" stroke-linecap="round">
     <!-- "\" strokes (slope +1) -->
     <line x1="29.2" y1="3.2"  x2="60.8" y2="34.8" />
