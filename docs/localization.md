@@ -15,4 +15,4 @@ Interface instructions, actions, labels, empty states, and client-authored valid
 
 ## QA
 
-Use **Appearance → Language → Pseudo** to expose missed strings and stress layouts. Verify each route at default and large text scales in both light and dark themes. English and Spanish are left-to-right; adding an RTL language requires logical CSS properties, mirrored graph/navigation affordances, and an RTL visual regression pass before it can be declared supported.
+Choose **Pseudo** from the header language dropdown to expose missed strings and stress layouts. Verify each route at normal and large text scales in both light and dark themes. English and Spanish are left-to-right; adding an RTL language requires logical CSS properties, mirrored graph/navigation affordances, and an RTL visual regression pass before it can be declared supported.

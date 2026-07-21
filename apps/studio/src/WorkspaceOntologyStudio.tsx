@@ -21,7 +21,7 @@ export function WorkspaceOntologyStudio({ workspace, seedContract, onWorkspaceDr
     })
   }
 
-  return <OntologyBuilder contract={contractFromOntology(seedContract, workspace.ontology)} mode="workspace" onChange={updateOntology} onDirtyChange={onDirtyChange} />
+  return <OntologyBuilder contract={contractFromOntology(seedContract, workspace.ontology)} mode="workspace" exportDocument={workspace.ontology} onChange={updateOntology} onDirtyChange={onDirtyChange} />
 }
 
 function contractFromOntology(contract: ContextContract, ontology: IndustryOntology): ContextContract {

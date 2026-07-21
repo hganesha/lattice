@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { CompileResponse, ContractRegistryEntry, ContractSummary } from '@lattice/contracts'
 import { API_URL } from './api'
+import { EnterpriseUseCaseCarousel } from './EnterpriseUseCaseCarousel'
 import { useMessages } from './i18n/messages'
 
 interface WelcomeStudioProps {
@@ -49,6 +50,7 @@ export function WelcomeStudio({ contracts, onClose, onExplore, onCreate }: Welco
         <li><span>3</span><div><b>{t('welcomeCompile')}</b><small>{t('welcomeCompileDetail')}</small></div></li>
         <li><span>4</span><div><b>{t('welcomeAudit')}</b><small>{t('welcomeAuditDetail')}</small></div></li>
       </ol>
+      <EnterpriseUseCaseCarousel />
       <div className="welcome-examples">
         <div><span className="panel-kicker">{t('welcomeTryNow').toLocaleUpperCase()}</span><h2>{t('welcomePublishedExamples')}</h2></div>
         {published.map((example) => <button onClick={() => void tryExample(example.contractId)} disabled={Boolean(tryingId)} key={example.contractId}><span>✦</span><div><b>{example.name}</b><small>{example.domain.replaceAll('_', ' ')} · v{example.latestRelease?.version ?? example.draftVersion}</small></div><em>{tryingId === example.contractId ? t('runtimeCompiling') : t('welcomeCompileExample')} →</em></button>)}

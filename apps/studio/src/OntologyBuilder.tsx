@@ -15,6 +15,7 @@ import type {
   ContractRegistryEntry,
   ContractRelease,
   EntityTypeDefinition,
+  IndustryOntology,
   PropertyDefinition,
   RelationshipTypeDefinition,
 } from '@lattice/contracts'
@@ -25,6 +26,7 @@ import { OntologyLaneNode, type OntologyLaneNodeType } from './OntologyLaneNode'
 import { buildOntologyLaneLayout } from './ontologyLaneLayout'
 import { Toast } from './Toast'
 import { DomainGroupField } from './DomainGroupField'
+import { downloadJson } from './jsonExport'
 
 const ontologyNodeTypes = { ontologyLane: OntologyLaneNode }
 
@@ -35,9 +37,10 @@ interface OntologyBuilderProps {
   onChange: (contract: ContextContract) => void
   onDirtyChange: (dirty: boolean) => void
   mode?: 'contract' | 'workspace'
+  exportDocument?: ContextContract | IndustryOntology
 }
 
-export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'contract' }: OntologyBuilderProps) {
+export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'contract', exportDocument = contract }: OntologyBuilderProps) {
   const { t, formatDate } = useMessages()
   const [selectedTypeId, setSelectedTypeId] = useState(contract.entityTypes[0]?.id ?? '')
   const [dialog, setDialog] = useState<BuilderDialog>(null)
@@ -264,13 +267,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   }
 
   function exportContract() {
-    const blob = new Blob([JSON.stringify(contract, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `${contract.id}-${contract.version}.json`
-    anchor.click()
-    URL.revokeObjectURL(url)
+    downloadJson(exportDocument)
     setNotice(t('ontologyExportNotice'))
   }
 
