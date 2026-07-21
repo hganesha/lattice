@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1.0",
+  "approvals": [
+    {
+      "id": "runtime_approval_a8ba1d52-ffc5-42cd-b823-2ba3b806bf8d",
+      "contractId": "contract-grid-outage-response",
+      "contractVersion": "0.2.0",
+      "contractDigest": "sha256:dde28122bac9572fed6f89551dedc13f1e39e6bf0f452417064cc231ffc3d316",
+      "operationId": "grid.get_outage_context",
+      "policyId": "policy-informational",
+      "riskTier": "PLANNING_DECISION",
+      "requestedBy": "principal_studiod",
+      "pendingPlan": {
+        "schemaVersion": "1.0",
+        "planId": "plan_93847fbc-ce41-4c1f-9914-196e564fd794",
+        "resolutionId": "res_e6dc462d-664b-4f41-90b4-e458ebc42b11",
+        "decision": "RESOLVED",
+        "riskTier": "PLANNING_DECISION",
+        "operation": "grid.get_outage_context",
+        "arguments": {
+          "outage_event": {
+            "entityId": "OUTAGE-NORTH-042"
+          },
+          "grid_asset": {
+            "entityId": "ASSET-SUB-NORTH-01"
+          }
+        },
+        "metrics": [],
+        "sourceBindings": [
+          "binding_grid_operations_api_grid_get_outage_context"
+        ],
+        "requiredPermissions": [
+          "grid.outage.read"
+        ],
+        "expectedResultSchema": "grid_get_outage_context_response",
+        "evidenceRefs": [
+          "ev-grid-operations-outage-042"
+        ],
+        "versions": {
+          "contract": "contract-grid-outage-response@0.2.0",
+          "semantic": "energy@0.1.0",
+          "policy": "contract-grid-outage-response-policies@0.2.0",
+          "bindings": "contract-grid-outage-response-bindings@0.2.0",
+          "api": "compile@1.0"
+        },
+        "contractDigest": "sha256:dde28122bac9572fed6f89551dedc13f1e39e6bf0f452417064cc231ffc3d316",
+        "expiresAt": "2026-07-19T21:18:26.702Z",
+        "nonce": "5581c5d0-d33c-487d-89bf-5b8410463dc7"
+      },
+      "requestedAt": "2026-07-19T21:08:26.702Z",
+      "expiresAt": "2026-07-20T21:08:26.702Z",
+      "status": "RESUMED",
+      "artifactDigest": "sha256:3fac1533bd477ae5f810fb5b06c27da12617e4cf15c06ef29497d688a331d36b",
+      "decision": {
+        "id": "runtime_decision_12cdd343-1777-4b83-a797-ee0ac44cc2ff",
+        "approvalId": "runtime_approval_a8ba1d52-ffc5-42cd-b823-2ba3b806bf8d",
+        "decision": "APPROVED",
+        "rationale": "Approved for outage prioritization using the published v0.2.0 evidence and declared Grid permission.",
+        "decidedAt": "2026-07-19T21:09:35.092Z",
+        "decidedBy": "principal_studior",
+        "artifactDigest": "sha256:e9453150ce48e6871233463cb97cdfc293cb76ffd30292e9dd1991be2a268b6c"
+      },
+      "resumedAt": "2026-07-19T21:09:39.950Z",
+      "signedPlanId": "plan_fead476a-6a00-44b6-be51-7c6e6c1e0aa9"
+    }
+  ]
+}

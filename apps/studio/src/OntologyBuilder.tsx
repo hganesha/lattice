@@ -1,0 +1,502 @@
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import {
+  Background,
+  Controls,
+  MiniMap,
+  Position,
+  ReactFlow,
+  useNodesState,
+  type Connection,
+  type Edge,
+  type Node,
+} from '@xyflow/react'
+import type {
+  ContextContract,
+  ContractRegistryEntry,
+  ContractRelease,
+  EntityTypeDefinition,
+  PropertyDefinition,
+  RelationshipTypeDefinition,
+} from '@lattice/contracts'
+import { API_URL } from './api'
+import { ImportStudio } from './ImportStudio'
+import { useMessages } from './i18n/messages'
+import { OntologyLaneNode, type OntologyLaneNodeType } from './OntologyLaneNode'
+import { buildOntologyLaneLayout } from './ontologyLaneLayout'
+import { Toast } from './Toast'
+import { DomainGroupField } from './DomainGroupField'
+
+const ontologyNodeTypes = { ontologyLane: OntologyLaneNode }
+
+type BuilderDialog = 'entity' | 'relationship' | 'property' | 'publish' | null
+
+interface OntologyBuilderProps {
+  contract: ContextContract
+  onChange: (contract: ContextContract) => void
+  onDirtyChange: (dirty: boolean) => void
+  mode?: 'contract' | 'workspace'
+  onSave?: (contract: ContextContract) => Promise<{ contract: ContextContract; updatedAt: string }>
+}
+
+export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'contract', onSave }: OntologyBuilderProps) {
+  const { t, formatDate, formatTime } = useMessages()
+  const [selectedTypeId, setSelectedTypeId] = useState(contract.entityTypes[0]?.id ?? '')
+  const [dialog, setDialog] = useState<BuilderDialog>(null)
+  const [notice, setNotice] = useState('')
+  const [pendingConnection, setPendingConnection] = useState<Connection>()
+  const [releases, setReleases] = useState<ContractRelease[]>([])
+  const [saving, setSaving] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [inspectorTab, setInspectorTab] = useState<'DEFINITION' | 'HISTORY'>('DEFINITION')
+  const [autoLayoutEnabled, setAutoLayoutEnabled] = useState(true)
+  const [manualLayout, setManualLayout] = useState<NonNullable<ContextContract['schemaLayout']>>(contract.schemaLayout ?? {})
+
+  const selectedType = contract.entityTypes.find((type) => type.id === selectedTypeId)
+  const issues = useMemo(() => validateContract(contract, mode === 'workspace'), [contract, mode])
+  const domainGroupLabel = t('ontologyDomainGroup')
+  const domainGroups = useMemo(() => uniqueDomainGroups(contract.entityTypes), [contract.entityTypes])
+  const laneLayout = useMemo(() => buildOntologyLaneLayout(contract.entityTypes), [contract.entityTypes])
+  const resolvedPositions = useMemo(() => autoLayoutEnabled
+    ? laneLayout.positions
+    : { ...laneLayout.positions, ...manualLayout }, [autoLayoutEnabled, laneLayout.positions, manualLayout])
+  const derivedNodes = useMemo<Node[]>(() => [
+    ...laneLayout.lanes.map((lane): OntologyLaneNodeType => ({
+      id: `__lane_${lane.id}`,
+      type: 'ontologyLane',
+      position: lane.position,
+      data: { label: lane.label, count: lane.entityTypeIds.length, kindLabel: domainGroupLabel },
+      style: { width: lane.width, height: lane.height },
+      className: 'ontology-lane-node',
+      draggable: false,
+      selectable: false,
+      connectable: false,
+      focusable: false,
+      zIndex: -1,
+    })),
+    ...contract.entityTypes.map((type) => ({
+      id: type.id,
+      position: resolvedPositions[type.id]!,
+      data: { label: `${type.icon}  ${type.label}  ·  ${type.properties.length} props` },
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+      className: `ontology-flow-node ${type.approvalStatus === 'APPROVED' ? 'approved' : 'draft'} ${selectedTypeId === type.id ? 'selected' : ''}`,
+      zIndex: 2,
+    })),
+  ], [contract.entityTypes, domainGroupLabel, laneLayout.lanes, resolvedPositions, selectedTypeId])
+  const [graphNodes, setGraphNodes, onNodesChange] = useNodesState(derivedNodes)
+  const graphEdges = useMemo<Edge[]>(() => contract.relationshipTypes.map((relationship) => ({
+    id: relationship.id,
+    source: relationship.sourceTypeId,
+    target: relationship.targetTypeId,
+    label: relationship.label,
+    type: 'smoothstep',
+    pathOptions: { offset: 44, borderRadius: 8 },
+    labelShowBg: true,
+    labelBgPadding: [6, 4],
+    labelBgBorderRadius: 4,
+    className: 'ontology-flow-edge',
+  })), [contract.relationshipTypes])
+
+  useEffect(() => {
+    if (mode === 'workspace') return
+    const controller = new AbortController()
+    setReleases([])
+    void fetch(`${API_URL}/v1/contracts/${contract.id}`, { signal: controller.signal })
+      .then((response) => response.ok ? response.json() as Promise<ContractRegistryEntry> : undefined)
+      .then((entry) => { if (entry) setReleases(entry.releases) })
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [contract.id, mode])
+
+  useEffect(() => {
+    if (!contract.entityTypes.some((type) => type.id === selectedTypeId)) {
+      setSelectedTypeId(contract.entityTypes[0]?.id ?? '')
+    }
+  }, [contract.entityTypes, selectedTypeId])
+
+  useEffect(() => {
+    setAutoLayoutEnabled(true)
+    setManualLayout(contract.schemaLayout ?? {})
+  }, [contract.id])
+
+  useEffect(() => {
+    setGraphNodes(derivedNodes)
+  }, [derivedNodes, setGraphNodes])
+
+  function commit(next: ContextContract) {
+    onChange(next)
+    onDirtyChange(true)
+    setNotice(t('ontologyUnsavedNotice'))
+  }
+
+  function addEntityType(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const label = String(data.get('label') ?? '').trim()
+    const id = uniqueId(slugify(label), contract.entityTypes.map((type) => type.id))
+    const entityType: EntityTypeDefinition = {
+      id,
+      label,
+      description: String(data.get('description') ?? '').trim(),
+      group: String(data.get('group') ?? 'Core').trim() || 'Core',
+      icon: String(data.get('icon') ?? label.slice(0, 2)).trim().slice(0, 2).toUpperCase() || 'EN',
+      properties: [],
+      evidenceStatus: 'DECLARED',
+      approvalStatus: 'DRAFT',
+      impact: String(data.get('impact') ?? 'MEDIUM') as EntityTypeDefinition['impact'],
+    }
+    const entityTypes = [...contract.entityTypes, entityType]
+    commit({
+      ...contract,
+      entityTypes,
+      schemaLayout: buildOntologyLaneLayout(entityTypes).positions,
+    })
+    setSelectedTypeId(entityType.id)
+    setDialog(null)
+  }
+
+  function addRelationship(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const label = String(data.get('label') ?? '').trim()
+    const relationship: RelationshipTypeDefinition = {
+      id: uniqueId(slugify(label), contract.relationshipTypes.map((type) => type.id)),
+      label: label.toLocaleUpperCase().replaceAll(' ', '_'),
+      sourceTypeId: String(data.get('sourceTypeId')),
+      targetTypeId: String(data.get('targetTypeId')),
+      cardinality: String(data.get('cardinality')) as RelationshipTypeDefinition['cardinality'],
+      description: String(data.get('description') ?? '').trim(),
+      impact: String(data.get('impact') ?? 'MEDIUM') as RelationshipTypeDefinition['impact'],
+    }
+    commit({ ...contract, relationshipTypes: [...contract.relationshipTypes, relationship] })
+    setPendingConnection(undefined)
+    setDialog(null)
+  }
+
+  function addProperty(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedType) return
+    const data = new FormData(event.currentTarget)
+    const name = String(data.get('name') ?? '').trim()
+    const property: PropertyDefinition = {
+      id: `${selectedType.id}.${slugify(name)}`,
+      name,
+      dataType: String(data.get('dataType')) as PropertyDefinition['dataType'],
+      description: String(data.get('description') ?? '').trim(),
+      required: data.get('required') === 'on',
+      identifier: data.get('identifier') === 'on',
+    }
+    updateSelected({ properties: [...selectedType.properties, property] })
+    setDialog(null)
+  }
+
+  function updateSelected(patch: Partial<EntityTypeDefinition>) {
+    if (!selectedType) return
+    const entityTypes = contract.entityTypes.map((type) => type.id === selectedType.id ? { ...type, ...patch } : type)
+    if (patch.group !== undefined) {
+      setManualLayout((current) => {
+        const next = { ...current }
+        delete next[selectedType.id]
+        return next
+      })
+    }
+    commit({
+      ...contract,
+      entityTypes,
+      ...(patch.group !== undefined ? { schemaLayout: buildOntologyLaneLayout(entityTypes).positions } : {}),
+    })
+  }
+
+  async function saveDraft() {
+    setSaving(true)
+    try {
+      if (onSave) {
+        const saved = await onSave(contract)
+        onChange(saved.contract)
+        onDirtyChange(false)
+        setNotice(t('ontologySavedNotice', { time: formatTime(saved.updatedAt, { hour: '2-digit', minute: '2-digit' }) }))
+        return
+      }
+      const response = await fetch(`${API_URL}/v1/contracts/${contract.id}`, {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contract }),
+      })
+      if (!response.ok) throw new Error(`Registry returned ${response.status}`)
+      const entry = await response.json() as ContractRegistryEntry
+      localStorage.setItem('lattice:contract-draft', JSON.stringify(entry.draft))
+      onChange(entry.draft)
+      onDirtyChange(false)
+      setReleases(entry.releases)
+      setNotice(t('ontologySavedNotice', { time: formatTime(entry.updatedAt, { hour: '2-digit', minute: '2-digit' }) }))
+    } catch (error) {
+      localStorage.setItem('lattice:contract-draft', JSON.stringify(contract))
+      setNotice(`Registry unavailable; saved locally. ${error instanceof Error ? error.message : ''}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function publishContract(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    setSaving(true)
+    try {
+      const response = await fetch(`${API_URL}/v1/contracts/${contract.id}/releases`, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contract,
+          bump: String(data.get('bump')),
+          notes: String(data.get('notes') ?? ''),
+        }),
+      })
+      const payload = await response.json() as { entry?: ContractRegistryEntry; release?: ContractRelease; issues?: string[]; error?: string }
+      if (!response.ok || !payload.entry || !payload.release) throw new Error(payload.issues?.join(' ') || payload.error || `Publish failed (${response.status})`)
+      onChange(payload.release.contract)
+      onDirtyChange(false)
+      localStorage.setItem('lattice:contract-draft', JSON.stringify(payload.release.contract))
+      setReleases(payload.entry.releases)
+      setDialog(null)
+      setNotice(`Published ${payload.release.version} · ${payload.release.digest.slice(0, 22)}…`)
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : t('ontologyPublishFailed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleConnect(connection: Connection) {
+    if (!connection.source || !connection.target) return
+    setPendingConnection(connection)
+    setDialog('relationship')
+  }
+
+  function toggleAutoLayout() {
+    if (autoLayoutEnabled) {
+      const positions = Object.fromEntries(graphNodes
+        .filter((node) => !node.id.startsWith('__lane_'))
+        .map((node) => [node.id, node.position]))
+      setManualLayout(positions)
+      setAutoLayoutEnabled(false)
+      return
+    }
+    setAutoLayoutEnabled(true)
+    setManualLayout(laneLayout.positions)
+    commit({ ...contract, schemaLayout: laneLayout.positions })
+    setNotice(t('ontologyLayoutNotice'))
+  }
+
+  function persistManualPosition(node: Node) {
+    if (autoLayoutEnabled || node.id.startsWith('__lane_')) return
+    const schemaLayout = { ...manualLayout, [node.id]: node.position }
+    setManualLayout(schemaLayout)
+    commit({ ...contract, schemaLayout })
+  }
+
+  function exportContract() {
+    const blob = new Blob([JSON.stringify(contract, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `${contract.id}-${contract.version}.json`
+    anchor.click()
+    URL.revokeObjectURL(url)
+    setNotice(t('ontologyExportNotice'))
+  }
+
+  return (
+    <>
+      {notice && <Toast message={notice} closeLabel={t('commonClose')} onDismiss={() => setNotice('')} />}
+
+      <div className="builder-workbench">
+        <section className="schema-panel panel">
+          <div className="panel-header ontology-model-header">
+            <div><span className="panel-kicker">{t('ontologyEditableModel').toLocaleUpperCase()}</span><h2>{contract.name}</h2></div>
+            <div className="ontology-model-tools">
+              <div className="builder-meta"><span>{t('ontologyTypeCount', { count: contract.entityTypes.length })}</span><span>{t('ontologyRelationCount', { count: contract.relationshipTypes.length })}</span><button onClick={exportContract}>{t('ontologyExportJson')}</button></div>
+              <div className="model-actions">
+                <button className="ghost import-launch" onClick={() => setImportOpen(true)}>{t('ontologyImportSchema')}</button>
+                <button className="ghost" onClick={() => setDialog('relationship')}>{t('ontologyAddRelationship')}</button>
+                <button className="ghost" onClick={() => setDialog('entity')}>{t('ontologyAddEntityType')}</button>
+                <button className={`ghost layout-toggle ${autoLayoutEnabled ? 'active' : ''}`} aria-pressed={autoLayoutEnabled} onClick={toggleAutoLayout}>{t('ontologyAutoLayout')} <span>{autoLayoutEnabled ? 'ON' : 'OFF'}</span></button>
+                <button className="compile-button" onClick={() => void saveDraft()} disabled={saving}>{saving ? t('commonSaving') : mode === 'workspace' ? t('ontologySaveFoundation') : t('commonSaveDraft')}</button>
+                {mode === 'contract' && <button className="release" onClick={() => setDialog('publish')} disabled={saving || issues.length > 0}>{t('ontologyPublishRelease')}</button>}
+              </div>
+            </div>
+          </div>
+          <div className="schema-canvas flow-mode">
+            <ReactFlow
+              nodes={graphNodes}
+              edges={graphEdges}
+              onNodesChange={onNodesChange}
+              onNodeDragStop={(_event, node) => persistManualPosition(node)}
+              onNodeClick={(_event, node) => { if (!node.id.startsWith('__lane_')) setSelectedTypeId(node.id) }}
+              onConnect={handleConnect}
+              fitView
+              fitViewOptions={{ padding: 0.18 }}
+              minZoom={0.35}
+              maxZoom={1.8}
+              snapToGrid
+              snapGrid={[15, 15]}
+              nodesDraggable={!autoLayoutEnabled}
+              nodeTypes={ontologyNodeTypes}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background gap={18} size={1} color="#28302e" />
+              <MiniMap pannable zoomable nodeColor={(node) => node.className?.includes('draft') ? '#d9a04f' : '#8bd14e'} maskColor="#080b0dcc" />
+              <Controls showInteractive={false} />
+            </ReactFlow>
+            {contract.entityTypes.length === 0 && <div className="empty-canvas"><span>◇</span><h3>{t('ontologyEmptyTitle')}</h3><p>{t('ontologyEmptyDescription')}</p><button className="release" onClick={() => setDialog('entity')}>{t('ontologyCreateFirstType')}</button></div>}
+            <div className="canvas-hint"><span>{t('ontologyConnectNodes')}</span></div>
+          </div>
+          <div className="relation-strip">
+            <div className="relation-strip-heading"><span>{t('ontologyRelationshipTypes').toLocaleUpperCase()}</span><button onClick={() => setDialog('relationship')}>{t('ontologyAdd')}</button></div>
+            <div className="relation-list" tabIndex={0} aria-label={t('ontologyRelationshipTypes')}>
+              {contract.relationshipTypes.map((relation) => <div className="relation-chip" key={relation.id}><span>{typeLabel(contract, relation.sourceTypeId)}</span><b>— {relation.label} →</b><span>{typeLabel(contract, relation.targetTypeId)}</span><em>{relation.cardinality.replaceAll('_', ' : ')}</em></div>)}
+            </div>
+          </div>
+          {mode === 'contract' && <div className="release-history">
+            <div className="relation-strip-heading"><span>{t('ontologyReleaseHistory').toLocaleUpperCase()}</span><em>{t('ontologyImmutableVersions', { count: releases.length })}</em></div>
+            <div className="release-list">{releases.slice().reverse().slice(0, 4).map((release) => <div key={release.digest}><b>v{release.version}</b><span>{release.notes}</span><code>{release.digest.slice(0, 18)}…</code><time>{formatDate(release.publishedAt, { dateStyle: 'medium' })}</time></div>)}</div>
+          </div>}
+        </section>
+
+        <aside className="builder-inspector panel">
+          <div className="inspector-tabs" role="tablist" aria-label={t('ontologyInspectorLabel')}><button role="tab" aria-selected={inspectorTab === 'DEFINITION'} className={inspectorTab === 'DEFINITION' ? 'active' : ''} onClick={() => setInspectorTab('DEFINITION')}>{t('ontologyTypeDefinition')}</button>{mode === 'contract' && <button role="tab" aria-selected={inspectorTab === 'HISTORY'} className={inspectorTab === 'HISTORY' ? 'active' : ''} onClick={() => setInspectorTab('HISTORY')}>{t('ontologyHistory')}</button>}</div>
+          {selectedType && inspectorTab === 'DEFINITION' ? <div className="type-form">
+            <div className="entity-title"><span className="large-icon">{selectedType.icon}</span><div><span>{t('ontologyEntityType').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
+            <label>{t('ontologyDisplayName')}<input value={selectedType.label} onChange={(event) => updateSelected({ label: event.target.value })} /></label>
+            <label>{t('ontologyDescription')}<textarea value={selectedType.description} onChange={(event) => updateSelected({ description: event.target.value })} /></label>
+            <div className="form-split"><DomainGroupField key={selectedType.id} groups={domainGroups} label={t('ontologyDomainGroup')} value={selectedType.group} addGroupLabel={t('ontologyAddDomainGroup')} newGroupLabel={t('ontologyNewDomainGroup')} newGroupPlaceholder={t('ontologyNewDomainGroupPlaceholder')} onChange={(group) => updateSelected({ group })} /><label>{t('ontologyImpact')}<select value={selectedType.impact} onChange={(event) => updateSelected({ impact: event.target.value as EntityTypeDefinition['impact'] })}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label></div>
+            <div className="property-heading"><div><span>{t('ontologyProperties').toLocaleUpperCase()}</span><em>{selectedType.properties.length}</em></div><button onClick={() => setDialog('property')}>{t('ontologyAddProperty')}</button></div>
+            <div className="property-list">
+              {selectedType.properties.length === 0 && <div className="empty-properties"><span>◇</span><b>{t('ontologyNoProperties')}</b><small>{t('ontologyNoPropertiesDescription')}</small></div>}
+              {selectedType.properties.map((property) => <div className="property-row" key={property.id}><span className="property-symbol">{property.identifier ? '#' : '•'}</span><div><b>{property.name}</b><small>{property.dataType}{property.required ? ` · ${t('ontologyRequired')}` : ''}</small></div><code>{property.id.split('.').at(-1)}</code></div>)}
+            </div>
+          </div> : selectedType && inspectorTab === 'HISTORY' ? <div className="type-history">
+            <div className="entity-title"><span className="large-icon">↺</span><div><span>{t('ontologyImmutableTypeHistory').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
+            <div className="type-history-list">
+              {releases.slice().reverse().map((release) => {
+                const releasedType = release.contract.entityTypes.find((type) => type.id === selectedType.id)
+                return releasedType ? <article key={release.digest}><div><b>v{release.version}</b><time>{formatDate(release.publishedAt, { dateStyle: 'medium', timeStyle: 'short' })}</time></div><p>{releasedType.label} · {t('governedProperties', { count: releasedType.properties.length })} · {releasedType.approvalStatus.toLocaleLowerCase()}</p><code>{release.digest.slice(0, 24)}…</code></article> : null
+              })}
+              {!releases.some((release) => release.contract.entityTypes.some((type) => type.id === selectedType.id)) && <div className="empty-properties"><span>↺</span><b>{t('ontologyNotPublished')}</b><small>{t('ontologyNotPublishedDescription')}</small></div>}
+            </div>
+          </div> : <div className="empty-properties"><span>◇</span><b>{t('ontologySelectEntity')}</b></div>}
+        </aside>
+      </div>
+
+      <section className="validation-panel">
+        <div><span className={issues.length === 0 ? 'validation-pass' : 'validation-warn'}>{issues.length === 0 ? '✓' : '!'}</span><div><span>{t('ontologyContractValidation').toLocaleUpperCase()}</span><b>{issues.length === 0 ? t('ontologySchemaValid') : t('ontologyIssues', { count: issues.length })}</b></div></div>
+        <div className="validation-checks"><span className={issues.some((issue) => issue.includes('entity type is required')) ? 'fail' : 'pass'}>{t('ontologyEntityModel')}</span><span className="pass">{t('ontologyUniqueIdentifiers')}</span><span className={issues.some((issue) => issue.includes('relationship')) ? 'fail' : 'pass'}>{t('ontologyValidEndpoints')}</span><span className={issues.some((issue) => issue.includes('description')) ? 'fail' : 'pass'}>{t('ontologyDocumentedTypes')}</span></div>
+      </section>
+
+      {dialog && <BuilderModal dialog={dialog} contract={contract} domainGroups={domainGroups} selectedType={selectedType} pendingConnection={pendingConnection} releases={releases} saving={saving} onClose={() => { setDialog(null); setPendingConnection(undefined) }} onEntity={addEntityType} onRelationship={addRelationship} onProperty={addProperty} onPublish={publishContract} />}
+      {importOpen && <ImportStudio contract={contract} onClose={() => setImportOpen(false)} onApply={(next, summary) => { commit(next); setNotice(summary); setImportOpen(false) }} />}
+    </>
+  )
+}
+
+interface BuilderModalProps {
+  dialog: Exclude<BuilderDialog, null>
+  contract: ContextContract
+  domainGroups: string[]
+  selectedType: EntityTypeDefinition | undefined
+  pendingConnection: Connection | undefined
+  releases: ContractRelease[]
+  saving: boolean
+  onClose: () => void
+  onEntity: (event: FormEvent<HTMLFormElement>) => void
+  onRelationship: (event: FormEvent<HTMLFormElement>) => void
+  onProperty: (event: FormEvent<HTMLFormElement>) => void
+  onPublish: (event: FormEvent<HTMLFormElement>) => void
+}
+
+function BuilderModal({ dialog, contract, domainGroups, selectedType, pendingConnection, releases, saving, onClose, onEntity, onRelationship, onProperty, onPublish }: BuilderModalProps) {
+  const { t } = useMessages()
+  const [selectedBump, setSelectedBump] = useState<'major' | 'minor' | 'patch'>('minor')
+  const title = dialog === 'entity' ? t('ontologyCreateEntityTitle') : dialog === 'relationship' ? t('ontologyConnectEntitiesTitle') : dialog === 'publish' ? t('ontologyPublishTitle') : t('ontologyAddPropertyTitle', { label: selectedType?.label ?? '' })
+  const submit = dialog === 'entity' ? onEntity : dialog === 'relationship' ? onRelationship : dialog === 'publish' ? onPublish : onProperty
+  return <div className="modal-backdrop builder-drawer-backdrop" role="presentation">
+    <section className="builder-modal builder-drawer" role="complementary" aria-labelledby="builder-modal-title">
+      <div className="modal-header"><div><span className="panel-kicker">{t('ontologySchemaChange').toLocaleUpperCase()}</span><h2 id="builder-modal-title">{title}</h2></div><button aria-label={t('ontologyCloseDialog')} onClick={onClose}>×</button></div>
+      <form onSubmit={submit}>
+        {dialog === 'entity' && <>
+          <label>{t('ontologyDisplayName')}<input name="label" required autoFocus placeholder={t('ontologyExampleCareEpisode')} /></label>
+          <label>{t('ontologyDescription')}<textarea name="description" required placeholder={t('ontologyConceptMeaning')} /></label>
+          <div className="form-split"><DomainGroupField groups={domainGroups} label={t('ontologyDomainGroup')} value={domainGroups[0] ?? ''} addGroupLabel={t('ontologyAddDomainGroup')} newGroupLabel={t('ontologyNewDomainGroup')} newGroupPlaceholder={t('ontologyNewDomainGroupPlaceholder')} name="group" /><label>{t('ontologyIcon')}<input name="icon" maxLength={2} placeholder="CE" /></label></div>
+          <label>{t('ontologyImpact')}<select name="impact" defaultValue="MEDIUM"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+        </>}
+        {dialog === 'relationship' && <>
+          <label>{t('ontologyRelationshipLabel')}<input name="label" required autoFocus placeholder={t('ontologyExampleGovernedBy')} /></label>
+          <div className="form-split"><label>{t('ontologySourceType')}<select name="sourceTypeId" defaultValue={pendingConnection?.source ?? contract.entityTypes[0]?.id}>{contract.entityTypes.map((type) => <option value={type.id} key={type.id}>{type.label}</option>)}</select></label><label>{t('ontologyTargetType')}<select name="targetTypeId" defaultValue={pendingConnection?.target ?? contract.entityTypes[0]?.id}>{contract.entityTypes.map((type) => <option value={type.id} key={type.id}>{type.label}</option>)}</select></label></div>
+          <label>{t('ontologyCardinality')}<select name="cardinality" defaultValue="MANY_TO_ONE"><option>ONE_TO_ONE</option><option>ONE_TO_MANY</option><option>MANY_TO_ONE</option><option>MANY_TO_MANY</option></select></label>
+          <label>{t('ontologyDescription')}<textarea name="description" required placeholder={t('ontologyConnectionMeaning')} /></label>
+          <label>{t('ontologyImpact')}<select name="impact" defaultValue="MEDIUM"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+        </>}
+        {dialog === 'property' && <>
+          <label>{t('ontologyPropertyName')}<input name="name" required autoFocus placeholder={t('ontologyExampleIdentifier')} /></label>
+          <label>{t('ontologyDataType')}<select name="dataType" defaultValue="string"><option>string</option><option>integer</option><option>decimal</option><option>boolean</option><option>date</option><option>datetime</option><option>enum</option></select></label>
+          <label>{t('ontologyDescription')}<textarea name="description" required placeholder={t('ontologyAttributeMeaning')} /></label>
+          <div className="checkbox-row"><label><input type="checkbox" name="required" /> {t('ontologyRequired')}</label><label><input type="checkbox" name="identifier" /> {t('ontologyIdentifier')}</label></div>
+        </>}
+        {dialog === 'publish' && <>
+          <div className="publish-summary"><span className="validation-pass">✓</span><div><b>{t('ontologyStructuralPass')}</b><small>{t('ontologyPublishSummary', { types: contract.entityTypes.length, relationships: contract.relationshipTypes.length, tests: contract.tests.filter((test) => test.status === 'PASS').length })}</small></div></div>
+          <label>{t('ontologyVersionIncrement')}<select name="bump" value={selectedBump} onChange={(event) => setSelectedBump(event.target.value as typeof selectedBump)}><option value="patch">{t('ontologyPatchOption')}</option><option value="minor">{t('ontologyMinorOption')}</option><option value="major">{t('ontologyMajorOption')}</option></select></label>
+          <label>{t('ontologyReleaseNotes')}<textarea name="notes" required placeholder={t('ontologyReleaseNotesPlaceholder')} /></label>
+          <div className="next-version">{t('ontologyCurrent').toLocaleUpperCase()} <b>v{releases.at(-1)?.version ?? contract.version}</b><span>→</span>{t('ontologyNext').toLocaleUpperCase()} <b>{previewVersion(releases.at(-1)?.version ?? contract.version, selectedBump)}</b></div>
+        </>}
+        <div className="modal-actions"><button type="button" className="ghost" onClick={onClose}>{t('commonCancel')}</button><button className="release" type="submit" disabled={saving}>{saving ? t('ontologyWorking') : dialog === 'entity' ? t('ontologyCreateType') : dialog === 'relationship' ? t('ontologyCreateRelationship') : dialog === 'publish' ? t('ontologyValidatePublish') : t('ontologyAddProperty')}</button></div>
+      </form>
+    </section>
+  </div>
+}
+
+function validateContract(contract: ContextContract, ontologyOnly = false): string[] {
+  const issues: string[] = []
+  const ids = contract.entityTypes.map((type) => type.id)
+  if (ids.length === 0) issues.push('At least one entity type is required before publishing.')
+  if (!ontologyOnly && contract.competencyQuestions.length === 0) issues.push('At least one competency question is required before publishing.')
+  if (new Set(ids).size !== ids.length) issues.push('Entity type identifiers must be unique.')
+  for (const type of contract.entityTypes) {
+    if (!type.description.trim()) issues.push(`${type.label} needs a description.`)
+    const propertyIds = type.properties.map((property) => property.id)
+    if (new Set(propertyIds).size !== propertyIds.length) issues.push(`${type.label} has duplicate property identifiers.`)
+  }
+  for (const relationship of contract.relationshipTypes) {
+    if (!ids.includes(relationship.sourceTypeId) || !ids.includes(relationship.targetTypeId)) issues.push(`${relationship.label} relationship has an invalid endpoint.`)
+  }
+  return issues
+}
+
+function uniqueDomainGroups(entityTypes: EntityTypeDefinition[]): string[] {
+  const groups = new Map<string, string>()
+  for (const entityType of entityTypes) {
+    const group = entityType.group.trim()
+    if (group && !groups.has(group.toLocaleLowerCase())) groups.set(group.toLocaleLowerCase(), group)
+  }
+  return [...groups.values()]
+}
+
+function slugify(value: string): string {
+  return value.toLocaleLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'untitled'
+}
+
+function uniqueId(base: string, existing: string[]): string {
+  if (!existing.includes(base)) return base
+  let suffix = 2
+  while (existing.includes(`${base}_${suffix}`)) suffix += 1
+  return `${base}_${suffix}`
+}
+
+function typeLabel(contract: ContextContract, id: string): string {
+  return contract.entityTypes.find((type) => type.id === id)?.label ?? id
+}
+
+function previewVersion(version: string, bump: 'major' | 'minor' | 'patch'): string {
+  const [major = 0, minor = 0, patch = 0] = version.split('.').map((part) => Number.parseInt(part, 10) || 0)
+  if (bump === 'major') return `${major + 1}.0.0`
+  if (bump === 'minor') return `${major}.${minor + 1}.0`
+  return `${major}.${minor}.${patch + 1}`
+}

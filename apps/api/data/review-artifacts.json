@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "1.0",
+  "reviews": [
+    {
+      "id": "review_b4f5802a-754d-4db6-bfce-e7accb28b942",
+      "contractId": "contract-grid-outage-response",
+      "contractVersion": "0.1.0",
+      "targetKind": "SOURCE_BINDING",
+      "targetId": "binding_grid_operations_api_grid_get_outage_context",
+      "targetLabel": "Grid Operations API",
+      "impact": "HIGH",
+      "evidenceRefs": [
+        "ev_binding_grid_operations_api_grid_get_outage_context"
+      ],
+      "submittedAt": "2026-07-19T19:36:24.496Z",
+      "submittedBy": "principal_studioa",
+      "status": "DECIDED",
+      "artifactDigest": "sha256:3da657dfe2f831de563e9d8c8dcbf47e8b9041eb95f1f5fda0cb8176255fe96e",
+      "decision": {
+        "id": "decision_331569da-31a6-4b36-88a0-acbf52e7d5c9",
+        "reviewId": "review_b4f5802a-754d-4db6-bfce-e7accb28b942",
+        "decision": "APPROVED",
+        "rationale": "OpenAPI response mappings, five-minute freshness, and permission scope are verified by the latest assurance artifact.",
+        "decidedAt": "2026-07-19T19:36:32.595Z",
+        "decidedBy": "principal_studior",
+        "artifactDigest": "sha256:5d4bcda1ab66b6cc5e9ebb5d855dd050dc51838ad9d61abebe8f708b44a9ef8d"
+      }
+    },
+    {
+      "id": "review_dc633fa7-9881-4731-b37d-9c438ddb83e1",
+      "contractId": "contract-grid-outage-response",
+      "contractVersion": "0.1.0",
+      "targetKind": "ENTITY_TYPE",
+      "targetId": "grid_asset",
+      "targetLabel": "Grid Asset",
+      "impact": "MEDIUM",
+      "evidenceRefs": [
+        "ev_import_b4305fc45fa7dffc",
+        "ev_binding_grid_operations_api_grid_get_outage_context"
+      ],
+      "submittedAt": "2026-07-19T19:36:52.460Z",
+      "submittedBy": "principal_studioa",
+      "status": "DECIDED",
+      "artifactDigest": "sha256:6bab0d6c77d895eb074ec228b74c9528f08204c6d1d3701c33ce58933645e952",
+      "decision": {
+        "id": "decision_5c9ed288-93c9-43eb-95dd-a2983b0f5dd5",
+        "reviewId": "review_dc633fa7-9881-4731-b37d-9c438ddb83e1",
+        "decision": "APPROVED",
+        "rationale": "Identifier, status, and asset classification semantics are documented and supported by the imported source evidence.",
+        "decidedAt": "2026-07-19T19:36:52.756Z",
+        "decidedBy": "principal_studior",
+        "artifactDigest": "sha256:447f6f03cd86cd08cd6ebd56be3da1a5dbf0b9544f4a906148a04fa5f0f65e33"
+      }
+    },
+    {
+      "id": "review_9a218251-c979-4207-8c33-892f257c05cf",
+      "contractId": "contract-grid-outage-response",
+      "contractVersion": "0.1.0",
+      "targetKind": "ENTITY_TYPE",
+      "targetId": "outage_event",
+      "targetLabel": "Outage Event",
+      "impact": "MEDIUM",
+      "evidenceRefs": [
+        "ev_import_b4305fc45fa7dffc",
+        "ev_binding_grid_operations_api_grid_get_outage_context"
+      ],
+      "submittedAt": "2026-07-19T19:36:53.227Z",
+      "submittedBy": "principal_studioa",
+      "status": "DECIDED",
+      "artifactDigest": "sha256:f33f33bf8b8461b4b62debb5edaae42be21b60691a8b734b848cc31eb3633659",
+      "decision": {
+        "id": "decision_04e44d72-0ce5-496f-8961-23d0ef053c1e",
+        "reviewId": "review_9a218251-c979-4207-8c33-892f257c05cf",
+        "decision": "APPROVED",
+        "rationale": "Outage identifiers, timestamps, severity, and affected-asset relationship are semantically complete and evidenced.",
+        "decidedAt": "2026-07-19T19:36:53.527Z",
+        "decidedBy": "principal_studior",
+        "artifactDigest": "sha256:7dce2505b212355023bc261e7ccce0442ded4ea13c808b437e3816079287b5d6"
+      }
+    },
+    {
+      "id": "review_edcc4b6b-44af-4f62-b232-bd7d8a259601",
+      "contractId": "contract-grid-outage-response",
+      "contractVersion": "0.1.0",
+      "targetKind": "POLICY",
+      "targetId": "policy-informational",
+      "targetLabel": "Informational baseline",
+      "impact": "MEDIUM",
+      "evidenceRefs": [],
+      "submittedAt": "2026-07-19T19:48:42.318Z",
+      "submittedBy": "principal_studioa",
+      "status": "DECIDED",
+      "artifactDigest": "sha256:362dadf4e679b2673acac6d53bdc846563c5bf23ce0c2e7da664b8738fc598e4",
+      "decision": {
+        "id": "decision_bfa261ba-34d3-48c3-99e2-02722215ff3e",
+        "reviewId": "review_edcc4b6b-44af-4f62-b232-bd7d8a259601",
+        "decision": "APPROVED",
+        "rationale": "The moderate evidence threshold and one-day freshness window are appropriate for informational outage context.",
+        "decidedAt": "2026-07-19T19:48:48.368Z",
+        "decidedBy": "principal_studior",
+        "artifactDigest": "sha256:998141b3d614df6a26467f3d3210bbc2ef77e689edb7f8eeae627be354cc3139"
+      }
+    },
+    {
+      "id": "review_ed5d6b08-1dab-4031-bd6f-c5e10792faa9",
+      "contractId": "contract-grid-outage-response",
+      "contractVersion": "0.1.1",
+      "targetKind": "POLICY",
+      "targetId": "policy-informational",
+      "targetLabel": "Grid prioritization approval",
+      "impact": "HIGH",
+      "evidenceRefs": [],
+      "submittedAt": "2026-07-19T21:06:00.253Z",
+      "submittedBy": "principal_studioa",
+      "status": "DECIDED",
+      "artifactDigest": "sha256:4c13e1c0a40897d8f6f95f46fe764add8c6f8a8514bb926369059f3604baa4bc",
+      "decision": {
+        "id": "decision_ad2c73a6-05d7-4874-be35-c298ad98f327",
+        "reviewId": "review_ed5d6b08-1dab-4031-bd6f-c5e10792faa9",
+        "decision": "APPROVED",
+        "rationale": "Planning-decision evidence and approval separation satisfy the governed release policy.",
+        "decidedAt": "2026-07-19T21:07:27.388Z",
+        "decidedBy": "principal_studior",
+        "artifactDigest": "sha256:4872fb9b150d1f195724a1041d17259c37e31e54690f2d0966c8ae4ee83aa59e"
+      }
+    }
+  ]
+}

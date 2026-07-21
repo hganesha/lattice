@@ -1,0 +1,109 @@
+.review-queue-page { margin-top: 14px; }
+.review-hero { display: flex; align-items: center; justify-content: space-between; padding: 21px 24px; border: 1px solid #2d3435; border-radius: 10px; background: radial-gradient(circle at 7% 0, #2d2920, transparent 25%), #101313; }
+.review-hero h2 { margin-top: 7px; font: 600 18px Manrope; }
+.review-hero p { margin-top: 7px; color: #737a78; font-size: 8px; }
+.review-hero button:disabled { opacity: .45; cursor: not-allowed; }
+.review-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin-top: 11px; }
+.review-metric { padding: 13px 15px; border: 1px solid #252e2b; border-radius: 8px; background: #0e1213; }
+.review-metric > div { display: flex; justify-content: space-between; color: #68736e; font: 7px DM Mono; letter-spacing: .7px; }
+.review-metric b { display: block; margin-top: 9px; font: 600 20px Manrope; }
+.review-metric small { display: block; margin-top: 2px; color: #535e59; font-size: 7px; }
+.review-layout { display: grid; grid-template-columns: minmax(0, 1fr) 285px; gap: 11px; margin-top: 11px; }
+.review-claims { min-height: 515px; }
+.review-claims > header { min-height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid #232b29; }
+.review-claims > header h2 { margin-top: 5px; font: 600 13px Manrope; }
+.review-claims > header nav { display: flex; border: 1px solid #29312f; border-radius: 5px; overflow: hidden; }
+.review-claims > header nav button { padding: 7px 9px; border: 0; border-right: 1px solid #29312f; background: #101415; color: #5e6964; font: 6px DM Mono; cursor: pointer; }
+.review-claims > header nav button:last-child { border: 0; }
+.review-claims > header nav button.active { color: #e1bd7d; background: #282116; }
+.review-claim-list { padding: 10px 12px; }
+.review-claim { display: grid; grid-template-columns: 42px minmax(0, 1fr) 145px; align-items: center; gap: 12px; margin-bottom: 8px; padding: 12px; border: 1px solid #2a3231; border-radius: 8px; background: #111617; }
+.claim-kind { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 7px; background: #292b25; color: #d8b878; font: 600 7px DM Mono; }
+.claim-kind.source_binding { color: #79b9e9; background: #1d2a32; }
+.claim-kind.policy { color: #c4a1e7; background: #292137; }
+.claim-main > div:first-child { display: flex; align-items: center; gap: 7px; }
+.claim-main h3 { font: 600 10px Manrope; }
+.claim-status, .claim-main em { padding: 3px 5px; border: 1px solid #3f3b2e; border-radius: 3px; color: #d3ad6e; background: #211c13; font: normal 6px DM Mono; }
+.claim-status.in_review { border-color: #324961; color: #76afe0; background: #151f29; }
+.claim-status.approved, .claim-status.approved_with_exception { border-color: #35502f; color: #9ddb64; background: #172216; }
+.claim-status.rejected { border-color: #5c332d; color: #de8d77; background: #251614; }
+.claim-main em { color: #7a8580; border-color: #303836; background: #161b1a; }
+.claim-main > p { margin-top: 6px; color: #707a75; font-size: 7px; line-height: 1.4; }
+.claim-main > footer { display: flex; gap: 9px; margin-top: 7px; }
+.claim-main footer code, .claim-main footer span { color: #505b56; font: 6px DM Mono; }
+.claim-action { text-align: right; }
+.claim-action button { min-width: 125px; }
+.review-button, .history-button { padding: 8px 10px; border: 1px solid #36506a; border-radius: 5px; background: #17232d; color: #79b2df; font: 7px Inter; cursor: pointer; }
+.history-button { border-color: #34452f; color: #9ccf72; background: #172015; }
+.review-empty { min-height: 390px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.review-empty > span { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid #34452f; border-radius: 50%; color: #9ddb66; }
+.review-empty h3 { margin-top: 10px; font: 600 12px Manrope; }
+.review-empty p { margin-top: 5px; color: #5d6863; font-size: 7px; }
+.review-history .panel-header { height: 68px; }
+.review-history-list { padding: 10px 13px; }
+.review-history-list > p { padding: 50px 10px; color: #5d6863; font-size: 7px; text-align: center; }
+.review-history-list > button { width: 100%; display: grid; grid-template-columns: 7px 1fr; gap: 7px; padding: 9px 3px; border: 0; border-bottom: 1px solid #222a27; background: transparent; color: #a8b1ac; cursor: pointer; text-align: left; }
+.review-history-list i { width: 6px; height: 6px; margin-top: 3px; border-radius: 50%; background: #6aa4d5; }
+.review-history-list i.decided { background: #98d462; }
+.review-history-list b, .review-history-list span, .review-history-list time { display: block; }
+.review-history-list b { font-size: 8px; }
+.review-history-list span { margin-top: 3px; color: #606b65; font-size: 6px; }
+.review-history-list time { margin-top: 4px; color: #4e5954; font: 6px DM Mono; }
+.review-integrity { display: flex; gap: 9px; margin: 4px 13px 13px; padding: 11px; border: 1px solid #333c32; border-radius: 7px; background: #131714; }
+.review-integrity > span { color: #d6b474; }
+.review-integrity b { font-size: 8px; }
+.review-integrity p { margin-top: 4px; color: #626d67; font-size: 7px; line-height: 1.45; }
+.review-decision-backdrop { z-index: 240; }
+.review-decision-panel, .decision-detail { width: 560px; overflow: hidden; border: 1px solid #3b4140; border-radius: 11px; background: #101416; box-shadow: 0 30px 90px #000; }
+.review-decision-panel > header, .decision-detail > header { display: flex; align-items: center; justify-content: space-between; padding: 17px 19px; border-bottom: 1px solid #252d2c; background: radial-gradient(circle at 10% 0, #30291e, transparent 35%), #111416; }
+.review-decision-panel header h2, .decision-detail header h2 { margin-top: 5px; font: 600 15px Manrope; }
+.review-decision-panel header p { margin-top: 4px; color: #696f6d; font-size: 7px; }
+.review-decision-panel header > button, .decision-detail header > button { border: 0; background: transparent; color: #727b78; font-size: 20px; cursor: pointer; }
+.review-context { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid #252d2b; }
+.review-context > div { padding: 11px 14px; border-right: 1px solid #252d2b; }
+.review-context > div:last-child { border: 0; }
+.review-context span, .review-context b { display: block; }
+.review-context span { color: #59635f; font: 6px DM Mono; }
+.review-context b { margin-top: 4px; color: #9ba49f; font-size: 7px; }
+.review-decision-panel form { padding: 16px 18px; }
+.review-decision-panel fieldset { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 0; padding: 0; border: 0; }
+.review-decision-panel legend { margin-bottom: 7px; color: #65706b; font: 7px DM Mono; }
+.review-decision-panel fieldset label { position: relative; display: flex; gap: 8px; padding: 10px; border: 1px solid #2c3432; border-radius: 7px; background: #111617; cursor: pointer; }
+.review-decision-panel fieldset label.selected { border-color: #6b934e; background: #172015; }
+.review-decision-panel fieldset label.exception.selected { border-color: #725a35; background: #211a10; }
+.review-decision-panel fieldset label.rejected.selected { border-color: #6b3c33; background: #221412; }
+.review-decision-panel fieldset input { position: absolute; opacity: 0; }
+.review-decision-panel fieldset label > span { display: grid; place-items: center; width: 23px; height: 23px; flex: 0 0 auto; border-radius: 50%; background: #263124; color: #a1db69; }
+.review-decision-panel fieldset label b, .review-decision-panel fieldset label small { display: block; }
+.review-decision-panel fieldset label b { font-size: 8px; }
+.review-decision-panel fieldset label small { margin-top: 4px; color: #5d6863; font-size: 6px; line-height: 1.35; }
+.rationale-field { display: block; margin-top: 15px; color: #68736e; font: 7px DM Mono; }
+.rationale-field textarea { display: block; width: 100%; min-height: 90px; margin-top: 6px; padding: 10px; resize: vertical; border: 1px solid #2c3532; border-radius: 6px; background: #111617; color: #e0e5e2; font: 8px/1.5 Inter; outline: none; }
+.rationale-field textarea:focus { border-color: #8aba54; box-shadow: 0 0 0 2px #94cb4c20; }
+.rationale-field small { display: block; margin-top: 5px; color: #505b56; font-size: 6px; text-align: right; }
+.decision-integrity { display: flex; gap: 8px; margin-top: 13px; padding: 10px; border: 1px solid #343c32; border-radius: 6px; background: #131714; }
+.decision-integrity > span { color: #d3b171; }
+.decision-integrity p { color: #68726d; font-size: 7px; line-height: 1.45; }
+.review-decision-panel form > footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #252d2b; }
+.review-decision-panel form > footer .release:disabled { opacity: .4; cursor: not-allowed; }
+.decision-detail { width: 480px; }
+.decision-seal { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 20px; color: #a3df68; }
+.decision-seal > span { display: grid; place-items: center; width: 33px; height: 33px; border-radius: 50%; background: #263a21; font-size: 16px; }
+.decision-seal b { font: 600 12px DM Mono; }
+.decision-seal.rejected { color: #df8c77; }
+.decision-seal.rejected > span { background: #3a211d; }
+.decision-detail blockquote { margin: 0 20px; padding: 14px; border: 1px solid #2b3431; border-radius: 7px; background: #111617; color: #aeb7b2; font-size: 9px; line-height: 1.55; }
+.decision-detail dl { margin: 12px 20px; }
+.decision-detail dl > div { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #242c29; }
+.decision-detail dt { color: #5d6862; font: 7px DM Mono; }
+.decision-detail dd { margin: 0; color: #9da6a1; font-size: 7px; }
+.decision-digest { margin: 10px 20px; padding: 10px; border: 1px solid #303a33; border-radius: 6px; background: #111714; }
+.decision-digest span, .decision-digest code { display: block; }
+.decision-digest span { color: #57635b; font: 6px DM Mono; }
+.decision-digest code { margin-top: 5px; overflow: hidden; color: #8e9993; font: 6px DM Mono; text-overflow: ellipsis; }
+.decision-detail > footer { display: flex; justify-content: flex-end; padding: 13px 20px 18px; }
+
+@media (max-width: 1250px) {
+  .review-layout { grid-template-columns: minmax(0, 1fr) 255px; }
+  .review-claim { grid-template-columns: 42px minmax(0, 1fr) 135px; }
+}

@@ -1,0 +1,771 @@
+{
+  "schemaVersion": "1.0",
+  "runs": [
+    {
+      "id": "assurance_d1951763-c5a6-415e-a0d8-619688ece538",
+      "contractId": "contract-grid-outage-response",
+      "contractVersion": "0.1.0",
+      "contractDigest": "sha256:unpublished",
+      "startedAt": "2026-07-19T19:19:26.966Z",
+      "completedAt": "2026-07-19T19:19:26.967Z",
+      "checks": [
+        {
+          "id": "structural.entity_model",
+          "category": "STRUCTURAL",
+          "label": "Ontology has governed entity types",
+          "status": "PASS",
+          "message": "2 entity types are available.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "structural.relationship_endpoints",
+          "category": "STRUCTURAL",
+          "label": "Relationship endpoints resolve",
+          "status": "PASS",
+          "message": "1 relationship definitions have valid endpoints.",
+          "affectedClaimIds": [
+            "outage_event_affected_asset"
+          ]
+        },
+        {
+          "id": "structural.documentation",
+          "category": "STRUCTURAL",
+          "label": "Semantic definitions are documented",
+          "status": "PASS",
+          "message": "Entity types and properties include semantic descriptions.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.operation",
+          "category": "QUESTION",
+          "label": "Competency question resolves to an operation",
+          "status": "PASS",
+          "message": "Which outage should be prioritized, and what evidence supports that decision? → Get governed outage context",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.entities",
+          "category": "QUESTION",
+          "label": "Operation requires valid entity context",
+          "status": "PASS",
+          "message": "Required context: outage_event, grid_asset.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "outage_event",
+            "grid_asset"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.sources",
+          "category": "QUESTION",
+          "label": "Operation has governed source bindings",
+          "status": "PASS",
+          "message": "1 source bindings are available.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "binding_grid_operations_api_grid_get_outage_context"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.paths",
+          "category": "QUESTION",
+          "label": "Operation relationship paths resolve",
+          "status": "PASS",
+          "message": "All declared relationship paths resolve.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context"
+          ]
+        },
+        {
+          "id": "mapping.binding_grid_operations_api_grid_get_outage_context.targets",
+          "category": "MAPPING",
+          "label": "Grid Operations API fields map to ontology properties",
+          "status": "PASS",
+          "message": "5 response fields have valid semantic targets.",
+          "affectedClaimIds": [
+            "binding_grid_operations_api_grid_get_outage_context",
+            "outage_event.event_id",
+            "outage_event.started_at",
+            "outage_event.severity",
+            "grid_asset.asset_id",
+            "grid_asset.operational_status"
+          ]
+        },
+        {
+          "id": "mapping.binding_grid_operations_api_grid_get_outage_context.runtime",
+          "category": "MAPPING",
+          "label": "Grid Operations API runtime contract is complete",
+          "status": "PASS",
+          "message": "Freshness ≤ 5 minutes; 1 permissions declared.",
+          "affectedClaimIds": [
+            "binding_grid_operations_api_grid_get_outage_context"
+          ]
+        },
+        {
+          "id": "release.binding_grid_operations_api_grid_get_outage_context.approval",
+          "category": "RELEASE",
+          "label": "Grid Operations API awaits approval",
+          "status": "WARNING",
+          "message": "The mapping is structurally valid but remains a draft governance claim.",
+          "affectedClaimIds": [
+            "binding_grid_operations_api_grid_get_outage_context"
+          ]
+        },
+        {
+          "id": "policy.coverage",
+          "category": "POLICY",
+          "label": "No runtime policy profile is assigned",
+          "status": "WARNING",
+          "message": "Add a freshness/evidence policy before operational use.",
+          "affectedClaimIds": []
+        }
+      ],
+      "status": "WARNING",
+      "score": 100,
+      "artifactDigest": "sha256:20a2907ef5ee4986b6e2594f12a260201ff395947adb8ac10cb2a9f877bacc8d",
+      "summary": {
+        "passed": 9,
+        "failed": 0,
+        "warnings": 2
+      }
+    },
+    {
+      "id": "assurance_3c81c0c3-22e1-4698-8fd6-ce1a4c32bac7",
+      "contractId": "contract-grid-outage-response",
+      "contractVersion": "0.1.0",
+      "contractDigest": "sha256:unpublished",
+      "startedAt": "2026-07-19T19:37:01.011Z",
+      "completedAt": "2026-07-19T19:37:01.012Z",
+      "checks": [
+        {
+          "id": "structural.entity_model",
+          "category": "STRUCTURAL",
+          "label": "Ontology has governed entity types",
+          "status": "PASS",
+          "message": "2 entity types are available.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "structural.relationship_endpoints",
+          "category": "STRUCTURAL",
+          "label": "Relationship endpoints resolve",
+          "status": "PASS",
+          "message": "1 relationship definitions have valid endpoints.",
+          "affectedClaimIds": [
+            "outage_event_affected_asset"
+          ]
+        },
+        {
+          "id": "structural.documentation",
+          "category": "STRUCTURAL",
+          "label": "Semantic definitions are documented",
+          "status": "PASS",
+          "message": "Entity types and properties include semantic descriptions.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "release.semantic_approval",
+          "category": "RELEASE",
+          "label": "Semantic claims are approved",
+          "status": "PASS",
+          "message": "2 entity types have governance approval.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.operation",
+          "category": "QUESTION",
+          "label": "Competency question resolves to an operation",
+          "status": "PASS",
+          "message": "Which outage should be prioritized, and what evidence supports that decision? → Get governed outage context",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.entities",
+          "category": "QUESTION",
+          "label": "Operation requires valid entity context",
+          "status": "PASS",
+          "message": "Required context: outage_event, grid_asset.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "outage_event",
+            "grid_asset"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.sources",
+          "category": "QUESTION",
+          "label": "Operation has governed source bindings",
+          "status": "PASS",
+          "message": "1 source bindings are available.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "binding_grid_operations_api_grid_get_outage_context"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.paths",
+          "category": "QUESTION",
+          "label": "Operation relationship paths resolve",
+          "status": "PASS",
+          "message": "All declared relationship paths resolve.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context"
+          ]
+        },
+        {
+          "id": "mapping.binding_grid_operations_api_grid_get_outage_context.targets",
+          "category": "MAPPING",
+          "label": "Grid Operations API fields map to ontology properties",
+          "status": "PASS",
+          "message": "5 response fields have valid semantic targets.",
+          "affectedClaimIds": [
+            "binding_grid_operations_api_grid_get_outage_context",
+            "outage_event.event_id",
+            "outage_event.started_at",
+            "outage_event.severity",
+            "grid_asset.asset_id",
+            "grid_asset.operational_status"
+          ]
+        },
+        {
+          "id": "mapping.binding_grid_operations_api_grid_get_outage_context.runtime",
+          "category": "MAPPING",
+          "label": "Grid Operations API runtime contract is complete",
+          "status": "PASS",
+          "message": "Freshness ≤ 5 minutes; 1 permissions declared.",
+          "affectedClaimIds": [
+            "binding_grid_operations_api_grid_get_outage_context"
+          ]
+        },
+        {
+          "id": "policy.coverage",
+          "category": "POLICY",
+          "label": "No runtime policy profile is assigned",
+          "status": "WARNING",
+          "message": "Add a freshness/evidence policy before operational use.",
+          "affectedClaimIds": []
+        }
+      ],
+      "status": "WARNING",
+      "score": 100,
+      "artifactDigest": "sha256:e7c90b6d3e4b363a9a52114e8e523fd3cd1092e651d25f78e007a7634ceece82",
+      "summary": {
+        "passed": 10,
+        "failed": 0,
+        "warnings": 1
+      }
+    },
+    {
+      "id": "assurance_e7591cd3-14ff-4f06-a946-cda495aab1de",
+      "contractId": "contract-grid-outage-response",
+      "contractVersion": "0.1.0",
+      "contractDigest": "sha256:unpublished",
+      "startedAt": "2026-07-19T19:48:59.901Z",
+      "completedAt": "2026-07-19T19:48:59.902Z",
+      "checks": [
+        {
+          "id": "structural.entity_model",
+          "category": "STRUCTURAL",
+          "label": "Ontology has governed entity types",
+          "status": "PASS",
+          "message": "2 entity types are available.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "structural.relationship_endpoints",
+          "category": "STRUCTURAL",
+          "label": "Relationship endpoints resolve",
+          "status": "PASS",
+          "message": "1 relationship definitions have valid endpoints.",
+          "affectedClaimIds": [
+            "outage_event_affected_asset"
+          ]
+        },
+        {
+          "id": "structural.documentation",
+          "category": "STRUCTURAL",
+          "label": "Semantic definitions are documented",
+          "status": "PASS",
+          "message": "Entity types and properties include semantic descriptions.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "release.semantic_approval",
+          "category": "RELEASE",
+          "label": "Semantic claims are approved",
+          "status": "PASS",
+          "message": "2 entity types have governance approval.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.operation",
+          "category": "QUESTION",
+          "label": "Competency question resolves to an operation",
+          "status": "PASS",
+          "message": "Which outage should be prioritized, and what evidence supports that decision? → Get governed outage context",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.entities",
+          "category": "QUESTION",
+          "label": "Operation requires valid entity context",
+          "status": "PASS",
+          "message": "Required context: outage_event, grid_asset.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "outage_event",
+            "grid_asset"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.sources",
+          "category": "QUESTION",
+          "label": "Operation has governed source bindings",
+          "status": "PASS",
+          "message": "1 source bindings are available.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "binding_grid_operations_api_grid_get_outage_context"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.paths",
+          "category": "QUESTION",
+          "label": "Operation relationship paths resolve",
+          "status": "PASS",
+          "message": "All declared relationship paths resolve.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context"
+          ]
+        },
+        {
+          "id": "mapping.binding_grid_operations_api_grid_get_outage_context.targets",
+          "category": "MAPPING",
+          "label": "Grid Operations API fields map to ontology properties",
+          "status": "PASS",
+          "message": "5 response fields have valid semantic targets.",
+          "affectedClaimIds": [
+            "binding_grid_operations_api_grid_get_outage_context",
+            "outage_event.event_id",
+            "outage_event.started_at",
+            "outage_event.severity",
+            "grid_asset.asset_id",
+            "grid_asset.operational_status"
+          ]
+        },
+        {
+          "id": "mapping.binding_grid_operations_api_grid_get_outage_context.runtime",
+          "category": "MAPPING",
+          "label": "Grid Operations API runtime contract is complete",
+          "status": "PASS",
+          "message": "Freshness ≤ 5 minutes; 1 permissions declared.",
+          "affectedClaimIds": [
+            "binding_grid_operations_api_grid_get_outage_context"
+          ]
+        },
+        {
+          "id": "policy.coverage",
+          "category": "POLICY",
+          "label": "Every operation risk tier has a policy",
+          "status": "PASS",
+          "message": "1 operation risk tier are governed.",
+          "affectedClaimIds": [
+            "policy-informational"
+          ]
+        },
+        {
+          "id": "policy.validity",
+          "category": "POLICY",
+          "label": "Policy thresholds are complete",
+          "status": "PASS",
+          "message": "1 policies define owners, evidence thresholds, and positive freshness windows.",
+          "affectedClaimIds": []
+        },
+        {
+          "id": "release.policy_approval",
+          "category": "RELEASE",
+          "label": "Runtime policies are approved",
+          "status": "PASS",
+          "message": "1 policy profiles have governance approval.",
+          "affectedClaimIds": [
+            "policy-informational"
+          ]
+        }
+      ],
+      "status": "PASS",
+      "score": 100,
+      "artifactDigest": "sha256:4b7544944492b86c75339b179ea7ddff4374011093b9295fba84bc4df8c279c2",
+      "summary": {
+        "passed": 13,
+        "failed": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "id": "assurance_b31d9485-12df-4fac-a869-9d676d9f944a",
+      "contractId": "contract-grid-outage-response",
+      "contractVersion": "0.1.0",
+      "contractDigest": "sha256:unpublished",
+      "startedAt": "2026-07-19T20:26:05.240Z",
+      "completedAt": "2026-07-19T20:26:05.241Z",
+      "checks": [
+        {
+          "id": "structural.entity_model",
+          "category": "STRUCTURAL",
+          "label": "Ontology has governed entity types",
+          "status": "PASS",
+          "message": "2 entity types are available.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "structural.relationship_endpoints",
+          "category": "STRUCTURAL",
+          "label": "Relationship endpoints resolve",
+          "status": "PASS",
+          "message": "1 relationship definitions have valid endpoints.",
+          "affectedClaimIds": [
+            "outage_event_affected_asset"
+          ]
+        },
+        {
+          "id": "structural.documentation",
+          "category": "STRUCTURAL",
+          "label": "Semantic definitions are documented",
+          "status": "PASS",
+          "message": "Entity types and properties include semantic descriptions.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "release.semantic_approval",
+          "category": "RELEASE",
+          "label": "Semantic claims are approved",
+          "status": "PASS",
+          "message": "2 entity types have governance approval.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.operation",
+          "category": "QUESTION",
+          "label": "Competency question resolves to an operation",
+          "status": "PASS",
+          "message": "Which outage should be prioritized, and what evidence supports that decision? → Get governed outage context",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.entities",
+          "category": "QUESTION",
+          "label": "Operation requires valid entity context",
+          "status": "PASS",
+          "message": "Required context: outage_event, grid_asset.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "outage_event",
+            "grid_asset"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.sources",
+          "category": "QUESTION",
+          "label": "Operation has governed source bindings",
+          "status": "PASS",
+          "message": "1 source bindings are available.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "binding_grid_operations_api_grid_get_outage_context"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.paths",
+          "category": "QUESTION",
+          "label": "Operation relationship paths resolve",
+          "status": "PASS",
+          "message": "All declared relationship paths resolve.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "outage_event_affected_asset"
+          ]
+        },
+        {
+          "id": "mapping.binding_grid_operations_api_grid_get_outage_context.targets",
+          "category": "MAPPING",
+          "label": "Grid Operations API fields map to ontology properties",
+          "status": "PASS",
+          "message": "5 response fields have valid semantic targets.",
+          "affectedClaimIds": [
+            "binding_grid_operations_api_grid_get_outage_context",
+            "outage_event.event_id",
+            "outage_event.started_at",
+            "outage_event.severity",
+            "grid_asset.asset_id",
+            "grid_asset.operational_status"
+          ]
+        },
+        {
+          "id": "mapping.binding_grid_operations_api_grid_get_outage_context.runtime",
+          "category": "MAPPING",
+          "label": "Grid Operations API runtime contract is complete",
+          "status": "PASS",
+          "message": "Freshness ≤ 5 minutes; 1 permissions declared.",
+          "affectedClaimIds": [
+            "binding_grid_operations_api_grid_get_outage_context"
+          ]
+        },
+        {
+          "id": "policy.coverage",
+          "category": "POLICY",
+          "label": "Every operation risk tier has a policy",
+          "status": "PASS",
+          "message": "1 operation risk tier are governed.",
+          "affectedClaimIds": [
+            "policy-informational"
+          ]
+        },
+        {
+          "id": "policy.validity",
+          "category": "POLICY",
+          "label": "Policy thresholds are complete",
+          "status": "PASS",
+          "message": "1 policies define owners, evidence thresholds, and positive freshness windows.",
+          "affectedClaimIds": []
+        },
+        {
+          "id": "release.policy_approval",
+          "category": "RELEASE",
+          "label": "Runtime policies are approved",
+          "status": "PASS",
+          "message": "1 policy profiles have governance approval.",
+          "affectedClaimIds": [
+            "policy-informational"
+          ]
+        }
+      ],
+      "status": "PASS",
+      "score": 100,
+      "artifactDigest": "sha256:c118daa093f5861775564982a4b45441524bac0fd8c5fc1b56d3df298b003662",
+      "summary": {
+        "passed": 13,
+        "failed": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "id": "assurance_075f9166-ab16-4d17-94be-cb1a0ca44f68",
+      "contractId": "contract-grid-outage-response",
+      "contractVersion": "0.1.1",
+      "contractDigest": "sha256:c1c572b88e0af0ee3efedc0b2ecdf1d54886f5b6ba24d28cb9e23352d3a62c8a",
+      "startedAt": "2026-07-19T21:07:46.489Z",
+      "completedAt": "2026-07-19T21:07:46.490Z",
+      "checks": [
+        {
+          "id": "structural.entity_model",
+          "category": "STRUCTURAL",
+          "label": "Ontology has governed entity types",
+          "status": "PASS",
+          "message": "2 entity types are available.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "structural.relationship_endpoints",
+          "category": "STRUCTURAL",
+          "label": "Relationship endpoints resolve",
+          "status": "PASS",
+          "message": "1 relationship definitions have valid endpoints.",
+          "affectedClaimIds": [
+            "outage_event_affected_asset"
+          ]
+        },
+        {
+          "id": "structural.documentation",
+          "category": "STRUCTURAL",
+          "label": "Semantic definitions are documented",
+          "status": "PASS",
+          "message": "Entity types and properties include semantic descriptions.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "release.semantic_approval",
+          "category": "RELEASE",
+          "label": "Semantic claims are approved",
+          "status": "PASS",
+          "message": "2 entity types have governance approval.",
+          "affectedClaimIds": [
+            "grid_asset",
+            "outage_event"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.operation",
+          "category": "QUESTION",
+          "label": "Competency question resolves to an operation",
+          "status": "PASS",
+          "message": "Which outage should be prioritized, and what evidence supports that decision? → Get governed outage context",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.entities",
+          "category": "QUESTION",
+          "label": "Operation requires valid entity context",
+          "status": "PASS",
+          "message": "Required context: outage_event, grid_asset.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "outage_event",
+            "grid_asset"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.sources",
+          "category": "QUESTION",
+          "label": "Operation has governed source bindings",
+          "status": "PASS",
+          "message": "1 source bindings are available.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "binding_grid_operations_api_grid_get_outage_context"
+          ]
+        },
+        {
+          "id": "question.cq-which-outage-should-be-prioritized-and-wha.paths",
+          "category": "QUESTION",
+          "label": "Operation relationship paths resolve",
+          "status": "PASS",
+          "message": "All declared relationship paths resolve.",
+          "affectedClaimIds": [
+            "cq-which-outage-should-be-prioritized-and-wha",
+            "grid.get_outage_context",
+            "outage_event_affected_asset"
+          ]
+        },
+        {
+          "id": "mapping.binding_grid_operations_api_grid_get_outage_context.targets",
+          "category": "MAPPING",
+          "label": "Grid Operations API fields map to ontology properties",
+          "status": "PASS",
+          "message": "5 response fields have valid semantic targets.",
+          "affectedClaimIds": [
+            "binding_grid_operations_api_grid_get_outage_context",
+            "outage_event.event_id",
+            "outage_event.started_at",
+            "outage_event.severity",
+            "grid_asset.asset_id",
+            "grid_asset.operational_status"
+          ]
+        },
+        {
+          "id": "mapping.binding_grid_operations_api_grid_get_outage_context.runtime",
+          "category": "MAPPING",
+          "label": "Grid Operations API runtime contract is complete",
+          "status": "PASS",
+          "message": "Freshness ≤ 5 minutes; 1 permissions declared.",
+          "affectedClaimIds": [
+            "binding_grid_operations_api_grid_get_outage_context"
+          ]
+        },
+        {
+          "id": "policy.coverage",
+          "category": "POLICY",
+          "label": "Every operation risk tier has a policy",
+          "status": "PASS",
+          "message": "1 operation risk tier are governed.",
+          "affectedClaimIds": [
+            "policy-informational"
+          ]
+        },
+        {
+          "id": "policy.validity",
+          "category": "POLICY",
+          "label": "Policy thresholds are complete",
+          "status": "PASS",
+          "message": "1 policies define owners, evidence thresholds, and positive freshness windows.",
+          "affectedClaimIds": []
+        },
+        {
+          "id": "release.policy_approval",
+          "category": "RELEASE",
+          "label": "Runtime policies are approved",
+          "status": "PASS",
+          "message": "1 policy profiles have governance approval.",
+          "affectedClaimIds": [
+            "policy-informational"
+          ]
+        }
+      ],
+      "status": "PASS",
+      "score": 100,
+      "artifactDigest": "sha256:c624a3110700b75f79d028d04b36bbda7ee71a6fc23f8de12ffbfbf394195a27",
+      "summary": {
+        "passed": 13,
+        "failed": 0,
+        "warnings": 0
+      }
+    }
+  ]
+}
