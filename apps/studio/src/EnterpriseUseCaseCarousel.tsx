@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, type ComponentType, type SVGProps } from 'react'
+import { IconHeartPulse, IconLandmark, IconPill, IconZap } from './icons'
 import { useMessages, type MessageKey } from './i18n/messages'
 
 interface EnterpriseUseCase {
   id: string
-  marker: string
+  icon: ComponentType<SVGProps<SVGSVGElement>>
   industry: MessageKey
   title: MessageKey
   driver: MessageKey
@@ -16,7 +17,7 @@ interface EnterpriseUseCase {
 const enterpriseUseCases = [
   {
     id: 'bank-risk',
-    marker: 'FS',
+    icon: IconLandmark,
     industry: 'welcomeUseCaseBankingIndustry',
     title: 'welcomeUseCaseBankingTitle',
     driver: 'welcomeUseCaseBankingDriver',
@@ -27,7 +28,7 @@ const enterpriseUseCases = [
   },
   {
     id: 'health-prior-authorization',
-    marker: 'HC',
+    icon: IconHeartPulse,
     industry: 'welcomeUseCaseHealthcareIndustry',
     title: 'welcomeUseCaseHealthcareTitle',
     driver: 'welcomeUseCaseHealthcareDriver',
@@ -38,7 +39,7 @@ const enterpriseUseCases = [
   },
   {
     id: 'pharma-traceability',
-    marker: 'RX',
+    icon: IconPill,
     industry: 'welcomeUseCasePharmaIndustry',
     title: 'welcomeUseCasePharmaTitle',
     driver: 'welcomeUseCasePharmaDriver',
@@ -49,7 +50,7 @@ const enterpriseUseCases = [
   },
   {
     id: 'grid-restoration',
-    marker: 'EN',
+    icon: IconZap,
     industry: 'welcomeUseCaseEnergyIndustry',
     title: 'welcomeUseCaseEnergyTitle',
     driver: 'welcomeUseCaseEnergyDriver',
@@ -64,6 +65,7 @@ export function EnterpriseUseCaseCarousel() {
   const { t } = useMessages()
   const [activeIndex, setActiveIndex] = useState(0)
   const activeUseCase = enterpriseUseCases[activeIndex] ?? enterpriseUseCases[0]
+  const IndustryIcon = activeUseCase.icon
 
   function move(direction: -1 | 1) {
     setActiveIndex((current) => (current + direction + enterpriseUseCases.length) % enterpriseUseCases.length)
@@ -85,7 +87,7 @@ export function EnterpriseUseCaseCarousel() {
 
     <article className="enterprise-use-case" role="group" aria-roledescription="slide" aria-label={t('welcomeEnterprisePosition', { current: activeIndex + 1, total: enterpriseUseCases.length })} key={activeUseCase.id}>
       <aside>
-        <span className="enterprise-use-case-marker" aria-hidden="true">{activeUseCase.marker}</span>
+        <span className="enterprise-use-case-marker" aria-hidden="true"><IndustryIcon data-industry-icon={activeUseCase.id} /></span>
         <b>{t(activeUseCase.industry)}</b>
         <small>{t('welcomeEnterpriseDocumented')}</small>
       </aside>

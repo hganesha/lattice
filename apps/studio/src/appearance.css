@@ -276,7 +276,8 @@ h3 { font-size: 15px; }
   background: radial-gradient(circle at 25% 18%,color-mix(in srgb,var(--accent) 23%,transparent),transparent 42%),var(--surface-raised);
 }
 
-.enterprise-use-case-marker { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: auto; border: 1px solid color-mix(in srgb,var(--accent) 48%,var(--border)); border-radius: 12px; color: var(--accent-strong); background: var(--accent-soft); font: 700 14px Manrope,sans-serif; letter-spacing: .5px; }
+.enterprise-use-case-marker { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: auto; border: 1px solid color-mix(in srgb,var(--accent) 48%,var(--border)); border-radius: 12px; color: var(--accent-strong); background: var(--accent-soft); }
+.enterprise-use-case-marker svg { width: 24px; height: 24px; stroke-width: 1.75; }
 .enterprise-use-case>aside b { color: var(--text); font: 600 13px/1.35 Manrope,sans-serif; }
 .enterprise-use-case>aside small { margin-top: 6px; color: var(--text-muted); line-height: 1.4; }
 .enterprise-use-case-body { min-width: 0; padding: 21px 23px 19px; }

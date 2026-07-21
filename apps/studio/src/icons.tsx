@@ -142,6 +142,31 @@ export const IconZap = (p: IconProps) => (
   </Icon>
 )
 
+export const IconLandmark = (p: IconProps) => (
+  <Icon {...p}>
+    <line x1="3" x2="21" y1="22" y2="22" />
+    <line x1="6" x2="6" y1="18" y2="11" />
+    <line x1="10" x2="10" y1="18" y2="11" />
+    <line x1="14" x2="14" y1="18" y2="11" />
+    <line x1="18" x2="18" y1="18" y2="11" />
+    <polygon points="12 2 20 7 4 7" />
+  </Icon>
+)
+
+export const IconHeartPulse = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z" />
+    <path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27" />
+  </Icon>
+)
+
+export const IconPill = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m10.5 20.5-7-7a4.95 4.95 0 0 1 7-7l7 7a4.95 4.95 0 0 1-7 7Z" />
+    <path d="m8.5 8.5 7 7" />
+  </Icon>
+)
+
 export const IconChevronDown = (p: IconProps) => (
   <Icon {...p}>
     <path d="m6 9 6 6 6-6" />
