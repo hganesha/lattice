@@ -339,10 +339,9 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
           <div className="inspector-tabs" role="tablist" aria-label={t('ontologyInspectorLabel')}>
             <button id="ontology-definition-tab" role="tab" aria-controls="ontology-definition-panel" aria-selected={inspectorTab === 'DEFINITION'} className={inspectorTab === 'DEFINITION' ? 'active' : ''} onClick={() => setInspectorTab('DEFINITION')}>{t('ontologyTypeDefinition')}</button>
             <button id="ontology-relationships-tab" role="tab" aria-controls="ontology-relationships-panel" aria-selected={inspectorTab === 'RELATIONSHIPS'} className={inspectorTab === 'RELATIONSHIPS' ? 'active' : ''} onClick={() => setInspectorTab('RELATIONSHIPS')}>{t('summaryRelationships')}</button>
-            {mode === 'contract' && <button id="ontology-history-tab" role="tab" aria-controls="ontology-history-panel" aria-selected={inspectorTab === 'HISTORY'} className={inspectorTab === 'HISTORY' ? 'active' : ''} onClick={() => setInspectorTab('HISTORY')}>{t('ontologyHistory')}</button>}
           </div>
           {selectedType && inspectorTab === 'DEFINITION' ? <div id="ontology-definition-panel" className="type-form" role="tabpanel" aria-labelledby="ontology-definition-tab">
-            <div className="entity-title"><span className="large-icon">{selectedType.icon}</span><div><span>{t('ontologyEntityType').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
+            <div className="entity-title"><span className="large-icon"><EntityIcon icon={selectedType.icon} /></span><div><span>{t('ontologyEntityType').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
             <label>{t('ontologyDisplayName')}<input value={selectedType.label} onChange={(event) => updateSelected({ label: event.target.value })} /></label>
             <label>{t('ontologyDescription')}<textarea value={selectedType.description} onChange={(event) => updateSelected({ description: event.target.value })} /></label>
             <EntityIconPicker key={selectedType.id} value={selectedType.icon} onChange={(icon) => updateSelected({ icon })} label={t('ontologyIcon')} />
