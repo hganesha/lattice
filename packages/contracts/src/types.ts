@@ -508,7 +508,15 @@ export interface ContractRegistryEntry {
 
 export type ReleaseRuntimeStatus = 'NO_RELEASE' | 'ACTIVE' | 'SUSPENDED'
 
-export type ContractStarter = 'blank' | 'healthcare' | 'energy' | 'software'
+export type ContractStarter =
+  | 'blank'
+  | 'financial-services'
+  | 'energy'
+  | 'healthcare'
+  | 'manufacturing'
+  | 'legal'
+  | 'insurance'
+  | 'real-estate'
 
 export interface CreateContractRequest {
   name: string

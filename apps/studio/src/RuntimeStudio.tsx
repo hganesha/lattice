@@ -6,6 +6,7 @@ import { RuntimeGraph } from './RuntimeGraph'
 import { RuntimeInspector } from './RuntimeInspector'
 import { useMessages } from './i18n/messages'
 import { Toast } from './Toast'
+import { IconZap } from './icons'
 
 interface RuntimeStudioProps {
   contract: ContextContract
@@ -25,6 +26,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
   const [apiError, setApiError] = useState('')
   const [view, setView] = useState<'MAP' | 'TABLE'>('MAP')
   const selected = contract.entities.find((entity) => entity.id === selectedId)
+  const canCompile = !loading && contract.releaseStatus === 'PUBLISHED' && runtimeStatus === 'ACTIVE'
 
   function loadOperationalContext() {
     const next = loadGridOutageExample(contract)
@@ -75,9 +77,9 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
 
   return <section className="runtime-studio-page">
     <section className="compiler-bar">
-      <div className="spark">✦</div>
-      <div className="question-field"><label>{t('runtimeCompileQuestion').toLocaleUpperCase()}</label><input aria-label={t('runtimeQuestionLabel')} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void compile() }} /></div>
-      <button className="compile-button" onClick={() => void compile()} disabled={loading || contract.releaseStatus !== 'PUBLISHED' || runtimeStatus !== 'ACTIVE'}>{loading ? t('runtimeCompiling') : runtimeStatus === 'SUSPENDED' ? t('runtimeSuspended') : contract.releaseStatus !== 'PUBLISHED' ? t('runtimePublishToCompile') : t('runtimeCompileContext')} <span>⌘↵</span></button>
+      <div className="spark" aria-hidden="true"><IconZap /></div>
+      <div className="question-field"><label>{t('runtimeCompileQuestion')}</label><input aria-label={t('runtimeQuestionLabel')} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && canCompile) void compile() }} /></div>
+      <button className="compile-button" onClick={() => void compile()} disabled={!canCompile}>{loading ? t('runtimeCompiling') : runtimeStatus === 'SUSPENDED' ? t('runtimeSuspended') : contract.releaseStatus !== 'PUBLISHED' ? t('runtimePublishToCompile') : t('runtimeCompileContext')} <span className="kbd-hint">⌘↵</span></button>
     </section>
 
     {apiError && <Toast
@@ -91,7 +93,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
 
     <div className="workbench runtime-workbench">
       <section className="map-panel panel">
-        <div className="panel-header"><div><span className="panel-kicker">{t('runtimeObjectsKicker').toLocaleUpperCase()}</span><h2>{t('runtimeMapTitle', { workflow: titleCase(contract.workflow) })}</h2></div><div className="view-controls"><button className={view === 'MAP' ? 'selected' : ''} onClick={() => setView('MAP')}>{t('runtimeMapView')}</button><button className={view === 'TABLE' ? 'selected' : ''} onClick={() => setView('TABLE')}>{t('runtimeTableView')}</button></div></div>
+        <div className="panel-header"><div><span className="panel-kicker">{t('runtimeObjectsKicker')}</span><h2>{t('runtimeMapTitle', { workflow: titleCase(contract.workflow) })}</h2></div><div className="view-controls"><button className={view === 'MAP' ? 'selected' : ''} onClick={() => setView('MAP')}>{t('runtimeMapView')}</button><button className={view === 'TABLE' ? 'selected' : ''} onClick={() => setView('TABLE')}>{t('runtimeTableView')}</button></div></div>
         <div className="legend"><span><i className="legend-dot exact"/>{t('runtimeExactEvidence')}</span><span><i className="legend-dot derived"/>{t('runtimeSupportedEvidence')}</span><span><i className="legend-line"/>{t('runtimeGovernedRelation')}</span></div>
         {contract.entities.length === 0 ? <div className="runtime-empty"><span>⌁</span><h3>{t('runtimeEmptyTitle')}</h3><p>{t('runtimeEmptyDescription')}</p>{canLoadGridOutageExample(contract) && <button className="release" onClick={loadOperationalContext}>{t('runtimeLoadGridExample')}</button>}</div> : view === 'MAP' ? <RuntimeGraph contract={contract} selectedId={selectedId} onSelect={setSelectedId} /> : <div className="runtime-table"><div className="runtime-table-head"><span>{t('runtimeObject').toLocaleUpperCase()}</span><span>{t('runtimeType').toLocaleUpperCase()}</span><span>{t('runtimeEvidence').toLocaleUpperCase()}</span><span>{t('runtimeValidFrom').toLocaleUpperCase()}</span></div>{contract.entities.map((entity) => <button className={selectedId === entity.id ? 'selected' : ''} onClick={() => setSelectedId(entity.id)} key={entity.id}><span><b>{entity.label}</b><code>{entity.id}</code></span><span>{contract.entityTypes.find((type) => type.id === entity.typeId)?.label ?? entity.typeId}</span><span className="runtime-strength">{entity.evidenceStrength}</span><time>{formatDate(entity.validFrom, { dateStyle: 'medium', timeStyle: 'short' })}</time></button>)}</div>}
         <div className="map-footer"><span>{t('runtimeObjectCount', { count: contract.entities.length })}</span><span>{t('runtimeRelationshipCount', { count: contract.relationships.length })}</span><span className="spacer"/><span>{runtimeStatus === 'SUSPENDED' ? t('runtimeSuspended') : contract.releaseStatus === 'PUBLISHED' ? t('runtimePublishedVersion', { version: contract.version }) : t('runtimeUnpublishedDraft')}</span></div>

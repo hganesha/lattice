@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react'
+
 interface NavItemProps {
-  icon: string
+  icon: ReactNode
   label: string
   active?: boolean
   count?: string | undefined

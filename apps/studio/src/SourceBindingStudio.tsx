@@ -27,6 +27,7 @@ export function SourceBindingStudio({ contract, scope = 'CONTRACT', workspaceId,
     valid: contract.bindings.filter((binding) => binding.healthStatus === 'VALID' || binding.approvalStatus === 'APPROVED').length,
     environments: new Set(contract.bindings.map((binding) => binding.environment)).size,
   }), [contract.bindings])
+  const canCreateBinding = contract.entityTypes.some((type) => type.properties.length > 0)
 
   function applyBinding(result: BindingDraftResult) {
     const ontologyId = contract.ontologyRef?.ontologyId
@@ -91,10 +92,10 @@ export function SourceBindingStudio({ contract, scope = 'CONTRACT', workspaceId,
   return <section className="binding-studio-page">
     <div className="binding-hero">
       <div><span className="panel-kicker">{t('bindingStudio').toLocaleUpperCase()}</span><h2>{scope === 'ONTOLOGY' ? t('bindingOntologyHeroTitle') : t('bindingHeroTitle')}</h2><p>{scope === 'ONTOLOGY' ? t('bindingOntologyHeroDescription') : t('bindingHeroDescription')}</p></div>
-      <div className="binding-hero-actions"><button className="release" onClick={() => setEditorOpen(true)} disabled={contract.entityTypes.every((type) => type.properties.length === 0)}>{t('bindingNew')}</button></div>
+      <div className="binding-hero-actions"><button className="release" onClick={() => setEditorOpen(true)} disabled={!canCreateBinding}>{t('bindingNew')}</button></div>
     </div>
     {notice && <Toast message={notice} closeLabel={t('commonClose')} onDismiss={() => setNotice('')} />}
-    {contract.entityTypes.every((type) => type.properties.length === 0) && <div className="binding-prerequisite"><span>◇</span><div><b>{t('bindingPrerequisite')}</b><p>{t('bindingPrerequisiteDescription')}</p></div><button className="ghost" onClick={onOpenOntology}>{t('bindingAddPropertiesAction')} →</button></div>}
+    {!canCreateBinding && <div className="binding-prerequisite"><span>◇</span><div><b>{t('bindingPrerequisite')}</b><p>{t('bindingPrerequisiteDescription')}</p></div><button className="ghost" onClick={onOpenOntology}>{t('bindingAddPropertiesAction')} →</button></div>}
 
     <div className="binding-stats">
       <BindingStat label={t('bindingStatBindings').toLocaleUpperCase()} value={String(contract.bindings.length)} meta={t('bindingStatAdapters')} tone="lime" />
@@ -107,7 +108,7 @@ export function SourceBindingStudio({ contract, scope = 'CONTRACT', workspaceId,
       <main className="binding-catalog panel">
         <div className="panel-header"><div><span className="panel-kicker">{t(scope === 'ONTOLOGY' ? 'bindingOntologyBindings' : 'bindingContractBindings').toLocaleUpperCase()}</span><h2>{contract.name}</h2></div><span className="binding-count">{t('bindingConfiguredCount', { count: contract.bindings.length })}</span></div>
         <div className="binding-list">
-          {contract.bindings.length === 0 && <div className="binding-empty"><span>⇄</span><h3>{t('bindingEmptyTitle')}</h3><p>{t('bindingEmptyDescription')}</p><button className="ghost" onClick={() => setEditorOpen(true)}>{t('bindingChooseConnector')}</button></div>}
+          {contract.bindings.length === 0 && <div className="binding-empty"><span>⇄</span><h3>{t('bindingEmptyTitle')}</h3><p>{t('bindingEmptyDescription')}</p><button className="ghost" onClick={() => setEditorOpen(true)} disabled={!canCreateBinding}>{t('bindingChooseConnector')}</button></div>}
           {contract.bindings.map((binding) => <BindingCard binding={binding} validation={validationResults[binding.id]} validating={validatingId === binding.id} onValidate={() => void validateBinding(binding)} {...(scope === 'ONTOLOGY' || binding.scope !== 'ONTOLOGY' ? { onRemove: () => setPendingRemoval(binding) } : {})} key={binding.id} />)}
         </div>
       </main>
