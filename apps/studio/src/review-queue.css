@@ -53,7 +53,7 @@
 .review-integrity > span { color: #d6b474; }
 .review-integrity b { font-size: 8px; }
 .review-integrity p { margin-top: 4px; color: #626d67; font-size: 7px; line-height: 1.45; }
-.review-decision-backdrop { z-index: 240; }
+.review-decision-backdrop { z-index: var(--z-modal); }
 .review-decision-panel, .decision-detail { width: 560px; overflow: hidden; border: 1px solid #3b4140; border-radius: 11px; background: #101416; box-shadow: 0 30px 90px #000; }
 .review-decision-panel > header, .decision-detail > header { display: flex; align-items: center; justify-content: space-between; padding: 17px 19px; border-bottom: 1px solid #252d2c; background: radial-gradient(circle at 10% 0, #30291e, transparent 35%), #111416; }
 .review-decision-panel header h2, .decision-detail header h2 { margin-top: 5px; font: 600 15px Manrope; }

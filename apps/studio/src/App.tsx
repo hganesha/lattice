@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import {
   counterpartyRiskContract,
   type ContextContract,
@@ -8,6 +8,24 @@ import {
   type WorkspaceSummary,
 } from '@lattice/contracts'
 import { NavItem } from './NavItem'
+import {
+  IconNetwork,
+  IconLink,
+  IconFileText,
+  IconPlay,
+  IconShieldCheck,
+  IconPlug,
+  IconUserCheck,
+  IconScale,
+  IconInbox,
+  IconFileSearch,
+  IconGitBranch,
+  IconDownload,
+  IconPlus,
+  IconChevronDown,
+  IconArrowUpRight,
+  IconLoader,
+} from './icons'
 import { SummaryCard } from './SummaryCard'
 import { AppearanceSettings } from './AppearanceSettings'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -35,24 +53,24 @@ const WELCOME_DISMISSED_KEY = 'lattice:welcome-dismissed'
 type StudioMode = 'ontology' | 'ontology-bindings' | 'runtime' | 'runtime-approvals' | 'bindings' | 'assurance' | 'policies' | 'reviews' | 'evidence' | 'releases' | 'contracts'
 type CountKind = 'contracts' | 'ontology-bindings' | 'tests' | 'bindings' | 'policies' | 'reviews' | 'evidence'
 
-const workspaceNavigation: ReadonlyArray<{ mode: StudioMode; icon: string; label: MessageKey; count?: CountKind }> = [
-  { mode: 'ontology', icon: '◎', label: 'navSharedOntology' },
-  { mode: 'ontology-bindings', icon: '⇆', label: 'navOntologyBindings', count: 'ontology-bindings' },
-  { mode: 'contracts', icon: '◇', label: 'navContracts', count: 'contracts' },
+const workspaceNavigation: ReadonlyArray<{ mode: StudioMode; icon: ReactNode; label: MessageKey; count?: CountKind }> = [
+  { mode: 'ontology', icon: <IconNetwork />, label: 'navSharedOntology' },
+  { mode: 'ontology-bindings', icon: <IconLink />, label: 'navOntologyBindings', count: 'ontology-bindings' },
+  { mode: 'contracts', icon: <IconFileText />, label: 'navContracts', count: 'contracts' },
 ]
 
-const contractNavigation: ReadonlyArray<{ mode: StudioMode; icon: string; label: MessageKey; count?: CountKind }> = [
-  { mode: 'runtime', icon: '✦', label: 'navCompiler' },
-  { mode: 'assurance', icon: '✓', label: 'navAssurance', count: 'tests' },
-  { mode: 'bindings', icon: '⇄', label: 'navSourceBindings', count: 'bindings' },
+const contractNavigation: ReadonlyArray<{ mode: StudioMode; icon: ReactNode; label: MessageKey; count?: CountKind }> = [
+  { mode: 'runtime', icon: <IconPlay />, label: 'navCompiler' },
+  { mode: 'assurance', icon: <IconShieldCheck />, label: 'navAssurance', count: 'tests' },
+  { mode: 'bindings', icon: <IconPlug />, label: 'navSourceBindings', count: 'bindings' },
 ]
 
-const governanceNavigation: ReadonlyArray<{ mode: StudioMode; icon: string; label: MessageKey; count?: CountKind }> = [
-  { mode: 'runtime-approvals', icon: '◉', label: 'navRuntimeApprovals' },
-  { mode: 'policies', icon: '◆', label: 'navPolicyProfiles', count: 'policies' },
-  { mode: 'reviews', icon: '◴', label: 'navReviewQueue', count: 'reviews' },
-  { mode: 'evidence', icon: '▣', label: 'navEvidenceRegistry', count: 'evidence' },
-  { mode: 'releases', icon: '↗', label: 'navReleaseHistory' },
+const governanceNavigation: ReadonlyArray<{ mode: StudioMode; icon: ReactNode; label: MessageKey; count?: CountKind }> = [
+  { mode: 'runtime-approvals', icon: <IconUserCheck />, label: 'navRuntimeApprovals' },
+  { mode: 'policies', icon: <IconScale />, label: 'navPolicyProfiles', count: 'policies' },
+  { mode: 'reviews', icon: <IconInbox />, label: 'navReviewQueue', count: 'reviews' },
+  { mode: 'evidence', icon: <IconFileSearch />, label: 'navEvidenceRegistry', count: 'evidence' },
+  { mode: 'releases', icon: <IconGitBranch />, label: 'navReleaseHistory' },
 ]
 
 export function App() {
@@ -286,34 +304,34 @@ export function App() {
     <div className="shell">
       <aside className="sidebar">
         <div className="brand"><span className="brand-mark">L</span><span>Lattice</span></div>
-        <div className="workspace-switcher"><span className="workspace-icon">IW</span><div><label htmlFor="active-workspace">{t('industryWorkspace')}</label><select id="active-workspace" value={workspace?.id ?? ''} onChange={(event) => void selectWorkspace(event.target.value)}>{!workspace && <option value="">{t('workspaceLoading')}</option>}{workspaces.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select><span>{workspace ? t('workspaceFoundationMeta', { types: workspace.ontology.entityTypes.length, contracts: workspace.contractIds.length }) : t('crossIndustryPlane')}</span></div><span className="chevron">⌄</span></div>
+        <div className="workspace-switcher"><span className="workspace-icon">IW</span><div><label htmlFor="active-workspace">{t('industryWorkspace')}</label><select id="active-workspace" value={workspace?.id ?? ''} onChange={(event) => void selectWorkspace(event.target.value)}>{!workspace && <option value="">{t('workspaceLoading')}</option>}{workspaces.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select><span>{workspace ? t('workspaceFoundationMeta', { types: workspace.ontology.entityTypes.length, contracts: workspace.contractIds.length }) : t('crossIndustryPlane')}</span></div><span className="chevron" aria-hidden="true"><IconChevronDown /></span></div>
         <nav>
           {workspaceNavigation.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={studioMode === item.mode} onClick={() => navigateTo(item.mode)} key={item.mode} />)}
-          <div className="nav-label">{t('contractWorkspace').toLocaleUpperCase()}</div>
+          <div className="nav-label">{t('contractWorkspace')}</div>
           {contractNavigation.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={studioMode === item.mode} onClick={() => navigateTo(item.mode)} key={item.mode} />)}
-          <NavItem icon="⇩" label={t('ontologyImportSchema')} onClick={() => setImportOpen(true)} />
-          <div className="nav-label">{t('navGovernance').toLocaleUpperCase()}</div>
+          <NavItem icon={<IconDownload />} label={t('ontologyImportSchema')} onClick={() => setImportOpen(true)} />
+          <div className="nav-label">{t('navGovernance')}</div>
           {governanceNavigation.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={studioMode === item.mode} onClick={() => navigateTo(item.mode)} key={item.mode} />)}
-          <NavItem icon="＋" label={t('navNewContextContract')} onClick={() => setWizardOpen(true)} />
+          <NavItem icon={<IconPlus />} label={t('navNewContextContract')} onClick={() => setWizardOpen(true)} />
         </nav>
         <div className="sidebar-footer"><span className={`status-dot ${apiHealth.status.toLocaleLowerCase()}`}/><div><b>{apiHealth.status === 'HEALTHY' ? t('runtimeHealthy') : apiHealth.status === 'OFFLINE' ? t('runtimeOffline') : t('runtimeChecking')}</b><span>{apiHealth.status === 'HEALTHY' ? t('runtimeLatency', { latency: apiHealth.latencyMs ?? 0 }) : apiHealth.status === 'OFFLINE' ? t('runtimeUnreachable') : t('runtimeProbing')}</span></div></div>
       </aside>
 
       <main>
         <header>
-          <div><div className="eyebrow">{t('contextStudio').toLocaleUpperCase()} / {(workspace?.name ?? contract.domain).toLocaleUpperCase()}</div><h1>{t(activeNavigation.label)}</h1></div>
-          <div className="header-actions">{(workspaceMode || hasActiveWorkspaceContract) && <span className={`draft-state ${draftDirty ? 'dirty' : ''}`}>{saveState === 'FAILED' ? t('headerSaveFailed') : draftDirty ? t('unsavedDraft') : t('draftSaved')}</span>}{studioMode === 'ontology-bindings' && <button className="release" onClick={() => void saveWorkspaceBindings()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}{!workspaceMode && hasActiveWorkspaceContract && <button className="release" onClick={() => void saveContractDraft()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}<button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button><AppearanceSettings />{hasActiveWorkspaceContract && <button className="ghost" onClick={() => void shareContract()} title={shareState === 'FAILED' ? t('linkClipboardDenied') : undefined}>{shareState === 'COPIED' ? t('linkCopied') : shareState === 'FAILED' ? t('linkReady') : t('share')}</button>}{studioMode === 'runtime' && hasActiveWorkspaceContract && <button className="ghost" onClick={() => setStudioMode('releases')}>{t('manageRelease')} <span>↗</span></button>}<span className="avatar">HG</span></div>
+          <div><div className="eyebrow">{t('contextStudio')} / {workspace?.name ?? contract.domain}</div><h1>{t(activeNavigation.label)}</h1></div>
+          <div className="header-actions">{(workspaceMode || hasActiveWorkspaceContract) && <span className={`draft-state ${draftDirty ? 'dirty' : ''}`}>{saveState === 'FAILED' ? t('headerSaveFailed') : draftDirty ? t('unsavedDraft') : t('draftSaved')}</span>}{studioMode === 'ontology-bindings' && <button className="release" onClick={() => void saveWorkspaceBindings()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}{!workspaceMode && hasActiveWorkspaceContract && <button className="release" onClick={() => void saveContractDraft()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}<button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button><AppearanceSettings />{hasActiveWorkspaceContract && <button className="ghost" onClick={() => void shareContract()} title={shareState === 'FAILED' ? t('linkClipboardDenied') : undefined}>{shareState === 'COPIED' ? t('linkCopied') : shareState === 'FAILED' ? t('linkReady') : t('share')}</button>}{studioMode === 'runtime' && hasActiveWorkspaceContract && <button className="ghost" onClick={() => setStudioMode('releases')}>{t('manageRelease')} <span aria-hidden="true"><IconArrowUpRight /></span></button>}<span className="avatar">HG</span></div>
         </header>
 
         <section className="summary-grid">
-          <SummaryCard label={(workspaceMode ? t('summaryOntologyStatus') : t('summaryContractStatus')).toLocaleUpperCase()} value={workspaceMode ? workspace?.ontology.releaseStatus === 'PUBLISHED' && !draftDirty ? t('statusPublished') : t('statusDraft') : !hasActiveWorkspaceContract ? t('statusNoContract') : runtimeStatus === 'SUSPENDED' ? t('statusSuspended') : draftDirty || contract.releaseStatus === 'UNPUBLISHED' ? t('statusDraft') : contract.releaseStatus === 'PUBLISHED' ? t('statusPublished') : contract.releaseStatus} meta={workspaceMode ? `v${workspace?.ontology.version ?? '0.0.0'} · ${t('workspaceOntologyFoundation')}` : !hasActiveWorkspaceContract ? t('contractsCreateFirst') : `${contract.version} · ${runtimeStatus === 'SUSPENDED' ? t('runtimePaused') : draftDirty ? t('unpublishedChanges') : t('registrySynchronized')}`} tone={workspaceMode ? draftDirty || workspace?.ontology.releaseStatus === 'UNPUBLISHED' ? 'amber' : 'green' : !hasActiveWorkspaceContract || runtimeStatus === 'SUSPENDED' || draftDirty || contract.releaseStatus === 'UNPUBLISHED' ? 'amber' : 'green'} />
-          <SummaryCard label={t('summaryEntityTypes').toLocaleUpperCase()} value={String(workspaceMode ? workspace?.ontology.entityTypes.length ?? 0 : hasActiveWorkspaceContract ? contract.entityTypes.length : 0)} meta={workspaceMode && workspace?.ontologyGeneration ? t('workspaceGeneratedMeta', { forms: workspace.ontologyGeneration.sourceFormCount, mapped: workspace.ontologyGeneration.mappedPercent }) : workspaceMode ? t('workspaceSharedAcrossContracts', { count: workspace?.contractIds.length ?? 0 }) : t('contractsScope')} tone="lime" />
-          <SummaryCard label={t('summaryRelationships').toLocaleUpperCase()} value={String(workspaceMode ? workspace?.ontology.relationshipTypes.length ?? 0 : hasActiveWorkspaceContract ? contract.relationshipTypes.length : 0)} meta={t('typedDirectional')} tone="blue" />
-          <SummaryCard label={(workspaceMode ? t('summaryContracts') : t('summaryAssurance')).toLocaleUpperCase()} value={workspaceMode ? String(workspaceContracts.length) : hasActiveWorkspaceContract ? `${contract.tests.filter((test) => test.status === 'PASS').length} / ${contract.tests.length}` : '0 / 0'} meta={workspaceMode ? t('workspaceDecisionContracts') : !hasActiveWorkspaceContract || contract.tests.length === 0 ? t('noTestsConfigured') : t('structuralGatesPassing')} tone={workspaceMode ? 'blue' : !hasActiveWorkspaceContract || contract.tests.length === 0 ? 'amber' : 'green'} />
+          <SummaryCard label={workspaceMode ? t('summaryOntologyStatus') : t('summaryContractStatus')} value={workspaceMode ? workspace?.ontology.releaseStatus === 'PUBLISHED' && !draftDirty ? t('statusPublished') : t('statusDraft') : !hasActiveWorkspaceContract ? t('statusNoContract') : runtimeStatus === 'SUSPENDED' ? t('statusSuspended') : draftDirty || contract.releaseStatus === 'UNPUBLISHED' ? t('statusDraft') : contract.releaseStatus === 'PUBLISHED' ? t('statusPublished') : contract.releaseStatus} meta={workspaceMode ? `v${workspace?.ontology.version ?? '0.0.0'} · ${t('workspaceOntologyFoundation')}` : !hasActiveWorkspaceContract ? t('contractsCreateFirst') : `${contract.version} · ${runtimeStatus === 'SUSPENDED' ? t('runtimePaused') : draftDirty ? t('unpublishedChanges') : t('registrySynchronized')}`} tone={workspaceMode ? draftDirty || workspace?.ontology.releaseStatus === 'UNPUBLISHED' ? 'amber' : 'green' : !hasActiveWorkspaceContract || runtimeStatus === 'SUSPENDED' || draftDirty || contract.releaseStatus === 'UNPUBLISHED' ? 'amber' : 'green'} />
+          <SummaryCard label={t('summaryEntityTypes')} value={String(workspaceMode ? workspace?.ontology.entityTypes.length ?? 0 : hasActiveWorkspaceContract ? contract.entityTypes.length : 0)} meta={workspaceMode && workspace?.ontologyGeneration ? t('workspaceGeneratedMeta', { forms: workspace.ontologyGeneration.sourceFormCount, mapped: workspace.ontologyGeneration.mappedPercent }) : workspaceMode ? t('workspaceSharedAcrossContracts', { count: workspace?.contractIds.length ?? 0 }) : t('contractsScope')} tone="lime" />
+          <SummaryCard label={t('summaryRelationships')} value={String(workspaceMode ? workspace?.ontology.relationshipTypes.length ?? 0 : hasActiveWorkspaceContract ? contract.relationshipTypes.length : 0)} meta={t('typedDirectional')} tone="blue" />
+          <SummaryCard label={workspaceMode ? t('summaryContracts') : t('summaryAssurance')} value={workspaceMode ? String(workspaceContracts.length) : hasActiveWorkspaceContract ? `${contract.tests.filter((test) => test.status === 'PASS').length} / ${contract.tests.length}` : '0 / 0'} meta={workspaceMode ? t('workspaceDecisionContracts') : !hasActiveWorkspaceContract || contract.tests.length === 0 ? t('noTestsConfigured') : t('structuralGatesPassing')} tone={workspaceMode ? 'blue' : !hasActiveWorkspaceContract || contract.tests.length === 0 ? 'amber' : 'green'} />
         </section>
 
         <Suspense fallback={<StudioLoading label={t(activeNavigation.label)} />}>
-          {studioMode === 'ontology' ? workspace ? <WorkspaceOntologyStudio key={workspace.id} workspace={workspace} seedContract={contract} onWorkspaceChange={handleWorkspaceChange} onDirtyChange={setDraftDirty} /> : <div className="runtime-empty"><span>⌘</span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'ontology-bindings' ? workspace ? <SourceBindingStudio contract={workspaceBindingContract(workspace, contract)} scope="ONTOLOGY" workspaceId={workspace.id} onChange={(next) => { setWorkspace((current) => current ? { ...current, ontology: { ...current.ontology, bindings: next.bindings } } : current); setDraftDirty(true) }} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : <div className="runtime-empty"><span>⌘</span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'contracts' ? <ContractsStudio contracts={workspaceContracts} activeContractId={contract.id} onSelect={(id) => void selectContract(id)} onCreate={() => setWizardOpen(true)} /> : studioMode === 'runtime-approvals' ? <RuntimeApprovalStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenReviews={() => setStudioMode('reviews')} onOpenAssurance={() => setStudioMode('assurance')} onManageRelease={() => setStudioMode('releases')} /> : studioMode === 'bindings' ? <SourceBindingStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : studioMode === 'assurance' ? <AssuranceStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'policies' ? <PolicyStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'reviews' ? <ReviewQueueStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'evidence' ? <EvidenceRegistryStudio contract={contract} /> : studioMode === 'releases' ? <ReleaseManagementStudio contract={contract} onRegistryChange={(entry) => void handleRegistryChange(entry)} onManageDraft={() => setStudioMode('contracts')} /> : <RuntimeStudio key={contract.id} contract={contract} runtimeStatus={runtimeStatus} onChange={setContract} onDirtyChange={setDraftDirty} onManageRelease={() => setStudioMode('releases')} onOpenAssurance={() => setStudioMode('assurance')} />}
+          {studioMode === 'ontology' ? workspace ? <WorkspaceOntologyStudio key={workspace.id} workspace={workspace} seedContract={contract} onWorkspaceChange={handleWorkspaceChange} onDirtyChange={setDraftDirty} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'ontology-bindings' ? workspace ? <SourceBindingStudio contract={workspaceBindingContract(workspace, contract)} scope="ONTOLOGY" workspaceId={workspace.id} onChange={(next) => { setWorkspace((current) => current ? { ...current, ontology: { ...current.ontology, bindings: next.bindings } } : current); setDraftDirty(true) }} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'contracts' ? <ContractsStudio contracts={workspaceContracts} activeContractId={contract.id} onSelect={(id) => void selectContract(id)} onCreate={() => setWizardOpen(true)} /> : studioMode === 'runtime-approvals' ? <RuntimeApprovalStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenReviews={() => setStudioMode('reviews')} onOpenAssurance={() => setStudioMode('assurance')} onManageRelease={() => setStudioMode('releases')} /> : studioMode === 'bindings' ? <SourceBindingStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : studioMode === 'assurance' ? <AssuranceStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'policies' ? <PolicyStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'reviews' ? <ReviewQueueStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'evidence' ? <EvidenceRegistryStudio contract={contract} /> : studioMode === 'releases' ? <ReleaseManagementStudio contract={contract} onRegistryChange={(entry) => void handleRegistryChange(entry)} onManageDraft={() => setStudioMode('contracts')} /> : <RuntimeStudio key={contract.id} contract={contract} runtimeStatus={runtimeStatus} onChange={setContract} onDirtyChange={setDraftDirty} onManageRelease={() => setStudioMode('releases')} onOpenAssurance={() => setStudioMode('assurance')} />}
         </Suspense>
       </main>
       <Suspense fallback={null}>
@@ -327,7 +345,7 @@ export function App() {
 }
 
 function StudioLoading({ label }: { label: string }) {
-  return <div className="runtime-empty" role="status"><span>◌</span><h3>{label}</h3></div>
+  return <div className="runtime-empty" role="status"><span aria-hidden="true"><IconLoader /></span><h3>{label}</h3></div>
 }
 
 function workspaceBindingContract(workspace: IndustryWorkspace, seed: ContextContract): ContextContract {
