@@ -1,5 +1,6 @@
 import { createHash, generateKeyPairSync, randomUUID, sign, verify } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { URL } from 'node:url'
 import { ContextCompiler } from '@lattice/compiler-core'
@@ -36,7 +37,7 @@ import { validateConnectorBinding } from './connectors.js'
 
 const port = Number(process.env.PORT ?? 8787)
 const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
-const dataDirectory = process.env.LATTICE_DATA_DIR ?? join(process.cwd(), 'data')
+const dataDirectory = process.env.LATTICE_DATA_DIR ?? (process.env.VERCEL ? join(tmpdir(), 'lattice-api-data') : join(process.cwd(), 'data'))
 const registry = await ContractRegistry.open(join(dataDirectory, 'contract-registry.json'), counterpartyRiskContract)
 const assuranceStore = await AssuranceStore.open(join(dataDirectory, 'assurance-runs.json'))
 const reviewStore = await ReviewStore.open(join(dataDirectory, 'review-artifacts.json'))
