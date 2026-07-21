@@ -206,9 +206,16 @@ export interface ConnectorValidationRequest {
 export interface ConnectorValidationResult {
   provider: ConnectorProvider
   status: 'READY' | 'CONFIGURED' | 'INVALID'
-  driver: 'BUILT_IN_HTTP' | 'EXTERNAL_GATEWAY' | 'NOT_AVAILABLE'
+  driver: 'BUILT_IN_HTTP' | 'BUILT_IN_NATIVE' | 'EXTERNAL_GATEWAY' | 'NOT_AVAILABLE'
   credentialState: 'AVAILABLE' | 'EXTERNAL' | 'MISSING'
   checks: Array<{ id: string; status: 'PASS' | 'FAIL' | 'INFO'; message: string }>
+}
+
+export interface ConnectorDiscoveryRequest {
+  binding: SourceBinding
+  contractId?: string
+  workspaceId?: string
+  sourceName?: string
 }
 
 export interface BindingFieldMapping {

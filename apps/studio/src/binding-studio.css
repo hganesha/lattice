@@ -92,6 +92,9 @@
 .connector-resource-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
 .binding-form-body input:focus, .binding-form-body select:focus, .binding-form-body textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
 .binding-form-body label small { display: block; margin-top: 5px; color: var(--text-muted); font: 6px Inter; }
+.binding-form-body label.live-discovery-choice { padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-soft); }
+.live-discovery-choice > span { display: flex; align-items: center; gap: 8px; color: var(--text); font: 8px Inter; }
+.binding-form-body .live-discovery-choice input { width: auto; margin: 0; }
 .binding-form-split { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .binding-mapping > .panel-header { height: 70px; }
 .binding-mapping > .panel-header select { max-width: 390px; padding: 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--text-secondary); font: 7px Inter; }

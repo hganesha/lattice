@@ -8,7 +8,7 @@ export async function executeBindings(plan: SignedExecutionPlan, contract: Conte
     if (!binding) return failed(bindingId, 'Unknown source', 'SIMULATED', 'SOURCE_BINDING_NOT_FOUND')
     const startedAt = Date.now()
     try {
-      const payload = await loadPayload(binding)
+      const payload = await loadPayload(binding, plan.arguments)
       const mappedValues = (binding.mappings ?? []).map((mapping) => ({
         sourcePath: mapping.sourcePath,
         targetTypeId: mapping.targetTypeId,
@@ -31,8 +31,8 @@ export async function executeBindings(plan: SignedExecutionPlan, contract: Conte
   }))
 }
 
-async function loadPayload(binding: SourceBinding): Promise<Record<string, unknown>> {
-  if (binding.executionMode === 'CONNECTOR') return executeConnector(binding)
+async function loadPayload(binding: SourceBinding, parameters: SignedExecutionPlan['arguments']): Promise<Record<string, unknown>> {
+  if (binding.executionMode === 'CONNECTOR') return executeConnector(binding, parameters)
   if ((binding.executionMode ?? 'SIMULATED') === 'SIMULATED') {
     if (!binding.samplePayload) throw new Error('SAMPLE_PAYLOAD_NOT_CONFIGURED')
     return structuredClone(binding.samplePayload)

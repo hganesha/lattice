@@ -14,10 +14,12 @@
   "dependencies": {
     "@lattice/compiler-core": "workspace:*",
     "@lattice/contracts": "workspace:*",
-    "@lattice/importer-core": "workspace:*"
+    "@lattice/importer-core": "workspace:*",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/pg": "^8.20.0",
     "typescript": "^5.4.0"
   }
 }

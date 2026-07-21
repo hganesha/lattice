@@ -28,7 +28,7 @@ export const connectorCatalog: ConnectorTemplate[] = [
   {
     id: 'POSTGRESQL', label: 'PostgreSQL', category: 'DATABASE', adapterType: 'DATABASE', transport: 'POSTGRES_WIRE',
     description: 'Bind a read-only parameterized query to a PostgreSQL database, schema, table, or view.',
-    endpointPlaceholder: 'postgresql://db.example.internal:5432', credentialRefPlaceholder: 'vault:postgres/context-reader', permissionPlaceholder: 'postgres.context.read',
+    endpointPlaceholder: 'postgresql://db.example.internal:5432/governed', credentialRefPlaceholder: 'env:POSTGRES_CONNECTION_URL', permissionPlaceholder: 'postgres.context.read',
     operationVerb: 'QUERY', resourceFields: ['database', 'schema', 'object'], parameterStyle: 'POSITIONAL', docsUrl: 'https://www.postgresql.org/docs/current/libpq-connect.html',
   },
   {

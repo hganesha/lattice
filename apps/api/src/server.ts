@@ -13,6 +13,7 @@ import {
   type CompileResponse,
   type BindingPreviewRequest,
   type ConnectorValidationRequest,
+  type ConnectorDiscoveryRequest,
   type CreateReviewDecisionRequest,
   type CreateReviewRequest,
   type CreateRuntimeApprovalDecisionRequest,
@@ -33,7 +34,7 @@ import { ContractRegistry, ContractValidationError, type PublishRequest } from '
 import { ReviewStore } from './reviewStore.js'
 import { ExecutionStore } from './executionStore.js'
 import { RuntimeApprovalStore } from './runtimeApprovalStore.js'
-import { validateConnectorBinding } from './connectors.js'
+import { discoverConnector, validateConnectorBinding } from './connectors.js'
 import { buildReleaseDiffArtifact } from './releaseDiff.js'
 
 const port = Number(process.env.PORT ?? 8787)
@@ -137,6 +138,37 @@ const server = createServer(async (request, response) => {
       const result = validateConnectorBinding(body.binding)
       console.info('[connector.validate]', { principalId: identity.principalId, bindingId: body.binding.id, provider: result.provider, status: result.status, driver: result.driver, credentialState: result.credentialState })
       send(response, result.status === 'INVALID' ? 422 : 200, result)
+      return
+    }
+
+    if (request.method === 'POST' && url.pathname === '/v1/connectors/discover') {
+      const identity = authenticate(request)
+      if (!identity) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const body = await readJson<ConnectorDiscoveryRequest>(request)
+      if (!body.binding?.connector || (!body.contractId?.trim() && !body.workspaceId?.trim())) {
+        send(response, 400, { error: 'CONNECTOR_DISCOVERY_SCOPE_REQUIRED' })
+        return
+      }
+      if (body.contractId && !registry.get(body.contractId)) {
+        send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
+        return
+      }
+      if (body.workspaceId && !registry.getWorkspace(body.workspaceId)) {
+        send(response, 404, { error: 'WORKSPACE_NOT_FOUND' })
+        return
+      }
+      try {
+        const contractId = body.contractId ?? `ontology:${body.workspaceId}`
+        const sourceName = body.sourceName?.trim() || [body.binding.connector.resource.catalog, body.binding.connector.resource.database, body.binding.connector.resource.schema, body.binding.connector.resource.object].filter(Boolean).join('.')
+        const preview = await discoverConnector(body.binding, contractId, sourceName)
+        console.info('[connector.discover]', { principalId: identity.principalId, provider: body.binding.connector.provider, sourceName, fieldCount: preview.operations[0]?.fields.length ?? 0 })
+        send(response, 200, preview)
+      } catch (error) {
+        send(response, 422, { error: 'CONNECTOR_DISCOVERY_FAILED', message: error instanceof Error ? error.message : 'Provider metadata could not be discovered.' })
+      }
       return
     }
 
