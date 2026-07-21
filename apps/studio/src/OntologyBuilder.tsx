@@ -52,11 +52,14 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   const [releases, setReleases] = useState<ContractRelease[]>([])
   const [saving, setSaving] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
-  const [inspectorTab, setInspectorTab] = useState<'DEFINITION' | 'HISTORY'>('DEFINITION')
+  const [inspectorTab, setInspectorTab] = useState<'DEFINITION' | 'RELATIONSHIPS'>('DEFINITION')
   const [autoLayoutEnabled, setAutoLayoutEnabled] = useState(true)
   const [manualLayout, setManualLayout] = useState<NonNullable<ContextContract['schemaLayout']>>(contract.schemaLayout ?? {})
 
   const selectedType = contract.entityTypes.find((type) => type.id === selectedTypeId)
+  const selectedRelationships = useMemo(() => contract.relationshipTypes.filter((relationship) =>
+    relationship.sourceTypeId === selectedTypeId || relationship.targetTypeId === selectedTypeId,
+  ), [contract.relationshipTypes, selectedTypeId])
   const issues = useMemo(() => validateContract(contract, mode === 'workspace'), [contract, mode])
   const domainGroupLabel = t('ontologyDomainGroup')
   const propsLabel = t('ontologyProperties').toLocaleLowerCase()
@@ -333,9 +336,13 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
         </section>
 
         <aside className="builder-inspector panel">
-          <div className="inspector-tabs" role="tablist" aria-label={t('ontologyInspectorLabel')}><button role="tab" aria-selected={inspectorTab === 'DEFINITION'} className={inspectorTab === 'DEFINITION' ? 'active' : ''} onClick={() => setInspectorTab('DEFINITION')}>{t('ontologyTypeDefinition')}</button>{mode === 'contract' && <button role="tab" aria-selected={inspectorTab === 'HISTORY'} className={inspectorTab === 'HISTORY' ? 'active' : ''} onClick={() => setInspectorTab('HISTORY')}>{t('ontologyHistory')}</button>}</div>
-          {selectedType && inspectorTab === 'DEFINITION' ? <div className="type-form">
-            <div className="entity-title"><span className="large-icon"><EntityIcon icon={selectedType.icon} /></span><div><span>{t('ontologyEntityType').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
+          <div className="inspector-tabs" role="tablist" aria-label={t('ontologyInspectorLabel')}>
+            <button id="ontology-definition-tab" role="tab" aria-controls="ontology-definition-panel" aria-selected={inspectorTab === 'DEFINITION'} className={inspectorTab === 'DEFINITION' ? 'active' : ''} onClick={() => setInspectorTab('DEFINITION')}>{t('ontologyTypeDefinition')}</button>
+            <button id="ontology-relationships-tab" role="tab" aria-controls="ontology-relationships-panel" aria-selected={inspectorTab === 'RELATIONSHIPS'} className={inspectorTab === 'RELATIONSHIPS' ? 'active' : ''} onClick={() => setInspectorTab('RELATIONSHIPS')}>{t('summaryRelationships')}</button>
+            {mode === 'contract' && <button id="ontology-history-tab" role="tab" aria-controls="ontology-history-panel" aria-selected={inspectorTab === 'HISTORY'} className={inspectorTab === 'HISTORY' ? 'active' : ''} onClick={() => setInspectorTab('HISTORY')}>{t('ontologyHistory')}</button>}
+          </div>
+          {selectedType && inspectorTab === 'DEFINITION' ? <div id="ontology-definition-panel" className="type-form" role="tabpanel" aria-labelledby="ontology-definition-tab">
+            <div className="entity-title"><span className="large-icon">{selectedType.icon}</span><div><span>{t('ontologyEntityType').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
             <label>{t('ontologyDisplayName')}<input value={selectedType.label} onChange={(event) => updateSelected({ label: event.target.value })} /></label>
             <label>{t('ontologyDescription')}<textarea value={selectedType.description} onChange={(event) => updateSelected({ description: event.target.value })} /></label>
             <EntityIconPicker key={selectedType.id} value={selectedType.icon} onChange={(icon) => updateSelected({ icon })} label={t('ontologyIcon')} />
@@ -345,14 +352,22 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
               {selectedType.properties.length === 0 && <div className="empty-properties"><span>◇</span><b>{t('ontologyNoProperties')}</b><small>{t('ontologyNoPropertiesDescription')}</small></div>}
               {selectedType.properties.map((property) => <div className="property-row" key={property.id}><span className="property-symbol">{property.identifier ? '#' : '•'}</span><div><b>{property.name}</b><small>{property.dataType}{property.required ? ` · ${t('ontologyRequired')}` : ''}</small></div><code>{property.id.split('.').at(-1)}</code></div>)}
             </div>
-          </div> : selectedType && inspectorTab === 'HISTORY' ? <div className="type-history">
-            <div className="entity-title"><span className="large-icon">↺</span><div><span>{t('ontologyImmutableTypeHistory').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
-            <div className="type-history-list">
-              {releases.slice().reverse().map((release) => {
-                const releasedType = release.contract.entityTypes.find((type) => type.id === selectedType.id)
-                return releasedType ? <article key={release.digest}><div><b>v{release.version}</b><time>{formatDate(release.publishedAt, { dateStyle: 'medium', timeStyle: 'short' })}</time></div><p>{releasedType.label} · {t('governedProperties', { count: releasedType.properties.length })} · {releasedType.approvalStatus.toLocaleLowerCase()}</p><code>{release.digest.slice(0, 24)}…</code></article> : null
+          </div> : selectedType && inspectorTab === 'RELATIONSHIPS' ? <div id="ontology-relationships-panel" className="relationship-inspector" role="tabpanel" aria-labelledby="ontology-relationships-tab">
+            <div className="entity-title"><span className="large-icon">↔</span><div><span>{t('ontologyRelationshipTypes').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
+            <div className="relationship-inspector-heading"><span>{t('summaryRelationships').toLocaleUpperCase()}</span><em>{selectedRelationships.length}</em></div>
+            <div className="relationship-inspector-list">
+              {selectedRelationships.length === 0 && <div className="empty-properties"><span>↔</span><b>{t('ontologyNoRelationships')}</b><small>{t('ontologyNoRelationshipsDescription')}</small></div>}
+              {selectedRelationships.map((relationship) => {
+                const isSelfRelationship = relationship.sourceTypeId === selectedType.id && relationship.targetTypeId === selectedType.id
+                const direction = isSelfRelationship ? 'self' : relationship.sourceTypeId === selectedType.id ? 'outgoing' : 'incoming'
+                const directionLabel = isSelfRelationship ? t('ontologySelfRelationship') : direction === 'outgoing' ? t('ontologyOutgoing') : t('ontologyIncoming')
+                return <article className="inspector-relationship-card" key={relationship.id}>
+                  <header><span className={`relationship-direction ${direction}`}>{directionLabel}</span><b>{relationship.label}</b><em className={`relationship-impact ${relationship.impact.toLocaleLowerCase()}`}>{relationship.impact}</em></header>
+                  <div className="relationship-path"><span><small>{t('ontologySourceType')}</small><b>{typeLabel(contract, relationship.sourceTypeId)}</b></span><i aria-hidden="true">→</i><span><small>{t('ontologyTargetType')}</small><b>{typeLabel(contract, relationship.targetTypeId)}</b></span></div>
+                  {relationship.description && <p>{relationship.description}</p>}
+                  <footer><code>{relationship.id}</code><span>{t('ontologyCardinality')} · {relationship.cardinality.replaceAll('_', ' : ')}</span></footer>
+                </article>
               })}
-              {!releases.some((release) => release.contract.entityTypes.some((type) => type.id === selectedType.id)) && <div className="empty-properties"><span>↺</span><b>{t('ontologyNotPublished')}</b><small>{t('ontologyNotPublishedDescription')}</small></div>}
             </div>
           </div> : <div className="empty-properties"><span>◇</span><b>{t('ontologySelectEntity')}</b></div>}
         </aside>
