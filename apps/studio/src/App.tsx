@@ -22,7 +22,6 @@ import {
   IconGitBranch,
   IconDownload,
   IconPlus,
-  IconChevronDown,
   IconLoader,
 } from './icons'
 import { SummaryCard } from './SummaryCard'
@@ -308,7 +307,7 @@ export function App() {
     <div className="shell">
       <aside className="sidebar">
         <div className="brand"><span className="brand-mark">L</span><span>Lattice</span></div>
-        <div className="workspace-switcher"><span className="workspace-icon">IW</span><div><label htmlFor="active-workspace">{t('industryWorkspace')}</label><select id="active-workspace" value={workspace?.id ?? ''} onChange={(event) => void selectWorkspace(event.target.value)}>{!workspace && <option value="">{t('workspaceLoading')}</option>}{workspaces.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select><span>{workspace ? t('workspaceFoundationMeta', { types: workspace.ontology.entityTypes.length, contracts: workspace.contractIds.length }) : t('crossIndustryPlane')}</span></div><span className="chevron" aria-hidden="true"><IconChevronDown /></span></div>
+        <div className="workspace-switcher"><span className="workspace-icon">IW</span><div><label htmlFor="active-workspace">{t('industryWorkspace')}</label><select id="active-workspace" value={workspace?.id ?? ''} onChange={(event) => void selectWorkspace(event.target.value)}>{!workspace && <option value="">{t('workspaceLoading')}</option>}{workspaces.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select><span>{workspace ? t('workspaceFoundationMeta', { types: workspace.ontology.entityTypes.length, contracts: workspace.contractIds.length }) : t('crossIndustryPlane')}</span></div></div>
         <nav>
           {workspaceNavigation.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={studioMode === item.mode} onClick={() => navigateTo(item.mode)} key={item.mode} />)}
           <div className="nav-label">{t('contractWorkspace')}</div>
