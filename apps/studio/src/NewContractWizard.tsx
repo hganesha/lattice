@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { ContractRegistryEntry, ContractStarter, ImpactLevel, IndustryWorkspace } from '@lattice/contracts'
 import { API_URL } from './api'
+import { Brand } from './Brand'
 import { useMessages } from './i18n/messages'
 import { SelectOrCreateField } from './SelectOrCreateField'
 import { contractSuggestionsFor } from './contractSuggestions'
@@ -94,7 +95,7 @@ export function NewContractWizard({ onClose, onCreated, workspace }: NewContract
   return <div className="modal-backdrop wizard-backdrop" role="presentation">
     <section className="contract-wizard" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
       <aside className="wizard-rail">
-        <div className="brand"><span className="brand-mark">L</span><span>Lattice</span></div>
+        <Brand />
         <div className="wizard-rail-copy"><span>{t('wizardNewContract').toLocaleUpperCase()}</span><h2>{t('wizardDecisionsTitle')}</h2><p>{t('wizardDecisionsDescription')}</p></div>
         <ol>
           <WizardStep number={1} label={t('wizardStepBrief')} detail={t('wizardStepBriefDetail')} current={step} />

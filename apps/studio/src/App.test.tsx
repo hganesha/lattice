@@ -14,8 +14,9 @@ describe('Studio shell', () => {
 
   it('starts ontology-first and lazy-loads the contract workspace on navigation', async () => {
     const user = userEvent.setup()
-    render(<LatticeI18nProvider><App /></LatticeI18nProvider>)
+    const { container } = render(<LatticeI18nProvider><App /></LatticeI18nProvider>)
 
+    expect(container.querySelector('.brand-mark img')).toHaveAttribute('src', expect.stringContaining('lattice-app-icon'))
     expect(screen.getByRole('button', { name: 'Shared ontology' })).toHaveAttribute('aria-current', 'page')
 
     await user.click(screen.getByRole('button', { name: /^Contracts/ }))

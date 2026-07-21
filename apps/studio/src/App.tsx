@@ -26,6 +26,7 @@ import {
 } from './icons'
 import { SummaryCard } from './SummaryCard'
 import { AppearanceSettings } from './AppearanceSettings'
+import { Brand } from './Brand'
 import { ConfirmDialog } from './ConfirmDialog'
 import { IndustryWorkspaceIcon } from './IndustryWorkspaceIcon'
 import { API_URL } from './api'
@@ -307,7 +308,7 @@ export function App() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand"><span className="brand-mark">L</span><span>Lattice</span></div>
+        <Brand />
         <div className="workspace-switcher"><span className="workspace-icon"><IndustryWorkspaceIcon domain={workspace?.domain} /></span><div><label htmlFor="active-workspace">{t('industryWorkspace')}</label><select id="active-workspace" value={workspace?.id ?? ''} onChange={(event) => void selectWorkspace(event.target.value)}>{!workspace && <option value="">{t('workspaceLoading')}</option>}{workspaces.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select><span>{workspace ? t('workspaceFoundationMeta', { types: workspace.ontology.entityTypes.length, contracts: workspace.contractIds.length }) : t('crossIndustryPlane')}</span></div></div>
         <nav>
           {workspaceNavigation.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={studioMode === item.mode} onClick={() => navigateTo(item.mode)} key={item.mode} />)}
