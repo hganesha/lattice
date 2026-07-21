@@ -51,4 +51,9 @@ export const spanishMessages = {
   evidenceDecisionBy: '{decision} por {name}', evidenceAssuranceRun: 'Ejecución de garantía', evidenceSynchronizedChecks: '{count, plural, one {# control sincronizado} other {# controles sincronizados}}', evidenceFreshnessCurrent: 'Actual', evidenceFreshnessAging: 'Envejeciendo', evidenceFreshnessStale: 'Obsoleta', evidenceFreshnessInvalid: 'No válida',
   approvalDefaultRationale: 'La evidencia operativa es actual y el alcance de priorización es apropiado.', approvalBaselineStaged: 'La base de aprobación se preparó como borrador sin publicar. Apruebe la política, ejecute la garantía y publique v0.2.0.', approvalDecisionFailed: 'Falló la decisión', approvalResumeFailed: 'Falló la reanudación', approvalExecutionFailed: 'Falló la ejecución',
   releaseVersionSemantic: 'Semántica', releaseVersionPolicy: 'Política', releaseVersionBindings: 'Vinculaciones', releaseVersionApi: 'API', releaseKindEntityType: 'Tipo de entidad', releaseKindRelationship: 'Relación', releaseKindOperation: 'Operación', releaseKindSourceBinding: 'Vinculación de fuente', releaseKindPolicy: 'Política', releaseKindContextObject: 'Objeto de contexto',
+  ontologyNoRelationships: 'Todavía no hay relaciones',
+  ontologyNoRelationshipsDescription: 'Conecte este tipo con otro tipo de entidad.',
+  ontologyIncoming: 'Entrante',
+  ontologyOutgoing: 'Saliente',
+  ontologySelfRelationship: 'Autorrelación',
 } satisfies Record<MessageKey, string>
