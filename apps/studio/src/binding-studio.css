@@ -68,6 +68,8 @@
 .connector-tile.featured { border-color: var(--accent); background: radial-gradient(circle at 8% 8%, var(--accent-soft), transparent 32%), var(--surface-raised); }
 .connector-tile-top { display: flex; align-items: center; justify-content: space-between; }
 .connector-monogram { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--accent); border-radius: 7px; color: var(--accent-strong); background: var(--accent-soft); font: 700 8px DM Mono; }
+.connector-monogram.brand-icon { overflow: hidden; border-color: color-mix(in srgb, var(--border-strong) 72%, transparent); background: #fff; }
+.connector-monogram.brand-icon img { display: block; width: 25px; height: 25px; object-fit: contain; }
 .connector-category { color: var(--text-muted); font: 6px DM Mono; letter-spacing: .5px; }
 .connector-tile h3 { margin-top: 15px; font: 600 11px Manrope; color: var(--text); }
 .connector-tile p { min-height: 48px; margin-top: 6px; color: var(--text-muted); font: 7px/1.5 Inter; }

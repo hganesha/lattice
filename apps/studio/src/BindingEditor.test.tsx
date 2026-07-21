@@ -34,7 +34,12 @@ describe('BindingEditor live discovery', () => {
 
     render(<LatticeI18nProvider><BindingEditor contract={structuredClone(counterpartyRiskContract)} onCancel={vi.fn()} onApply={vi.fn()} /></LatticeI18nProvider>)
 
-    await user.click(screen.getByRole('button', { name: /Databricks/i }))
+    const databricksConnector = screen.getByRole('button', { name: /Databricks/i })
+    expect(databricksConnector.querySelector('img')).toHaveAttribute('src', expect.stringContaining('databricks'))
+    expect(screen.getByRole('button', { name: /Microsoft Fabric/i }).querySelector('img')).toHaveAttribute('src', expect.stringContaining('fabric'))
+    expect(screen.getByRole('button', { name: /Snowflake/i }).querySelector('img')).toHaveAttribute('src', expect.stringContaining('snowflake'))
+    expect(screen.getByRole('button', { name: /Apache Kafka/i }).querySelector('img')).toHaveAttribute('src', expect.stringContaining('kafka'))
+    await user.click(databricksConnector)
     expect(screen.getByRole('checkbox', { name: /Discover from the live provider/i })).toBeChecked()
     expect(screen.queryByLabelText(/Column schema/i)).not.toBeInTheDocument()
 

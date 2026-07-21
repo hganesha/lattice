@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { connectorCatalog, type ConnectorProvider, type ConnectorTemplate } from '@lattice/contracts'
 import { API_URL } from './api'
 import { useMessages } from './i18n/messages'
+import databricksIcon from './assets/connectors/databricks.png'
+import fabricIcon from './assets/connectors/fabric.png'
+import kafkaIcon from './assets/connectors/kafka.png'
+import snowflakeIcon from './assets/connectors/snowflake.png'
 
 interface ConnectorPickerProps {
   onCancel: () => void
@@ -9,6 +13,12 @@ interface ConnectorPickerProps {
 }
 
 const featured = new Set<ConnectorProvider>(['DATABRICKS', 'MICROSOFT_FABRIC', 'SNOWFLAKE'])
+const connectorIcons: Partial<Record<ConnectorProvider, string>> = {
+  DATABRICKS: databricksIcon,
+  MICROSOFT_FABRIC: fabricIcon,
+  SNOWFLAKE: snowflakeIcon,
+  KAFKA: kafkaIcon,
+}
 
 export function ConnectorPicker({ onCancel, onSelect }: ConnectorPickerProps) {
   const { t } = useMessages()
@@ -35,13 +45,13 @@ export function ConnectorPicker({ onCancel, onSelect }: ConnectorPickerProps) {
     <div className="connector-picker-body">
       <div className="connector-picker-intro"><div><span className="panel-kicker">{t('connectorGovernedAdapters').toLocaleUpperCase()} · {(catalogState === 'LIVE' ? t('connectorApiSynchronized') : catalogState === 'FALLBACK' ? t('connectorLocalFallback') : t('connectorSynchronizing')).toLocaleUpperCase()}</span><h3>{t('connectorIntroTitle')}</h3><p>{t('connectorIntroDescription')}</p></div><div className="connector-count"><b>{connectors.length}</b><span>{t('connectorTypes').toLocaleUpperCase()}</span></div></div>
       <div className="connector-grid">
-        {connectors.map((connector) => <button className={`connector-tile ${featured.has(connector.id) ? 'featured' : ''}`} onClick={() => onSelect(connector.id)} key={connector.id}>
-          <div className="connector-tile-top"><span className="connector-monogram">{monogram(connector.label)}</span><span className="connector-category">{connector.category.replace('_', ' ')}</span></div>
+        {connectors.map((connector) => { const icon = connectorIcons[connector.id]; return <button className={`connector-tile ${featured.has(connector.id) ? 'featured' : ''}`} onClick={() => onSelect(connector.id)} key={connector.id}>
+          <div className="connector-tile-top"><span className={`connector-monogram${icon ? ' brand-icon' : ''}`}>{icon ? <img src={icon} alt="" aria-hidden="true" /> : monogram(connector.label)}</span><span className="connector-category">{connector.category.replace('_', ' ')}</span></div>
           <h3>{connector.label}</h3>
           <p>{connector.description}</p>
           <div className="connector-tile-meta"><span>{connector.transport}</span><span>{connector.operationVerb}</span><span>{t('connectorReadOnly').toLocaleUpperCase()}</span></div>
           <strong>{t('connectorConfigure')}</strong>
-        </button>)}
+        </button> })}
       </div>
     </div>
     <footer className="binding-editor-footer"><div><span>{t('connectorCredentialBoundary')}</span></div></footer>
