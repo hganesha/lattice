@@ -225,6 +225,103 @@ h3 { font-size: 15px; }
 .language-status select { width:100%; margin-top:7px; }
 .language-status small { margin-top: 3px; color: var(--text-secondary); }
 
+/* One select system for every studio surface. Native semantics stay intact while
+   the visual treatment, spacing, interaction states, and chevron are centralized. */
+:where(select:not([multiple])) {
+  min-height: 42px !important;
+  max-width: 100%;
+  padding: 9px 42px 9px 12px !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text) !important;
+  background-color: var(--surface-raised) !important;
+  background-image:
+    linear-gradient(45deg,transparent 50%,var(--text-muted) 50%),
+    linear-gradient(135deg,var(--text-muted) 50%,transparent 50%),
+    linear-gradient(to bottom,var(--border),var(--border)) !important;
+  background-position:
+    calc(100% - 18px) calc(50% - 2px),
+    calc(100% - 13px) calc(50% - 2px),
+    calc(100% - 36px) 50% !important;
+  background-repeat: no-repeat !important;
+  background-size: 5px 5px,5px 5px,1px 22px !important;
+  box-shadow: 0 1px 0 color-mix(in srgb,var(--text) 4%,transparent),inset 0 1px 0 color-mix(in srgb,var(--text) 3%,transparent);
+  font-family: Inter,system-ui,sans-serif !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color .15s ease,background-color .15s ease,box-shadow .15s ease;
+}
+
+:where(select:not([multiple])):hover:not(:disabled) {
+  border-color: color-mix(in srgb,var(--accent) 62%,var(--border-strong)) !important;
+  background-color: var(--surface-soft) !important;
+}
+
+:where(select:not([multiple])):focus-visible {
+  outline: none !important;
+  border-color: var(--focus) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb,var(--focus) 25%,transparent),inset 0 1px 0 color-mix(in srgb,var(--text) 3%,transparent) !important;
+}
+
+:where(select:not([multiple])):disabled {
+  color: var(--text-muted) !important;
+  background-color: var(--surface-soft) !important;
+  cursor: not-allowed;
+  opacity: .62;
+}
+
+:where(select option,select optgroup) {
+  color: var(--text);
+  background: var(--surface);
+  font: 500 var(--ui-body-size) Inter,system-ui,sans-serif;
+}
+
+/* Dense rows retain their layout rhythm without reverting to panel-specific styles. */
+:where(.mapping-row,.question-link-row,.collision-row) select:not([multiple]) {
+  min-height: 38px !important;
+  padding-block: 7px !important;
+}
+
+/* The workspace selector is intentionally compact inside its sidebar card. */
+.workspace-switcher {
+  display: grid;
+  grid-template-columns: 31px minmax(0,1fr);
+  column-gap: 10px;
+  row-gap: 4px;
+}
+
+.workspace-switcher>div { display: contents; }
+.workspace-switcher label { grid-column: 2; align-self: end; margin: 0 !important; }
+.workspace-switcher div span { grid-column: 1/-1; margin-top: 0 !important; }
+
+.workspace-switcher select:not([multiple]) {
+  grid-column: 1/-1;
+  width: 100%;
+  min-height: 34px !important;
+  margin: 2px 0;
+  padding: 6px 38px 6px 9px !important;
+  background-color: var(--surface) !important;
+  background-position:
+    calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 11px) calc(50% - 2px),
+    calc(100% - 32px) 50% !important;
+  background-size: 5px 5px,5px 5px,1px 18px !important;
+}
+
+/* Collision resolution remains semantically highlighted within the shared shell. */
+.collision-row select:not([multiple]) {
+  border-color: var(--warning) !important;
+  background-color: var(--warning-soft) !important;
+}
+
+.collision-row select:not([multiple]):hover:not(:disabled) {
+  border-color: color-mix(in srgb,var(--warning) 80%,var(--text)) !important;
+}
+
 :root[data-theme="light"] .brand-mark { color: #173006; }
 :root[data-theme="light"] .avatar,:root[data-theme="light"] .workspace-icon,:root[data-theme="light"] .large-icon,:root[data-theme="light"] .schema-type-icon,:root[data-theme="light"] .property-symbol { color: var(--accent-strong); background: var(--accent-soft) !important; border-color: var(--border) !important; }
 :root[data-theme="light"] :where(.builder-modal,.contract-wizard,.import-studio,.review-decision-panel,.policy-editor) { color: var(--text); background: var(--surface) !important; border-color: var(--border-strong) !important; }
