@@ -23,12 +23,15 @@ import { API_URL } from './api'
 import { ImportStudio } from './ImportStudio'
 import { useMessages } from './i18n/messages'
 import { OntologyLaneNode, type OntologyLaneNodeType } from './OntologyLaneNode'
+import { OntologyEntityNode } from './OntologyEntityNode'
 import { buildOntologyLaneLayout } from './ontologyLaneLayout'
 import { Toast } from './Toast'
 import { DomainGroupField } from './DomainGroupField'
+import { EntityIconPicker } from './EntityIconPicker'
+import { EntityIcon, DEFAULT_ENTITY_ICON } from './entityIcons'
 import { downloadJson } from './jsonExport'
 
-const ontologyNodeTypes = { ontologyLane: OntologyLaneNode }
+const ontologyNodeTypes = { ontologyLane: OntologyLaneNode, ontologyEntity: OntologyEntityNode }
 
 type BuilderDialog = 'entity' | 'relationship' | 'property' | 'publish' | null
 
@@ -56,6 +59,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   const selectedType = contract.entityTypes.find((type) => type.id === selectedTypeId)
   const issues = useMemo(() => validateContract(contract, mode === 'workspace'), [contract, mode])
   const domainGroupLabel = t('ontologyDomainGroup')
+  const propsLabel = t('ontologyProperties').toLocaleLowerCase()
   const domainGroups = useMemo(() => uniqueDomainGroups(contract.entityTypes), [contract.entityTypes])
   const laneLayout = useMemo(() => buildOntologyLaneLayout(contract.entityTypes), [contract.entityTypes])
   const resolvedPositions = useMemo(() => autoLayoutEnabled
@@ -77,14 +81,15 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     })),
     ...contract.entityTypes.map((type) => ({
       id: type.id,
+      type: 'ontologyEntity',
       position: resolvedPositions[type.id]!,
-      data: { label: `${type.icon}  ${type.label}  ·  ${type.properties.length} props` },
+      data: { icon: type.icon, label: type.label, propertyCount: type.properties.length, propsLabel: propsLabel },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       className: `ontology-flow-node ${type.approvalStatus === 'APPROVED' ? 'approved' : 'draft'} ${selectedTypeId === type.id ? 'selected' : ''}`,
       zIndex: 2,
     })),
-  ], [contract.entityTypes, domainGroupLabel, laneLayout.lanes, resolvedPositions, selectedTypeId])
+  ], [contract.entityTypes, domainGroupLabel, laneLayout.lanes, propsLabel, resolvedPositions, selectedTypeId])
   const [graphNodes, setGraphNodes, onNodesChange] = useNodesState(derivedNodes)
   const graphEdges = useMemo<Edge[]>(() => contract.relationshipTypes.map((relationship) => ({
     id: relationship.id,
@@ -141,7 +146,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
       label,
       description: String(data.get('description') ?? '').trim(),
       group: String(data.get('group') ?? 'Core').trim() || 'Core',
-      icon: String(data.get('icon') ?? label.slice(0, 2)).trim().slice(0, 2).toUpperCase() || 'EN',
+      icon: String(data.get('icon') ?? '').trim() || DEFAULT_ENTITY_ICON,
       properties: [],
       evidenceStatus: 'DECLARED',
       approvalStatus: 'DRAFT',
@@ -330,9 +335,10 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
         <aside className="builder-inspector panel">
           <div className="inspector-tabs" role="tablist" aria-label={t('ontologyInspectorLabel')}><button role="tab" aria-selected={inspectorTab === 'DEFINITION'} className={inspectorTab === 'DEFINITION' ? 'active' : ''} onClick={() => setInspectorTab('DEFINITION')}>{t('ontologyTypeDefinition')}</button>{mode === 'contract' && <button role="tab" aria-selected={inspectorTab === 'HISTORY'} className={inspectorTab === 'HISTORY' ? 'active' : ''} onClick={() => setInspectorTab('HISTORY')}>{t('ontologyHistory')}</button>}</div>
           {selectedType && inspectorTab === 'DEFINITION' ? <div className="type-form">
-            <div className="entity-title"><span className="large-icon">{selectedType.icon}</span><div><span>{t('ontologyEntityType').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
+            <div className="entity-title"><span className="large-icon"><EntityIcon icon={selectedType.icon} /></span><div><span>{t('ontologyEntityType').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
             <label>{t('ontologyDisplayName')}<input value={selectedType.label} onChange={(event) => updateSelected({ label: event.target.value })} /></label>
             <label>{t('ontologyDescription')}<textarea value={selectedType.description} onChange={(event) => updateSelected({ description: event.target.value })} /></label>
+            <EntityIconPicker key={selectedType.id} value={selectedType.icon} onChange={(icon) => updateSelected({ icon })} label={t('ontologyIcon')} />
             <div className="form-split"><DomainGroupField key={selectedType.id} groups={domainGroups} label={t('ontologyDomainGroup')} value={selectedType.group} addGroupLabel={t('ontologyAddDomainGroup')} newGroupLabel={t('ontologyNewDomainGroup')} newGroupPlaceholder={t('ontologyNewDomainGroupPlaceholder')} onChange={(group) => updateSelected({ group })} /><label>{t('ontologyImpact')}<select value={selectedType.impact} onChange={(event) => updateSelected({ impact: event.target.value as EntityTypeDefinition['impact'] })}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label></div>
             <div className="property-heading"><div><span>{t('ontologyProperties').toLocaleUpperCase()}</span><em>{selectedType.properties.length}</em></div><button onClick={() => setDialog('property')}>{t('ontologyAddProperty')}</button></div>
             <div className="property-list">
@@ -390,8 +396,8 @@ function BuilderModal({ dialog, contract, domainGroups, selectedType, pendingCon
         {dialog === 'entity' && <>
           <label>{t('ontologyDisplayName')}<input name="label" required autoFocus placeholder={t('ontologyExampleCareEpisode')} /></label>
           <label>{t('ontologyDescription')}<textarea name="description" required placeholder={t('ontologyConceptMeaning')} /></label>
-          <div className="form-split"><DomainGroupField groups={domainGroups} label={t('ontologyDomainGroup')} value={domainGroups[0] ?? ''} addGroupLabel={t('ontologyAddDomainGroup')} newGroupLabel={t('ontologyNewDomainGroup')} newGroupPlaceholder={t('ontologyNewDomainGroupPlaceholder')} name="group" /><label>{t('ontologyIcon')}<input name="icon" maxLength={2} placeholder="CE" /></label></div>
-          <label>{t('ontologyImpact')}<select name="impact" defaultValue="MEDIUM"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+          <div className="form-split"><DomainGroupField groups={domainGroups} label={t('ontologyDomainGroup')} value={domainGroups[0] ?? ''} addGroupLabel={t('ontologyAddDomainGroup')} newGroupLabel={t('ontologyNewDomainGroup')} newGroupPlaceholder={t('ontologyNewDomainGroupPlaceholder')} name="group" /><label>{t('ontologyImpact')}<select name="impact" defaultValue="MEDIUM"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label></div>
+          <EntityIconPicker name="icon" value={DEFAULT_ENTITY_ICON} onChange={() => undefined} label={t('ontologyIcon')} />
         </>}
         {dialog === 'relationship' && <>
           <label>{t('ontologyRelationshipLabel')}<input name="label" required autoFocus placeholder={t('ontologyExampleGovernedBy')} /></label>

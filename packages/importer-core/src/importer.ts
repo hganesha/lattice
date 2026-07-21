@@ -11,6 +11,10 @@ import type {
 
 type JsonObject = Record<string, unknown>
 
+// Default entity-type icon key for imported types; mirrors DEFAULT_ENTITY_ICON
+// in the studio entity-icon catalog. Users re-pick a specific icon after import.
+const DEFAULT_ENTITY_ICON = 'box'
+
 export interface PreviewImportInput {
   contract: ContextContract
   sourceName: string
@@ -69,7 +73,7 @@ export function previewImport(input: PreviewImportInput): ImportProposal {
         label,
         description: stringValue(schema.description) ?? `Imported ${label} definition from ${input.sourceName}.`,
         group: format === 'OPENAPI' ? 'Imported API' : 'Imported Schema',
-        icon: initials(label),
+        icon: DEFAULT_ENTITY_ICON,
         properties,
         evidenceStatus: 'TEMPLATE_DERIVED',
         approvalStatus: 'DRAFT',
@@ -199,10 +203,6 @@ function slugify(value: string): string {
 
 function humanize(value: string): string {
   return value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toLocaleUpperCase())
-}
-
-function initials(value: string): string {
-  return value.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toLocaleUpperCase() || 'IM'
 }
 
 function isObject(value: unknown): value is JsonObject {

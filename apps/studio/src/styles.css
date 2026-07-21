@@ -47,3 +47,23 @@ header { display: flex; align-items: center; justify-content: space-between; mar
 .confirm-backdrop{z-index:calc(var(--z-modal) + 10)}.confirm-dialog{width:min(430px,calc(100vw - 40px));padding:24px;border:1px solid var(--border-strong);border-radius:11px;background:var(--surface);color:var(--text);box-shadow:0 30px 80px #0009}.confirm-dialog>span{display:grid;place-items:center;width:31px;height:31px;border-radius:50%;background:var(--warning-soft);color:var(--warning);font:700 13px Manrope}.confirm-dialog h2{margin:14px 0 7px;font:600 17px Manrope;color:var(--text)}.confirm-dialog p{color:var(--text-secondary);font-size:9px;line-height:1.6}.confirm-dialog footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
 .welcome-result{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;margin-top:9px;padding:11px;border:1px solid #3a5432;border-radius:7px;background:#132012}.welcome-result>span{color:#a8e66a}.welcome-result b,.welcome-result small{display:block}.welcome-result small{margin-top:4px;color:#748078;font-size:7px}
 @media(max-width:1250px){main{padding-left:20px;padding-right:20px}.workbench{grid-template-columns:minmax(630px,1fr) 260px}.sidebar{width:220px}.shell{grid-template-columns:220px 1fr}.contracts-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Entity-type icons: catalog picker, graph node, and legacy text fallback. */
+.entity-icon-text{font:600 .9em "DM Mono",monospace;letter-spacing:.5px}
+.large-icon svg{width:19px;height:19px}
+.large-icon .entity-icon-text{font-size:11px}
+.ontology-entity-content{display:flex;align-items:center;gap:9px;text-align:left}
+.ontology-entity-icon{display:grid;place-items:center;width:26px;height:26px;flex:none;border-radius:6px;background:#242f26;color:#b7f44a}
+.ontology-entity-icon svg{width:15px;height:15px}
+.ontology-entity-icon .entity-icon-text{font-size:9px}
+.ontology-entity-content b{display:block;font:600 9px "DM Mono",monospace;color:#dce2de;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+.ontology-entity-content small{display:block;margin-top:2px;color:#7d8a84;font:6px "DM Mono",monospace}
+.ontology-flow-node.draft .ontology-entity-icon{background:#2e2617;color:#e1a453}
+.icon-picker{margin-bottom:2px}
+.icon-picker-label{display:block;margin-bottom:7px;color:var(--text-muted);font:600 8px "DM Mono",monospace;letter-spacing:.6px;text-transform:uppercase}
+.icon-picker-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:5px}
+.icon-picker-option{display:grid;place-items:center;aspect-ratio:1;padding:0;border:1px solid var(--border);border-radius:6px;background:var(--surface-soft);color:var(--text-secondary);font-size:15px;cursor:pointer;transition:border-color .12s,color .12s,background .12s}
+.icon-picker-option:hover{border-color:var(--accent-soft);color:var(--text)}
+.icon-picker-option svg{width:15px;height:15px}
+.icon-picker-option.selected{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
+@media(max-width:1250px){.icon-picker-grid{grid-template-columns:repeat(6,1fr)}}

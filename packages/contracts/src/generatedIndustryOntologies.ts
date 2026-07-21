@@ -10,7 +10,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
       "description": "Shared upstream, field-service, production, and well lifecycle semantics.",
       "domain": "energy",
       "version": "0.1.0",
-      "digest": "sha256:be1f82218b7de307b096ef79b4dc1b6fdc4ede3937c19a323692448443b98882",
+      "digest": "sha256:505e2264c847fac0b32067089a7f205586078e775c6baf916d33424524d350cb",
       "releaseStatus": "UNPUBLISHED",
       "entityTypes": [
         {
@@ -18,7 +18,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Well",
           "description": "A governed well across drilling, completion, and production.",
           "group": "Assets",
-          "icon": "WL",
+          "icon": "factory",
           "properties": [
             {
               "id": "well.completion_date",
@@ -158,7 +158,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Operator",
           "description": "An organization accountable for operating an energy asset.",
           "group": "Organizations",
-          "icon": "OP",
+          "icon": "organization",
           "properties": [
             {
               "id": "operator.operator_name",
@@ -202,7 +202,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Field Service Job",
           "description": "A governed unit of field work, labor, equipment, and material.",
           "group": "Operations",
-          "icon": "FS",
+          "icon": "workflow",
           "properties": [
             {
               "id": "field_service_job.job_type",
@@ -302,7 +302,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Production Measurement",
           "description": "A dated measurement of produced volumes, inventory, sales, or downtime.",
           "group": "Operations",
-          "icon": "PM",
+          "icon": "chart",
           "properties": [
             {
               "id": "production_measurement.gas_volume_mcf",
@@ -702,7 +702,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
       "description": "Shared patient, provider, clinical, claims, diagnostic, payer, and authorization semantics.",
       "domain": "healthcare",
       "version": "0.1.0",
-      "digest": "sha256:e4bd502316be1c04cb32b19dbbfd406badf7f810da550aace1dd7e90512b1cce",
+      "digest": "sha256:0f338911a59d298370c3d0f08a71fd54c8c5b24501eb00044d0b90f5bb33a1ba",
       "releaseStatus": "UNPUBLISHED",
       "entityTypes": [
         {
@@ -710,7 +710,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Patient",
           "description": "A person receiving governed healthcare services.",
           "group": "Care Participants",
-          "icon": "PT",
+          "icon": "person",
           "properties": [
             {
               "id": "patient.patient_dob",
@@ -762,7 +762,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Provider",
           "description": "A practitioner or organization delivering healthcare services.",
           "group": "Care Participants",
-          "icon": "PR",
+          "icon": "health",
           "properties": [
             {
               "id": "provider.provider_name",
@@ -894,7 +894,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Clinical Encounter",
           "description": "A governed episode of assessment, diagnosis, treatment, or follow-up.",
           "group": "Care Delivery",
-          "icon": "CE",
+          "icon": "event",
           "properties": [
             {
               "id": "clinical_encounter.note_date",
@@ -1082,7 +1082,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Healthcare Claim",
           "description": "A request for payment for healthcare services.",
           "group": "Financial",
-          "icon": "HC",
+          "icon": "money",
           "properties": [
             {
               "id": "healthcare_claim.billed_amount",
@@ -1166,7 +1166,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Care Authorization",
           "description": "A governed request and decision permitting healthcare services.",
           "group": "Controls",
-          "icon": "AU",
+          "icon": "shield",
           "properties": [
             {
               "id": "care_authorization.authorization_id",
@@ -1250,7 +1250,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Diagnostic Result",
           "description": "A laboratory or diagnostic observation with reference and status context.",
           "group": "Diagnostics",
-          "icon": "DR",
+          "icon": "chart",
           "properties": [
             {
               "id": "diagnostic_result.clinical_notes",
@@ -1350,7 +1350,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Payer",
           "description": "An organization or plan responsible for healthcare coverage.",
           "group": "Organizations",
-          "icon": "PY",
+          "icon": "organization",
           "properties": [
             {
               "id": "payer.payer_name",
@@ -1821,7 +1821,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
       "description": "Shared product, supplier, procurement, receiving, inspection, and quality semantics.",
       "domain": "manufacturing",
       "version": "0.1.0",
-      "digest": "sha256:c357c901369a6bdf194502c4652052dc38b57777c4642da90831a8b31dceb583",
+      "digest": "sha256:b9d0b820bf7f4f07dc6c2ac24e9a5665119039732326ddc66719f8e306d72697",
       "releaseStatus": "UNPUBLISHED",
       "entityTypes": [
         {
@@ -1829,7 +1829,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Part or Material",
           "description": "A governed component, material, or finished part.",
           "group": "Product",
-          "icon": "PT",
+          "icon": "box",
           "properties": [
             {
               "id": "part_material.part_number",
@@ -1921,7 +1921,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Supplier",
           "description": "An organization supplying parts, material, or services.",
           "group": "Organizations",
-          "icon": "SP",
+          "icon": "organization",
           "properties": [
             {
               "id": "supplier.supplier_name",
@@ -1965,7 +1965,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Purchase Order",
           "description": "An authorized commitment to purchase goods or services.",
           "group": "Procurement",
-          "icon": "PO",
+          "icon": "clipboard",
           "properties": [
             {
               "id": "purchase_order.purchase_order_number",
@@ -2089,7 +2089,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Receiving Record",
           "description": "A record of goods received against a purchase commitment.",
           "group": "Procurement",
-          "icon": "RR",
+          "icon": "truck",
           "properties": [
             {
               "id": "receiving_record.line_items_received",
@@ -2165,7 +2165,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Quality Inspection",
           "description": "A governed inspection of material or product characteristics.",
           "group": "Quality",
-          "icon": "QI",
+          "icon": "gauge",
           "properties": [
             {
               "id": "quality_inspection.disposition",
@@ -2257,7 +2257,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Nonconformance",
           "description": "A deviation from an approved specification or process.",
           "group": "Quality",
-          "icon": "NC",
+          "icon": "flag",
           "properties": [
             {
               "id": "nonconformance.ncr_date",
@@ -2349,7 +2349,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Corrective and Preventive Action",
           "description": "A governed action plan that corrects causes and prevents recurrence.",
           "group": "Quality",
-          "icon": "CA",
+          "icon": "workflow",
           "properties": [
             {
               "id": "corrective_action.capa_number",
@@ -2449,7 +2449,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Bill of Materials",
           "description": "A versioned definition of components required for a parent part.",
           "group": "Product",
-          "icon": "BM",
+          "icon": "layers",
           "properties": [
             {
               "id": "bill_of_materials.bom_number",
@@ -2989,7 +2989,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
       "description": "Shared agreement, party, matter, filing, regulatory, and statement-of-work semantics.",
       "domain": "legal",
       "version": "0.1.0",
-      "digest": "sha256:1241e477ae02cf46ac599e7bbf55a26e858598e8291284f4318f25990d6d6dd1",
+      "digest": "sha256:36caa5e3010212560f2b25eda2e605a4f34d6e0ff41097420ae531e72bd12742",
       "releaseStatus": "UNPUBLISHED",
       "entityTypes": [
         {
@@ -2997,7 +2997,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Legal Party",
           "description": "A person or organization participating in a legal obligation or matter.",
           "group": "Parties",
-          "icon": "LP",
+          "icon": "people",
           "properties": [
             {
               "id": "legal_party.submitting_entity_name",
@@ -3185,7 +3185,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Agreement",
           "description": "A governed legal agreement and its operative terms.",
           "group": "Contracts",
-          "icon": "AG",
+          "icon": "document",
           "properties": [
             {
               "id": "agreement.effective_date",
@@ -3293,7 +3293,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Legal Matter",
           "description": "A governed dispute, case, or legal engagement.",
           "group": "Disputes",
-          "icon": "LM",
+          "icon": "briefcase",
           "properties": [
             {
               "id": "legal_matter.case_status",
@@ -3369,7 +3369,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Court Filing",
           "description": "A document formally submitted in a court proceeding.",
           "group": "Disputes",
-          "icon": "CF",
+          "icon": "landmark",
           "properties": [
             {
               "id": "court_filing.court_name",
@@ -3485,7 +3485,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Regulatory Submission",
           "description": "A governed submission to a regulator and its disposition.",
           "group": "Regulatory",
-          "icon": "RS",
+          "icon": "clipboard",
           "properties": [
             {
               "id": "regulatory_submission.submission_type",
@@ -3577,7 +3577,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Statement of Work",
           "description": "A governed definition of project scope, deliverables, price, and acceptance.",
           "group": "Contracts",
-          "icon": "SW",
+          "icon": "clipboard",
           "properties": [
             {
               "id": "statement_of_work.acceptance_criteria_described",
@@ -4071,7 +4071,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
       "description": "Shared customer, lending, collateral, account, compliance, payment, and mortgage semantics.",
       "domain": "financial_services",
       "version": "0.1.0",
-      "digest": "sha256:594615220fda2cfbb77210beea419361cc9aba319058ac864f1f7b376a1494e0",
+      "digest": "sha256:5d4442fdd5d2d067ab75bbc31268bacb85e143d25af1cdb1c0118aebf5aa74fb",
       "releaseStatus": "UNPUBLISHED",
       "entityTypes": [
         {
@@ -4079,7 +4079,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Customer Party",
           "description": "A person or organization receiving financial services.",
           "group": "Parties",
-          "icon": "CP",
+          "icon": "person",
           "properties": [
             {
               "id": "customer_party.applicant_legal_name",
@@ -4411,7 +4411,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Financial Institution",
           "description": "A lender, filing institution, bank, or relationship owner.",
           "group": "Organizations",
-          "icon": "FI",
+          "icon": "landmark",
           "properties": [
             {
               "id": "financial_institution.lender_name",
@@ -4503,7 +4503,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Loan or Credit Facility",
           "description": "A governed extension or proposed extension of credit.",
           "group": "Lending",
-          "icon": "LF",
+          "icon": "money",
           "properties": [
             {
               "id": "loan_facility.loan_amount",
@@ -4795,7 +4795,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Collateral",
           "description": "Property or rights pledged to secure an obligation.",
           "group": "Lending",
-          "icon": "CL",
+          "icon": "shield",
           "properties": [
             {
               "id": "collateral.collateral_description",
@@ -4959,7 +4959,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Guaranty",
           "description": "A commitment by a guarantor to satisfy governed obligations.",
           "group": "Lending",
-          "icon": "GU",
+          "icon": "lock",
           "properties": [
             {
               "id": "guaranty.guarantor_name",
@@ -5075,7 +5075,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Financial Account",
           "description": "A governed account or trust relationship.",
           "group": "Accounts",
-          "icon": "FA",
+          "icon": "card",
           "properties": [
             {
               "id": "financial_account.trust_name",
@@ -5199,7 +5199,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Compliance Case",
           "description": "A KYC, AML, suspicious activity, issue, or third-party risk case.",
           "group": "Compliance",
-          "icon": "CC",
+          "icon": "clipboard",
           "properties": [
             {
               "id": "compliance_case.issue_id",
@@ -5299,7 +5299,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Payment Obligation",
           "description": "An invoice or payment amount owed between parties.",
           "group": "Payments",
-          "icon": "PO",
+          "icon": "money",
           "properties": [
             {
               "id": "payment_obligation.vendor_name",
@@ -5551,7 +5551,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Mortgage Property",
           "description": "Real property and valuation context securing mortgage credit.",
           "group": "Mortgage",
-          "icon": "MP",
+          "icon": "key",
           "properties": [
             {
               "id": "mortgage_property.ltv_percent",
@@ -5667,7 +5667,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Credit Agreement",
           "description": "The governed terms, covenants, pricing, defaults, and remedies of a credit arrangement.",
           "group": "Lending",
-          "icon": "CA",
+          "icon": "document",
           "properties": [
             {
               "id": "credit_agreement.agreement_date",
@@ -5887,7 +5887,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Applicant Financial Profile",
           "description": "Employment, income, debt, assets, housing, and demographic context used in underwriting.",
           "group": "Underwriting",
-          "icon": "AF",
+          "icon": "chart",
           "properties": [
             {
               "id": "applicant_financial_profile.total_assets",
@@ -6211,7 +6211,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Regulatory Filing",
           "description": "A governed filing, reporting package, submission, and validation record.",
           "group": "Regulatory",
-          "icon": "RF",
+          "icon": "clipboard",
           "properties": [
             {
               "id": "regulatory_filing.reporting_period_end_date",
@@ -6423,7 +6423,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Third Party Risk Profile",
           "description": "A governed assessment of third-party criticality, controls, evidence, and remediation.",
           "group": "Risk",
-          "icon": "TP",
+          "icon": "gauge",
           "properties": [
             {
               "id": "third_party_risk.business_continuity_rating",
@@ -6539,7 +6539,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Merchant Profile",
           "description": "A merchant onboarding, volume, channel, and chargeback risk profile.",
           "group": "Payments",
-          "icon": "MR",
+          "icon": "card",
           "properties": [
             {
               "id": "merchant_profile.estimated_monthly_volume",
@@ -6663,7 +6663,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Investment Profile",
           "description": "A governed investment objective, risk, source-of-funds, and fiduciary profile.",
           "group": "Wealth",
-          "icon": "IV",
+          "icon": "trend",
           "properties": [
             {
               "id": "investment_profile.trustee_names",
@@ -8272,7 +8272,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
       "description": "Shared policy, insured, claim, loss, coverage, carrier, producer, and adjustment semantics.",
       "domain": "insurance",
       "version": "0.1.0",
-      "digest": "sha256:9223720344f485e057e6a94844d0d77ff7f448b95b396ffcc32116f69231c301",
+      "digest": "sha256:93226bf29c075ba5b3715b39e94d68df1d6adf68c69e4e980d9cbd90b7231a56",
       "releaseStatus": "UNPUBLISHED",
       "entityTypes": [
         {
@@ -8280,7 +8280,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Insurance Policy",
           "description": "A governed contract of insurance and its period and terms.",
           "group": "Policy",
-          "icon": "IP",
+          "icon": "document",
           "properties": [
             {
               "id": "insurance_policy.effective_date_requested",
@@ -8404,7 +8404,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Insured Party",
           "description": "A person or organization protected by an insurance policy.",
           "group": "Parties",
-          "icon": "IN",
+          "icon": "person",
           "properties": [
             {
               "id": "insured_party.applicant_name",
@@ -8504,7 +8504,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Insurance Claim",
           "description": "A request for coverage or payment following a loss.",
           "group": "Claims",
-          "icon": "IC",
+          "icon": "clipboard",
           "properties": [
             {
               "id": "insurance_claim.claim_number",
@@ -8612,7 +8612,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Loss Event",
           "description": "An occurrence that may trigger insurance coverage.",
           "group": "Claims",
-          "icon": "LE",
+          "icon": "event",
           "properties": [
             {
               "id": "loss_event.loss_date",
@@ -8768,7 +8768,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Coverage",
           "description": "A governed coverage grant, limit, exclusion, or position.",
           "group": "Policy",
-          "icon": "CV",
+          "icon": "shield",
           "properties": [
             {
               "id": "coverage.coverage_analysis",
@@ -8852,7 +8852,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Insurance Organization",
           "description": "A carrier, producer, or adjusting organization.",
           "group": "Organizations",
-          "icon": "IO",
+          "icon": "organization",
           "properties": [
             {
               "id": "insurance_organization.carrier_name",
@@ -8920,7 +8920,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Claim Adjustment",
           "description": "A governed valuation and recommended disposition of a claim.",
           "group": "Claims",
-          "icon": "CA",
+          "icon": "gauge",
           "properties": [
             {
               "id": "claim_adjustment.adjuster_name",
@@ -9512,7 +9512,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
       "description": "Shared property, party, lease, transaction, title, closing, management, and rent-roll semantics.",
       "domain": "real_estate",
       "version": "0.1.0",
-      "digest": "sha256:2d9ea00db3ce6e419b60ca7d3af36fce2365558e897d3a444200f97aa85ee636",
+      "digest": "sha256:a868c560efcbc7696eb6a9444f6ae8cd1409d58c5ab1989f1bdc911dae8284c2",
       "releaseStatus": "UNPUBLISHED",
       "entityTypes": [
         {
@@ -9520,7 +9520,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Real Property",
           "description": "A governed parcel, building, premises, or unit.",
           "group": "Property",
-          "icon": "RP",
+          "icon": "organization",
           "properties": [
             {
               "id": "real_property.property_address",
@@ -9612,7 +9612,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Real Estate Party",
           "description": "A buyer, seller, owner, tenant, landlord, manager, or settlement party.",
           "group": "Parties",
-          "icon": "RE",
+          "icon": "people",
           "properties": [
             {
               "id": "real_estate_party.buyer_name",
@@ -9768,7 +9768,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Lease",
           "description": "A governed right to occupy real property under agreed terms.",
           "group": "Leasing",
-          "icon": "LS",
+          "icon": "document",
           "properties": [
             {
               "id": "lease.lease_end_date",
@@ -9884,7 +9884,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Property Transaction",
           "description": "A governed purchase, sale, financing, or transfer of real property.",
           "group": "Transactions",
-          "icon": "TX",
+          "icon": "handshake",
           "properties": [
             {
               "id": "property_transaction.agreement_date",
@@ -9968,7 +9968,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Title Record",
           "description": "A deed, title commitment, vesting, recording, requirement, or exception.",
           "group": "Title",
-          "icon": "TR",
+          "icon": "clipboard",
           "properties": [
             {
               "id": "title_record.commitment_date",
@@ -10076,7 +10076,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Closing",
           "description": "The settlement of a real estate transaction and its funds.",
           "group": "Transactions",
-          "icon": "CL",
+          "icon": "key",
           "properties": [
             {
               "id": "closing.closing_statement_date",
@@ -10128,7 +10128,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Property Management",
           "description": "A governed arrangement for operating and reporting on real property.",
           "group": "Management",
-          "icon": "PM",
+          "icon": "briefcase",
           "properties": [
             {
               "id": "property_management.management_fee_terms",
@@ -10212,7 +10212,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Rent Roll",
           "description": "A dated schedule of occupancy, tenants, and rent for a property.",
           "group": "Management",
-          "icon": "RR",
+          "icon": "chart",
           "properties": [
             {
               "id": "rent_roll.monthly_scheduled_rent",

@@ -4,6 +4,35 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const GENERATOR_VERSION = '1.0.0'
+
+// Maps each generated entity type to a key in the studio entity-icon catalog
+// (apps/studio/src/entityIcons.tsx). Keeps seeded industry ontologies on real
+// icons instead of the old 2-letter codes. Unmapped ids fall back to 'box'.
+const ICON_KEYS = {
+  // energy
+  well: 'factory', operator: 'organization', field_service_job: 'workflow', production_measurement: 'chart',
+  // healthcare
+  patient: 'person', provider: 'health', clinical_encounter: 'event', healthcare_claim: 'money',
+  care_authorization: 'shield', diagnostic_result: 'chart', payer: 'organization',
+  // manufacturing
+  part_material: 'box', supplier: 'organization', purchase_order: 'clipboard', receiving_record: 'truck',
+  quality_inspection: 'gauge', nonconformance: 'flag', corrective_action: 'workflow', bill_of_materials: 'layers',
+  // legal
+  legal_party: 'people', agreement: 'document', legal_matter: 'briefcase', court_filing: 'landmark',
+  regulatory_submission: 'clipboard', statement_of_work: 'clipboard',
+  // financial services
+  customer_party: 'person', financial_institution: 'landmark', loan_facility: 'money', collateral: 'shield',
+  guaranty: 'lock', financial_account: 'card', compliance_case: 'clipboard', payment_obligation: 'money',
+  mortgage_property: 'key', credit_agreement: 'document', applicant_financial_profile: 'chart',
+  regulatory_filing: 'clipboard', third_party_risk: 'gauge', merchant_profile: 'card', investment_profile: 'trend',
+  // insurance
+  insurance_policy: 'document', insured_party: 'person', insurance_claim: 'clipboard', loss_event: 'event',
+  coverage: 'shield', insurance_organization: 'organization', claim_adjustment: 'gauge',
+  // real estate
+  real_property: 'organization', real_estate_party: 'people', lease: 'document', property_transaction: 'handshake',
+  title_record: 'clipboard', closing: 'key', property_management: 'briefcase', rent_roll: 'chart',
+}
+
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const schemaRoot = resolve(scriptDirectory, '../../Schemas')
 const outputFile = resolve(scriptDirectory, '../packages/contracts/src/generatedIndustryOntologies.ts')
@@ -121,7 +150,7 @@ async function generate(vertical, config, catalogVersion) {
         _frequency: values.length,
       }
     }).sort((left, right) => Number(right.required) - Number(left.required) || right._frequency - left._frequency || left.id.localeCompare(right.id)).slice(0, 40).map(({ _frequency, ...property }) => property)
-    return { id: definition.id, label: definition.label, description: definition.description, group: definition.group, icon: definition.icon, properties, evidenceStatus: 'TEMPLATE_DERIVED', approvalStatus: 'DRAFT', impact: 'HIGH' }
+    return { id: definition.id, label: definition.label, description: definition.description, group: definition.group, icon: ICON_KEYS[definition.id] ?? 'box', properties, evidenceStatus: 'TEMPLATE_DERIVED', approvalStatus: 'DRAFT', impact: 'HIGH' }
   }).filter((type) => type.properties.length > 0)
   const typeIds = new Set(entityTypes.map((type) => type.id))
   const relationshipTypes = config.relations.filter((item) => typeIds.has(item.sourceTypeId) && typeIds.has(item.targetTypeId)).map((item) => ({ ...item, label: item.id.toLocaleUpperCase(), cardinality: 'MANY_TO_MANY', description: `${titleCase(item.sourceTypeId)} ${item.id.replaceAll('_', ' ')} ${titleCase(item.targetTypeId)}.`, impact: 'HIGH' }))

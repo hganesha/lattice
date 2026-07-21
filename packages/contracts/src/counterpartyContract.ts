@@ -30,28 +30,28 @@ export const counterpartyRiskContract: ContextContract = {
     },
   ],
   entityTypes: [
-    { id: 'counterparty', label: 'Counterparty', description: 'A party against which the enterprise carries financial or contractual exposure.', group: 'Parties', icon: 'CP', properties: [
+    { id: 'counterparty', label: 'Counterparty', description: 'A party against which the enterprise carries financial or contractual exposure.', group: 'Parties', icon: 'handshake', properties: [
       { id: 'counterparty.lei', name: 'Legal entity identifier', dataType: 'string', description: 'ISO 17442 legal entity identifier.', required: true, identifier: true },
       { id: 'counterparty.rating', name: 'Internal credit rating', dataType: 'string', description: 'Current approved internal credit grade.' },
       { id: 'counterparty.sector', name: 'Industry sector', dataType: 'string', description: 'Governed industry classification.' },
     ], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'legal_entity', label: 'Legal Entity', description: 'A legally incorporated entity that enters transactions and owns exposure.', group: 'Parties', icon: 'LE', properties: [
+    { id: 'legal_entity', label: 'Legal Entity', description: 'A legally incorporated entity that enters transactions and owns exposure.', group: 'Parties', icon: 'organization', properties: [
       { id: 'legal_entity.jurisdiction', name: 'Jurisdiction', dataType: 'string', description: 'Primary legal jurisdiction.', required: true },
     ], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'instrument', label: 'Instrument', description: 'A contract or security that creates financial rights and obligations.', group: 'Markets', icon: 'IN', properties: [], evidenceStatus: 'TEMPLATE_DERIVED', approvalStatus: approved, impact: 'HIGH' },
-    { id: 'position', label: 'Position', description: 'An owned or owed quantity of an instrument at a point in time.', group: 'Markets', icon: 'PO', properties: [
+    { id: 'instrument', label: 'Instrument', description: 'A contract or security that creates financial rights and obligations.', group: 'Markets', icon: 'document', properties: [], evidenceStatus: 'TEMPLATE_DERIVED', approvalStatus: approved, impact: 'HIGH' },
+    { id: 'position', label: 'Position', description: 'An owned or owed quantity of an instrument at a point in time.', group: 'Markets', icon: 'trend', properties: [
       { id: 'position.notional', name: 'Notional amount', dataType: 'decimal', description: 'Contractual amount used to calculate cash flows.', required: true },
       { id: 'position.currency', name: 'Currency', dataType: 'string', description: 'ISO 4217 notional currency.', required: true },
     ], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'portfolio', label: 'Portfolio', description: 'A governed collection of positions used for risk and performance aggregation.', group: 'Markets', icon: 'PF', properties: [], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'HIGH' },
-    { id: 'netting_agreement', label: 'Netting Agreement', description: 'An enforceable agreement that determines which obligations may be netted.', group: 'Risk Controls', icon: 'NA', properties: [], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'collateral', label: 'Collateral', description: 'Assets pledged to mitigate an exposure under an agreement.', group: 'Risk Controls', icon: 'CO', properties: [
+    { id: 'portfolio', label: 'Portfolio', description: 'A governed collection of positions used for risk and performance aggregation.', group: 'Markets', icon: 'briefcase', properties: [], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'HIGH' },
+    { id: 'netting_agreement', label: 'Netting Agreement', description: 'An enforceable agreement that determines which obligations may be netted.', group: 'Risk Controls', icon: 'layers', properties: [], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
+    { id: 'collateral', label: 'Collateral', description: 'Assets pledged to mitigate an exposure under an agreement.', group: 'Risk Controls', icon: 'shield', properties: [
       { id: 'collateral.market_value', name: 'Market value', dataType: 'decimal', description: 'Current governed collateral valuation.', required: true },
     ], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'credit_limit', label: 'Credit Limit', description: 'The approved maximum exposure for a governed scope.', group: 'Risk Controls', icon: 'CL', properties: [
+    { id: 'credit_limit', label: 'Credit Limit', description: 'The approved maximum exposure for a governed scope.', group: 'Risk Controls', icon: 'gauge', properties: [
       { id: 'credit_limit.amount', name: 'Approved amount', dataType: 'decimal', description: 'Maximum approved exposure for the limit scope.', required: true },
     ], evidenceStatus: 'DECLARED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'regulatory_report', label: 'Regulatory Report', description: 'A governed submission containing exposure and capital disclosures.', group: 'Governance', icon: 'RR', properties: [], evidenceStatus: 'TEMPLATE_DERIVED', approvalStatus: approved, impact: 'HIGH' },
+    { id: 'regulatory_report', label: 'Regulatory Report', description: 'A governed submission containing exposure and capital disclosures.', group: 'Governance', icon: 'clipboard', properties: [], evidenceStatus: 'TEMPLATE_DERIVED', approvalStatus: approved, impact: 'HIGH' },
   ],
   entities: [
     {
