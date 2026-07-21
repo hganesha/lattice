@@ -60,6 +60,7 @@
   --canvas-grid: #304039;
   /* Semantic roles — decoupled from the brand lime so success ≠ brand ≠ selection. */
   --success: #4ec06b;
+  --success-strong: #69d483;
   --success-soft: #14251a;
   --warning: #e2af64;
   --warning-soft: #2a2113;
@@ -68,6 +69,8 @@
   --selection: #70aef7;
   --selection-soft: #16273a;
   --danger-soft: #2a1513;
+  --governance: #b98fe4;
+  --governance-soft: #241d33;
 }
 
 :root[data-theme="light"] {
@@ -89,6 +92,7 @@
   --focus: #176fc1;
   --canvas-grid: #cbd8d1;
   --success: #2f8f4c;
+  --success-strong: #1f7138;
   --success-soft: #dcefe0;
   --warning: #a9741f;
   --warning-soft: #f6ecd7;
@@ -97,6 +101,8 @@
   --selection: #176fc1;
   --selection-soft: #dbe9fb;
   --danger-soft: #f6dedb;
+  --governance: #7b4fc0;
+  --governance-soft: #ece2f8;
 }
 
 html { background: var(--canvas); }
@@ -158,7 +164,7 @@ h3 { font-size: 15px; }
 .builder-meta span,.canvas-hint span { color: var(--text-secondary) !important; background: var(--surface-raised) !important; border-color: var(--border) !important; }
 .builder-meta button,.relation-strip-heading button,.property-heading button { color: var(--accent-strong) !important; }
 .validation-panel>div>div>b { color: var(--text) !important; }
-.validation-checks .pass { color: var(--success) !important; }
+.validation-checks .pass { color: var(--success-strong) !important; }
 .validation-checks .fail { color: var(--danger) !important; }
 .relation-list:focus-visible { border-radius: 5px; }
 .summary-card { min-height: 112px; padding: 21px 23px; }

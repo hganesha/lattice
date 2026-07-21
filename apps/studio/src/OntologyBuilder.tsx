@@ -35,11 +35,10 @@ interface OntologyBuilderProps {
   onChange: (contract: ContextContract) => void
   onDirtyChange: (dirty: boolean) => void
   mode?: 'contract' | 'workspace'
-  onSave?: (contract: ContextContract) => Promise<{ contract: ContextContract; updatedAt: string }>
 }
 
-export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'contract', onSave }: OntologyBuilderProps) {
-  const { t, formatDate, formatTime } = useMessages()
+export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'contract' }: OntologyBuilderProps) {
+  const { t, formatDate } = useMessages()
   const [selectedTypeId, setSelectedTypeId] = useState(contract.entityTypes[0]?.id ?? '')
   const [dialog, setDialog] = useState<BuilderDialog>(null)
   const [notice, setNotice] = useState('')
@@ -207,36 +206,6 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     })
   }
 
-  async function saveDraft() {
-    setSaving(true)
-    try {
-      if (onSave) {
-        const saved = await onSave(contract)
-        onChange(saved.contract)
-        onDirtyChange(false)
-        setNotice(t('ontologySavedNotice', { time: formatTime(saved.updatedAt, { hour: '2-digit', minute: '2-digit' }) }))
-        return
-      }
-      const response = await fetch(`${API_URL}/v1/contracts/${contract.id}`, {
-        method: 'PUT',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contract }),
-      })
-      if (!response.ok) throw new Error(`Registry returned ${response.status}`)
-      const entry = await response.json() as ContractRegistryEntry
-      localStorage.setItem('lattice:contract-draft', JSON.stringify(entry.draft))
-      onChange(entry.draft)
-      onDirtyChange(false)
-      setReleases(entry.releases)
-      setNotice(t('ontologySavedNotice', { time: formatTime(entry.updatedAt, { hour: '2-digit', minute: '2-digit' }) }))
-    } catch (error) {
-      localStorage.setItem('lattice:contract-draft', JSON.stringify(contract))
-      setNotice(`Registry unavailable; saved locally. ${error instanceof Error ? error.message : ''}`)
-    } finally {
-      setSaving(false)
-    }
-  }
-
   async function publishContract(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
@@ -320,7 +289,6 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
                 <button className="ghost" onClick={() => setDialog('relationship')}>{t('ontologyAddRelationship')}</button>
                 <button className="ghost" onClick={() => setDialog('entity')}>{t('ontologyAddEntityType')}</button>
                 <button className={`ghost layout-toggle ${autoLayoutEnabled ? 'active' : ''}`} aria-pressed={autoLayoutEnabled} onClick={toggleAutoLayout}>{t('ontologyAutoLayout')} <span>{autoLayoutEnabled ? 'ON' : 'OFF'}</span></button>
-                <button className="compile-button" onClick={() => void saveDraft()} disabled={saving}>{saving ? t('commonSaving') : mode === 'workspace' ? t('ontologySaveFoundation') : t('commonSaveDraft')}</button>
                 {mode === 'contract' && <button className="release" onClick={() => setDialog('publish')} disabled={saving || issues.length > 0}>{t('ontologyPublishRelease')}</button>}
               </div>
             </div>

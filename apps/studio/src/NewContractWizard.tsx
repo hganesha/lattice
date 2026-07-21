@@ -22,9 +22,13 @@ export function NewContractWizard({ onClose, onCreated, workspace }: NewContract
   const { t } = useMessages()
   const starters: Array<{ id: ContractStarter; icon: string; name: string; detail: string; objects: string }> = [
     { id: 'blank', icon: '◇', name: t('wizardStarterBlank'), detail: t('wizardStarterBlankDetail'), objects: t('wizardStarterCounts', { types: 0, relations: 0 }) },
-    { id: 'healthcare', icon: 'HC', name: t('wizardStarterHealthcare'), detail: t('wizardStarterHealthcareDetail'), objects: t('wizardStarterCounts', { types: 4, relations: 3 }) },
+    { id: 'financial-services', icon: 'FS', name: t('wizardStarterFinancialServices'), detail: t('wizardStarterFinancialServicesDetail'), objects: t('wizardStarterCounts', { types: 15, relations: 14 }) },
     { id: 'energy', icon: 'EN', name: t('wizardStarterEnergy'), detail: t('wizardStarterEnergyDetail'), objects: t('wizardStarterCounts', { types: 4, relations: 3 }) },
-    { id: 'software', icon: 'SW', name: t('wizardStarterSoftware'), detail: t('wizardStarterSoftwareDetail'), objects: t('wizardStarterCounts', { types: 4, relations: 3 }) },
+    { id: 'healthcare', icon: 'HC', name: t('wizardStarterHealthcare'), detail: t('wizardStarterHealthcareDetail'), objects: t('wizardStarterCounts', { types: 7, relations: 6 }) },
+    { id: 'manufacturing', icon: 'MF', name: t('wizardStarterManufacturing'), detail: t('wizardStarterManufacturingDetail'), objects: t('wizardStarterCounts', { types: 8, relations: 7 }) },
+    { id: 'legal', icon: 'LG', name: t('wizardStarterLegal'), detail: t('wizardStarterLegalDetail'), objects: t('wizardStarterCounts', { types: 6, relations: 5 }) },
+    { id: 'insurance', icon: 'IN', name: t('wizardStarterInsurance'), detail: t('wizardStarterInsuranceDetail'), objects: t('wizardStarterCounts', { types: 7, relations: 6 }) },
+    { id: 'real-estate', icon: 'RE', name: t('wizardStarterRealEstate'), detail: t('wizardStarterRealEstateDetail'), objects: t('wizardStarterCounts', { types: 8, relations: 8 }) },
   ]
   const [step, setStep] = useState(1)
   const [brief, setBrief] = useState({ name: '', description: '', domain: workspace?.domain ?? '', workflow: '', owner: '' })

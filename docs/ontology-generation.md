@@ -21,3 +21,5 @@ The command reads every available `fields.json`, writes the typed catalog to `pa
 - Generated concepts start as `DRAFT` and `TEMPLATE_DERIVED`. Human governance is required before publication.
 
 The registry seeds missing industry workspaces from this catalog and merges a new generator digest once. Existing user-authored concepts are preserved. A saved workspace ontology is not overwritten again unless the generated artifact digest changes.
+
+The new-contract wizard uses this same catalog for its industry starters. Starter concepts remain editable `DRAFT` / `TEMPLATE_DERIVED` claims, but they retain the generated pack's property definitions and valid relationship endpoints instead of creating empty type shells.

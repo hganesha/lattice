@@ -23,7 +23,6 @@ import {
   IconDownload,
   IconPlus,
   IconChevronDown,
-  IconArrowUpRight,
   IconLoader,
 } from './icons'
 import { SummaryCard } from './SummaryCard'
@@ -103,6 +102,7 @@ export function App() {
   }
   const activeNavigation = [...workspaceNavigation, ...contractNavigation, ...governanceNavigation].find((item) => item.mode === studioMode)!
   const workspaceMode = studioMode === 'ontology' || studioMode === 'ontology-bindings'
+  const summaryCards = buildSummaryCards({ t, workspaceMode, workspace, workspaceContracts, contract, hasActiveWorkspaceContract, draftDirty, runtimeStatus })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -256,8 +256,8 @@ export function App() {
     }
   }
 
-  async function saveWorkspaceBindings() {
-    if (!workspace || studioMode !== 'ontology-bindings' || !draftDirty || saveState === 'SAVING') return
+  async function saveWorkspaceOntology() {
+    if (!workspace || !workspaceMode || !draftDirty || saveState === 'SAVING') return
     setSaveState('SAVING')
     try {
       const response = await fetch(`${API_URL}/v1/workspaces/${workspace.id}/ontology`, {
@@ -270,10 +270,14 @@ export function App() {
       handleWorkspaceChange(updated)
       setDraftDirty(false)
       setSaveState('IDLE')
-      if (hasActiveWorkspaceContract) await selectContract(contract.id, true)
     } catch {
       setSaveState('FAILED')
     }
+  }
+
+  async function saveActiveDraft() {
+    if (workspaceMode) await saveWorkspaceOntology()
+    else await saveContractDraft()
   }
 
   function closeWelcome() {
@@ -320,23 +324,33 @@ export function App() {
       <main>
         <header>
           <div><div className="eyebrow">{t('contextStudio')} / {workspace?.name ?? contract.domain}</div><h1>{t(activeNavigation.label)}</h1></div>
-          <div className="header-actions">{(workspaceMode || hasActiveWorkspaceContract) && <span className={`draft-state ${draftDirty ? 'dirty' : ''}`}>{saveState === 'FAILED' ? t('headerSaveFailed') : draftDirty ? t('unsavedDraft') : t('draftSaved')}</span>}{studioMode === 'ontology-bindings' && <button className="release" onClick={() => void saveWorkspaceBindings()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}{!workspaceMode && hasActiveWorkspaceContract && <button className="release" onClick={() => void saveContractDraft()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}<button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button><AppearanceSettings />{hasActiveWorkspaceContract && <button className="ghost" onClick={() => void shareContract()} title={shareState === 'FAILED' ? t('linkClipboardDenied') : undefined}>{shareState === 'COPIED' ? t('linkCopied') : shareState === 'FAILED' ? t('linkReady') : t('share')}</button>}{studioMode === 'runtime' && hasActiveWorkspaceContract && <button className="ghost" onClick={() => setStudioMode('releases')}>{t('manageRelease')} <span aria-hidden="true"><IconArrowUpRight /></span></button>}<span className="avatar">HG</span></div>
+          <div className="header-actions">
+            {(workspaceMode || hasActiveWorkspaceContract) && <span className={`draft-state ${draftDirty ? 'dirty' : ''}`}>{saveState === 'FAILED' ? t('headerSaveFailed') : draftDirty ? t('unsavedDraft') : t('draftSaved')}</span>}
+            {(workspaceMode ? Boolean(workspace) : hasActiveWorkspaceContract) && <button className="release" onClick={() => void saveActiveDraft()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}
+            <button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button>
+            <AppearanceSettings />
+            {hasActiveWorkspaceContract && <button className="ghost" onClick={() => void shareContract()} title={shareState === 'FAILED' ? t('linkClipboardDenied') : undefined}>{shareState === 'COPIED' ? t('linkCopied') : shareState === 'FAILED' ? t('linkReady') : t('share')}</button>}
+            <span className="avatar">HG</span>
+          </div>
         </header>
 
         <section className="summary-grid">
-          <SummaryCard label={workspaceMode ? t('summaryOntologyStatus') : t('summaryContractStatus')} value={workspaceMode ? workspace?.ontology.releaseStatus === 'PUBLISHED' && !draftDirty ? t('statusPublished') : t('statusDraft') : !hasActiveWorkspaceContract ? t('statusNoContract') : runtimeStatus === 'SUSPENDED' ? t('statusSuspended') : draftDirty || contract.releaseStatus === 'UNPUBLISHED' ? t('statusDraft') : contract.releaseStatus === 'PUBLISHED' ? t('statusPublished') : contract.releaseStatus} meta={workspaceMode ? `v${workspace?.ontology.version ?? '0.0.0'} · ${t('workspaceOntologyFoundation')}` : !hasActiveWorkspaceContract ? t('contractsCreateFirst') : `${contract.version} · ${runtimeStatus === 'SUSPENDED' ? t('runtimePaused') : draftDirty ? t('unpublishedChanges') : t('registrySynchronized')}`} tone={workspaceMode ? draftDirty || workspace?.ontology.releaseStatus === 'UNPUBLISHED' ? 'amber' : 'green' : !hasActiveWorkspaceContract || runtimeStatus === 'SUSPENDED' || draftDirty || contract.releaseStatus === 'UNPUBLISHED' ? 'amber' : 'green'} />
-          <SummaryCard label={t('summaryEntityTypes')} value={String(workspaceMode ? workspace?.ontology.entityTypes.length ?? 0 : hasActiveWorkspaceContract ? contract.entityTypes.length : 0)} meta={workspaceMode && workspace?.ontologyGeneration ? t('workspaceGeneratedMeta', { forms: workspace.ontologyGeneration.sourceFormCount, mapped: workspace.ontologyGeneration.mappedPercent }) : workspaceMode ? t('workspaceSharedAcrossContracts', { count: workspace?.contractIds.length ?? 0 }) : t('contractsScope')} tone="lime" />
-          <SummaryCard label={t('summaryRelationships')} value={String(workspaceMode ? workspace?.ontology.relationshipTypes.length ?? 0 : hasActiveWorkspaceContract ? contract.relationshipTypes.length : 0)} meta={t('typedDirectional')} tone="blue" />
-          <SummaryCard label={workspaceMode ? t('summaryContracts') : t('summaryAssurance')} value={workspaceMode ? String(workspaceContracts.length) : hasActiveWorkspaceContract ? `${contract.tests.filter((test) => test.status === 'PASS').length} / ${contract.tests.length}` : '0 / 0'} meta={workspaceMode ? t('workspaceDecisionContracts') : !hasActiveWorkspaceContract || contract.tests.length === 0 ? t('noTestsConfigured') : t('structuralGatesPassing')} tone={workspaceMode ? 'blue' : !hasActiveWorkspaceContract || contract.tests.length === 0 ? 'amber' : 'green'} />
+          {summaryCards.map((card) => <SummaryCard {...card} key={card.label} />)}
         </section>
 
         <Suspense fallback={<StudioLoading label={t(activeNavigation.label)} />}>
-          {studioMode === 'ontology' ? workspace ? <WorkspaceOntologyStudio key={workspace.id} workspace={workspace} seedContract={contract} onWorkspaceChange={handleWorkspaceChange} onDirtyChange={setDraftDirty} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'ontology-bindings' ? workspace ? <SourceBindingStudio contract={workspaceBindingContract(workspace, contract)} scope="ONTOLOGY" workspaceId={workspace.id} onChange={(next) => { setWorkspace((current) => current ? { ...current, ontology: { ...current.ontology, bindings: next.bindings } } : current); setDraftDirty(true) }} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'contracts' ? <ContractsStudio contracts={workspaceContracts} activeContractId={contract.id} onSelect={(id) => void selectContract(id)} onCreate={() => setWizardOpen(true)} /> : studioMode === 'runtime-approvals' ? <RuntimeApprovalStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenReviews={() => setStudioMode('reviews')} onOpenAssurance={() => setStudioMode('assurance')} onManageRelease={() => setStudioMode('releases')} /> : studioMode === 'bindings' ? <SourceBindingStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : studioMode === 'assurance' ? <AssuranceStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'policies' ? <PolicyStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'reviews' ? <ReviewQueueStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'evidence' ? <EvidenceRegistryStudio contract={contract} /> : studioMode === 'releases' ? <ReleaseManagementStudio contract={contract} onRegistryChange={(entry) => void handleRegistryChange(entry)} onManageDraft={() => setStudioMode('contracts')} /> : <RuntimeStudio key={contract.id} contract={contract} runtimeStatus={runtimeStatus} onChange={setContract} onDirtyChange={setDraftDirty} onManageRelease={() => setStudioMode('releases')} onOpenAssurance={() => setStudioMode('assurance')} />}
+          {studioMode === 'ontology' ? workspace ? <WorkspaceOntologyStudio key={workspace.id} workspace={workspace} seedContract={contract} onWorkspaceDraftChange={setWorkspace} onDirtyChange={setDraftDirty} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'ontology-bindings' ? workspace ? <SourceBindingStudio contract={workspaceBindingContract(workspace, contract)} scope="ONTOLOGY" workspaceId={workspace.id} onChange={(next) => { setWorkspace((current) => current ? { ...current, ontology: { ...current.ontology, bindings: next.bindings } } : current); setDraftDirty(true) }} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'contracts' ? <ContractsStudio contracts={workspaceContracts} activeContractId={contract.id} onSelect={(id) => void selectContract(id)} onCreate={() => setWizardOpen(true)} /> : studioMode === 'runtime-approvals' ? <RuntimeApprovalStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenReviews={() => setStudioMode('reviews')} onOpenAssurance={() => setStudioMode('assurance')} onManageRelease={() => setStudioMode('releases')} /> : studioMode === 'bindings' ? <SourceBindingStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : studioMode === 'assurance' ? <AssuranceStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'policies' ? <PolicyStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'reviews' ? <ReviewQueueStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'evidence' ? <EvidenceRegistryStudio contract={contract} /> : studioMode === 'releases' ? <ReleaseManagementStudio contract={contract} onRegistryChange={(entry) => void handleRegistryChange(entry)} onManageDraft={() => setStudioMode('contracts')} /> : <RuntimeStudio key={contract.id} contract={contract} runtimeStatus={runtimeStatus} onChange={setContract} onDirtyChange={setDraftDirty} onManageRelease={() => setStudioMode('releases')} onOpenAssurance={() => setStudioMode('assurance')} />}
         </Suspense>
       </main>
       <Suspense fallback={null}>
         {wizardOpen && <NewContractWizard {...(workspace ? { workspace } : {})} onClose={() => setWizardOpen(false)} onCreated={(entry) => void handleContractCreated(entry)} />}
-        {importOpen && <ImportStudio contract={contract} onClose={() => setImportOpen(false)} onApply={(next) => { setContract(next); setDraftDirty(true); setImportOpen(false); setStudioMode('ontology') }} />}
+        {importOpen && <ImportStudio contract={workspace ? workspaceBindingContract(workspace, contract) : contract} onClose={() => setImportOpen(false)} onApply={(next) => {
+          if (workspace) setWorkspace({ ...workspace, ontology: { ...workspace.ontology, entityTypes: next.entityTypes, relationshipTypes: next.relationshipTypes, schemaLayout: next.schemaLayout ?? {} } })
+          else setContract(next)
+          setDraftDirty(true)
+          setImportOpen(false)
+          setStudioMode('ontology')
+        }} />}
         {welcomeOpen && <WelcomeStudio contracts={contracts} onClose={closeWelcome} onExplore={(id) => void exploreExample(id)} onCreate={() => { closeWelcome(); setWizardOpen(true) }} />}
       </Suspense>
       {pendingNavigation && <ConfirmDialog title={t('discardChangesTitle')} description={t('discardChanges')} cancelLabel={t('commonCancel')} confirmLabel={t('discardChangesConfirm')} onCancel={() => setPendingNavigation(undefined)} onConfirm={confirmNavigation} />}
@@ -346,6 +360,85 @@ export function App() {
 
 function StudioLoading({ label }: { label: string }) {
   return <div className="runtime-empty" role="status"><span aria-hidden="true"><IconLoader /></span><h3>{label}</h3></div>
+}
+
+interface SummaryCardModel {
+  label: string
+  value: string
+  meta: string
+  tone: 'amber' | 'blue' | 'green' | 'lime'
+}
+
+interface SummaryCardContext {
+  t: ReturnType<typeof useMessages>['t']
+  workspaceMode: boolean
+  workspace: IndustryWorkspace | undefined
+  workspaceContracts: ContractSummary[]
+  contract: ContextContract
+  hasActiveWorkspaceContract: boolean
+  draftDirty: boolean
+  runtimeStatus: ContractSummary['runtimeStatus']
+}
+
+function buildSummaryCards({ t, workspaceMode, workspace, workspaceContracts, contract, hasActiveWorkspaceContract, draftDirty, runtimeStatus }: SummaryCardContext): SummaryCardModel[] {
+  if (workspaceMode) return [
+    {
+      label: t('summaryOntologyStatus'),
+      value: workspace?.ontology.releaseStatus === 'PUBLISHED' && !draftDirty ? t('statusPublished') : t('statusDraft'),
+      meta: `v${workspace?.ontology.version ?? '0.0.0'} · ${t('workspaceOntologyFoundation')}`,
+      tone: draftDirty || workspace?.ontology.releaseStatus === 'UNPUBLISHED' ? 'amber' : 'green',
+    },
+    {
+      label: t('summaryEntityTypes'),
+      value: String(workspace?.ontology.entityTypes.length ?? 0),
+      meta: workspace?.ontologyGeneration
+        ? t('workspaceGeneratedMeta', { forms: workspace.ontologyGeneration.sourceFormCount, mapped: workspace.ontologyGeneration.mappedPercent })
+        : t('workspaceSharedAcrossContracts', { count: workspace?.contractIds.length ?? 0 }),
+      tone: 'lime',
+    },
+    {
+      label: t('summaryRelationships'),
+      value: String(workspace?.ontology.relationshipTypes.length ?? 0),
+      meta: t('typedDirectional'),
+      tone: 'blue',
+    },
+    {
+      label: t('summaryContracts'),
+      value: String(workspaceContracts.length),
+      meta: t('workspaceDecisionContracts'),
+      tone: 'blue',
+    },
+  ]
+
+  const noContract = !hasActiveWorkspaceContract
+  const noTests = noContract || contract.tests.length === 0
+  const contractDraft = draftDirty || contract.releaseStatus === 'UNPUBLISHED'
+  return [
+    {
+      label: t('summaryContractStatus'),
+      value: noContract ? t('statusNoContract') : runtimeStatus === 'SUSPENDED' ? t('statusSuspended') : contractDraft ? t('statusDraft') : t('statusPublished'),
+      meta: noContract ? t('contractsCreateFirst') : `${contract.version} · ${runtimeStatus === 'SUSPENDED' ? t('runtimePaused') : draftDirty ? t('unpublishedChanges') : t('registrySynchronized')}`,
+      tone: noContract || runtimeStatus === 'SUSPENDED' || contractDraft ? 'amber' : 'green',
+    },
+    {
+      label: t('summaryEntityTypes'),
+      value: String(noContract ? 0 : contract.entityTypes.length),
+      meta: t('contractsScope'),
+      tone: 'lime',
+    },
+    {
+      label: t('summaryRelationships'),
+      value: String(noContract ? 0 : contract.relationshipTypes.length),
+      meta: t('typedDirectional'),
+      tone: 'blue',
+    },
+    {
+      label: t('summaryAssurance'),
+      value: noContract ? '0 / 0' : `${contract.tests.filter((test) => test.status === 'PASS').length} / ${contract.tests.length}`,
+      meta: noTests ? t('noTestsConfigured') : t('structuralGatesPassing'),
+      tone: noTests ? 'amber' : 'green',
+    },
+  ]
 }
 
 function workspaceBindingContract(workspace: IndustryWorkspace, seed: ContextContract): ContextContract {

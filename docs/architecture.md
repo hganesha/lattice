@@ -74,16 +74,18 @@ Release Management separates immutable history, the mutable working draft, and r
 
 ## Why this is cross-industry
 
-The core types do not encode finance concepts. `ContextContract`, `OperationDefinition`, `EvidenceRecord`, `GuardrailPolicy`, and `SignedExecutionPlan` are reusable. The workspace currently includes financial-services and energy contracts:
+The core types do not encode finance concepts. `ContextContract`, `OperationDefinition`, `EvidenceRecord`, `GuardrailPolicy`, and `SignedExecutionPlan` are reusable. The registry composes the published Core foundation into seven generated industry workspaces; financial-services and energy also include published decision examples:
 
 ```text
 core runtime
+├── Core / Person, Organization, Agent, Document, Event, Location, Asset, Policy
 ├── financial services / counterparty exposure (implemented example)
-├── healthcare / care authorization (future pack)
+├── healthcare / generated ontology pack
 ├── energy / grid outage response (published end-to-end example)
-├── public sector / benefits eligibility (future pack)
-├── manufacturing / quality deviation (future pack)
-└── software / incident change control (future pack)
+├── manufacturing / generated ontology pack
+├── legal / generated ontology pack
+├── insurance / generated ontology pack
+└── real estate / generated ontology pack
 ```
 
 Industry packs should contribute semantics, evidence adapters, policy profiles, tests, and UI presets without forking the compiler.

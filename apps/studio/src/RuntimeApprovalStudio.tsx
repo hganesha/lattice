@@ -24,7 +24,7 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
   const { t } = useMessages()
   const [approvals, setApprovals] = useState<RuntimeApprovalArtifact[]>([])
   const [receipts, setReceipts] = useState<ExecutionReceipt[]>([])
-  const [rationale, setRationale] = useState('Operational evidence is current and the prioritization scope is appropriate.')
+  const [rationale, setRationale] = useState(() => t('approvalDefaultRationale'))
   const [workingId, setWorkingId] = useState('')
   const [error, setError] = useState('')
 
@@ -48,7 +48,7 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
   function configureApprovalExample() {
     onChange(enableGridRuntimeApprovalExample(contract))
     onDirtyChange(true)
-    setError('Approval baseline staged as an unpublished draft. Approve the policy, run assurance, then publish v0.2.0.')
+    setError(t('approvalBaselineStaged'))
   }
 
   async function decide(approval: RuntimeApprovalArtifact, decision: 'APPROVED' | 'REJECTED') {
@@ -61,10 +61,10 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
         body: JSON.stringify({ decision, rationale }),
       })
       const payload = await response.json() as { error?: string; message?: string }
-      if (!response.ok) throw new Error(payload.message ?? payload.error ?? 'Decision failed')
+      if (!response.ok) throw new Error(payload.message ?? payload.error ?? t('approvalDecisionFailed'))
       await refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Decision failed')
+      setError(cause instanceof Error ? cause.message : t('approvalDecisionFailed'))
     } finally {
       setWorkingId('')
     }
@@ -80,10 +80,10 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
         body: '{}',
       })
       const payload = await response.json() as { error?: string }
-      if (!response.ok) throw new Error(payload.error ?? 'Resume failed')
+      if (!response.ok) throw new Error(payload.error ?? t('approvalResumeFailed'))
       await refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Resume failed')
+      setError(cause instanceof Error ? cause.message : t('approvalResumeFailed'))
     } finally {
       setWorkingId('')
     }
@@ -100,10 +100,10 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
         body: JSON.stringify({ grantedPermissions: approval.pendingPlan.requiredPermissions }),
       })
       const payload = await response.json() as ExecutionReceipt & { error?: string }
-      if (!response.ok) throw new Error(payload.error ?? 'Execution failed')
+      if (!response.ok) throw new Error(payload.error ?? t('approvalExecutionFailed'))
       await refresh()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Execution failed')
+      setError(cause instanceof Error ? cause.message : t('approvalExecutionFailed'))
     } finally {
       setWorkingId('')
     }

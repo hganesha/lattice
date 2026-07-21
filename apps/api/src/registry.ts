@@ -389,67 +389,20 @@ function starterSchema(starter: CreateContractRequest['starter']): {
   entityTypes: EntityTypeDefinition[]
   relationshipTypes: RelationshipTypeDefinition[]
 } {
-  const type = (id: string, label: string, group: string, icon: string, description: string): EntityTypeDefinition => ({
-    id,
-    label,
-    description,
-    group,
-    icon,
-    properties: [],
-    evidenceStatus: 'DECLARED',
-    approvalStatus: 'DRAFT',
-    impact: 'MEDIUM',
-  })
-  const relation = (id: string, sourceTypeId: string, targetTypeId: string, description: string): RelationshipTypeDefinition => ({
-    id,
-    label: id.toLocaleUpperCase(),
-    sourceTypeId,
-    targetTypeId,
-    cardinality: 'MANY_TO_ONE',
-    description,
-    impact: 'MEDIUM',
-  })
+  if (starter === 'blank') return { entityTypes: [], relationshipTypes: [] }
 
-  if (starter === 'healthcare') return {
-    entityTypes: [
-      type('patient', 'Patient', 'Care Participants', 'PT', 'A person receiving governed healthcare services.'),
-      type('provider', 'Provider', 'Care Participants', 'PR', 'A practitioner or organization delivering care.'),
-      type('care_episode', 'Care Episode', 'Care Delivery', 'CE', 'A bounded period of care for a clinical need.'),
-      type('authorization', 'Authorization', 'Controls', 'AU', 'A governed decision permitting a healthcare service.'),
-    ],
-    relationshipTypes: [
-      relation('receives_care_in', 'patient', 'care_episode', 'A patient receives care within an episode.'),
-      relation('delivered_by', 'care_episode', 'provider', 'A care episode is delivered by a provider.'),
-      relation('governed_by', 'care_episode', 'authorization', 'A care episode is governed by an authorization.'),
-    ],
+  const domain = starter.replaceAll('-', '_')
+  const pack = generatedIndustryOntologyCatalog.find((artifact) => artifact.ontology.domain === domain)?.ontology
+  if (!pack) return { entityTypes: [], relationshipTypes: [] }
+
+  return {
+    entityTypes: structuredClone(pack.entityTypes).map((type) => ({
+      ...type,
+      evidenceStatus: 'TEMPLATE_DERIVED',
+      approvalStatus: 'DRAFT',
+    })),
+    relationshipTypes: structuredClone(pack.relationshipTypes),
   }
-  if (starter === 'energy') return {
-    entityTypes: [
-      type('grid_asset', 'Grid Asset', 'Network', 'GA', 'A governed physical component of the energy network.'),
-      type('outage', 'Outage', 'Operations', 'OU', 'A loss or degradation of energy service.'),
-      type('crew', 'Field Crew', 'Operations', 'FC', 'A team qualified to perform field work.'),
-      type('work_order', 'Work Order', 'Controls', 'WO', 'An authorized unit of operational work.'),
-    ],
-    relationshipTypes: [
-      relation('affects', 'outage', 'grid_asset', 'An outage affects a grid asset.'),
-      relation('resolved_by', 'outage', 'work_order', 'An outage is addressed through a work order.'),
-      relation('assigned_to', 'work_order', 'crew', 'A work order is assigned to a qualified crew.'),
-    ],
-  }
-  if (starter === 'software') return {
-    entityTypes: [
-      type('service', 'Service', 'Platform', 'SV', 'A deployed software capability with an accountable owner.'),
-      type('incident', 'Incident', 'Reliability', 'IN', 'An interruption or degradation of a software service.'),
-      type('change', 'Change', 'Delivery', 'CH', 'A governed modification to a software service.'),
-      type('team', 'Team', 'Organization', 'TM', 'A group accountable for services, incidents, or changes.'),
-    ],
-    relationshipTypes: [
-      relation('impacts', 'incident', 'service', 'An incident impacts a software service.'),
-      relation('caused_by', 'incident', 'change', 'An incident is attributed to a governed change.'),
-      relation('owned_by', 'service', 'team', 'A service is owned by an accountable team.'),
-    ],
-  }
-  return { entityTypes: [], relationshipTypes: [] }
 }
 
 function hydrateWorkspaces(entries: Record<string, ContractRegistryEntry>, stored?: Record<string, IndustryWorkspace>): Record<string, IndustryWorkspace> {

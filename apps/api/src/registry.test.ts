@@ -3,7 +3,7 @@ import test from 'node:test'
 import { mkdtemp, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { counterpartyRiskContract } from '@lattice/contracts'
+import { counterpartyRiskContract, type ContractStarter } from '@lattice/contracts'
 import { ContractRegistry, ContractValidationError } from './registry.js'
 
 test('persists drafts and publishes immutable versioned releases', async () => {
@@ -65,7 +65,8 @@ test('creates contracts on top of the generated industry ontology', async () => 
 
   assert.ok(blank.draft.entityTypes.length >= 7)
   assert.ok(healthcare.draft.entityTypes.some((type) => type.id === 'care_authorization'))
-  assert.ok(healthcare.draft.entityTypes.some((type) => type.id === 'care_episode'))
+  assert.ok(healthcare.draft.entityTypes.some((type) => type.id === 'clinical_encounter'))
+  assert.ok(healthcare.draft.entityTypes.every((type) => type.properties.length >= 3))
   assert.ok(healthcare.draft.relationshipTypes.length >= 6)
   assert.equal(healthcare.releases.length, 0)
   assert.equal(healthcare.draft.ontologyRef?.workspaceId, blank.draft.ontologyRef?.workspaceId)
@@ -73,11 +74,32 @@ test('creates contracts on top of the generated industry ontology', async () => 
   assert.deepEqual(scoped.draft.entityTypes.map((type) => type.id), ['person', 'organization', 'patient'])
   assert.equal(registry.listWorkspaces().find((workspace) => workspace.domain === 'healthcare')?.contractIds.length, 3)
   assert.equal(registry.get(blank.contractId)?.draft.entityTypes.length, blank.draft.entityTypes.length)
-  assert.equal(registry.get(blank.contractId)?.draft.entityTypes.some((type) => type.id === 'care_episode'), false)
   await assert.rejects(
     () => registry.publish({ contract: blank.draft }),
     (error) => error instanceof ContractValidationError && error.issues.some((issue) => issue.includes('must be linked to an implemented operation')),
   )
+})
+
+test('creates property-bearing starters for every shipped industry pack', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-starters-'))
+  const registry = await ContractRegistry.open(join(directory, 'registry.json'), counterpartyRiskContract)
+  const starters: Exclude<ContractStarter, 'blank'>[] = ['financial-services', 'energy', 'healthcare', 'manufacturing', 'legal', 'insurance', 'real-estate']
+
+  for (const starter of starters) {
+    const entry = await registry.create({
+      name: `${starter} starter`,
+      description: `Editable ${starter} ontology starter.`,
+      domain: `starter sandbox ${starter}`,
+      workflow: 'First governed decision',
+      owner: 'Context Governance',
+      starter,
+      competencyQuestions: [{ question: 'What context is available?', expectedAnswerShape: 'Governed objects and evidence', impact: 'MEDIUM' }],
+    })
+    const typeIds = new Set(entry.draft.entityTypes.map((type) => type.id))
+    assert.ok(entry.draft.entityTypes.length >= 4, `${starter} should include entity types`)
+    assert.ok(entry.draft.entityTypes.every((type) => type.properties.length > 0), `${starter} should not contain property-less types`)
+    assert.ok(entry.draft.relationshipTypes.every((relationship) => typeIds.has(relationship.sourceTypeId) && typeIds.has(relationship.targetTypeId)), `${starter} relationships should remain in scope`)
+  }
 })
 
 test('seeds a provenance-backed ontology workspace for every implemented schema industry', async () => {
