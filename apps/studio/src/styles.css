@@ -8,7 +8,7 @@ button { color: inherit; }
 .shell { min-height: 100vh; display: grid; grid-template-columns: 238px 1fr; }
 .sidebar { position: sticky; top: 0; height: 100vh; border-right: 1px solid #22272a; background: rgba(10, 12, 14, .93); display: flex; flex-direction: column; padding: 22px 14px 16px; }
 .brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 22px; font: 700 18px Manrope; letter-spacing: -.4px; }
-.brand-mark { display: grid; place-items: center; width: 28px; height: 28px; overflow: hidden; border: 1px solid #353b42; border-radius: 7px; background: #25282d; box-shadow: 0 0 24px #a9ed4618; }
+.brand-mark { display: grid; place-items: center; width: 28px; height: 28px; overflow: hidden; border: 1px solid #353b42; border-radius: 7px; background: var(--accent); box-shadow: 0 0 24px #a9ed4633; }
 .brand-mark img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .workspace-switcher { display: flex; align-items: center; gap: 10px; border: 1px solid #262c2f; background: #121518; border-radius: 8px; padding: 10px; margin-bottom: 22px; }
 .workspace-icon { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 6px; background: #252c2a; color: #b7f44a; font: 600 10px DM Mono; }
