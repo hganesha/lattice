@@ -167,6 +167,39 @@ export const IconPill = (p: IconProps) => (
   </Icon>
 )
 
+export const IconUmbrella = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M22 12a10.06 10.06 0 0 0-20 0Z" />
+    <path d="M12 12v6a2 2 0 0 0 4 0" />
+    <path d="M12 2v1" />
+  </Icon>
+)
+
+export const IconFactory = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 16h.01" />
+    <path d="M16 16h.01" />
+    <path d="M3 21h18" />
+    <path d="M5 21V10l5 3V10l5 3V7l4 2v12" />
+  </Icon>
+)
+
+export const IconBuilding = (p: IconProps) => (
+  <Icon {...p}>
+    <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
+    <path d="M9 22v-4h6v4" />
+    <path d="M8 6h.01" />
+    <path d="M16 6h.01" />
+    <path d="M12 6h.01" />
+    <path d="M12 10h.01" />
+    <path d="M12 14h.01" />
+    <path d="M16 10h.01" />
+    <path d="M16 14h.01" />
+    <path d="M8 10h.01" />
+    <path d="M8 14h.01" />
+  </Icon>
+)
+
 export const IconChevronDown = (p: IconProps) => (
   <Icon {...p}>
     <path d="m6 9 6 6 6-6" />
