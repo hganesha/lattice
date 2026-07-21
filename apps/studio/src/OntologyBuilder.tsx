@@ -29,7 +29,7 @@ import { Toast } from './Toast'
 import { DomainGroupField } from './DomainGroupField'
 import { EntityIconPicker } from './EntityIconPicker'
 import { EntityIcon, DEFAULT_ENTITY_ICON } from './entityIcons'
-import { downloadJson } from './jsonExport'
+import { downloadJson, downloadOntology } from './jsonExport'
 
 const ontologyNodeTypes = { ontologyLane: OntologyLaneNode, ontologyEntity: OntologyEntityNode }
 
@@ -274,9 +274,10 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     commit({ ...contract, schemaLayout })
   }
 
-  function exportContract() {
-    downloadJson(exportDocument)
-    setNotice(t('ontologyExportNotice'))
+  function exportContract(format: 'JSON' | 'RDF_XML' | 'TURTLE') {
+    if (format === 'JSON') downloadJson(exportDocument)
+    else downloadOntology(exportDocument, format)
+    setNotice(t('ontologyExportNotice', { format: format === 'RDF_XML' ? 'RDF/XML' : format === 'TURTLE' ? 'Turtle' : 'JSON' }))
   }
 
   return (
@@ -288,7 +289,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
           <div className="panel-header ontology-model-header">
             <div><span className="panel-kicker">{t('ontologyEditableModel').toLocaleUpperCase()}</span><h2>{contract.name}</h2></div>
             <div className="ontology-model-tools">
-              <div className="builder-meta"><span>{t('ontologyTypeCount', { count: contract.entityTypes.length })}</span><span>{t('ontologyRelationCount', { count: contract.relationshipTypes.length })}</span><button onClick={exportContract}>{t('ontologyExportJson')}</button></div>
+              <div className="builder-meta"><span>{t('ontologyTypeCount', { count: contract.entityTypes.length })}</span><span>{t('ontologyRelationCount', { count: contract.relationshipTypes.length })}</span><button onClick={() => exportContract('JSON')}>{t('ontologyExportJson')}</button><button onClick={() => exportContract('RDF_XML')}>{t('ontologyExportRdf')}</button><button onClick={() => exportContract('TURTLE')}>{t('ontologyExportTurtle')}</button></div>
               <div className="model-actions">
                 <button className="ghost import-launch" onClick={() => setImportOpen(true)}>{t('ontologyImportSchema')}</button>
                 <button className="ghost" onClick={() => setDialog('relationship')}>{t('ontologyAddRelationship')}</button>

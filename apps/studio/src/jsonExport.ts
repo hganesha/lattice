@@ -17,7 +17,16 @@ export function buildJsonExport(document: JsonExportDocument): JsonExportArtifac
 
 export function downloadJson(document: JsonExportDocument): void {
   const { content, filename } = buildJsonExport(document)
-  const blob = new Blob([content], { type: 'application/json' })
+  downloadArtifact(content, filename, 'application/json')
+}
+
+export function downloadOntology(document: OntologyExportDocument, format: OntologyExportFormat): void {
+  const artifact = exportOntology(document, format)
+  downloadArtifact(artifact.content, artifact.filename, artifact.mediaType)
+}
+
+function downloadArtifact(content: string, filename: string, mediaType: string): void {
+  const blob = new Blob([content], { type: mediaType })
   const url = URL.createObjectURL(blob)
   const anchor = window.document.createElement('a')
   anchor.href = url
@@ -25,3 +34,4 @@ export function downloadJson(document: JsonExportDocument): void {
   anchor.click()
   URL.revokeObjectURL(url)
 }
+import { exportOntology, type OntologyExportDocument, type OntologyExportFormat } from '@lattice/exporter-core'

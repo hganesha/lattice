@@ -119,6 +119,7 @@ interface RdfProperty {
   description: string | undefined
   domain: string
   range: string | undefined
+  cardinality: 'ONE_TO_ONE' | 'ONE_TO_MANY' | 'MANY_TO_ONE' | 'MANY_TO_MANY' | undefined
 }
 
 interface ParsedRdfOntology {
@@ -258,11 +259,11 @@ function previewRdfImport(input: PreviewImportInput, format: 'RDF_XML' | 'TURTLE
         label: relationship.label || humanize(localName(relationship.sourceId)).toLocaleUpperCase(),
         sourceTypeId,
         targetTypeId,
-        cardinality: 'MANY_TO_MANY' as const,
+        cardinality: relationship.cardinality ?? 'MANY_TO_MANY',
         description: relationship.description ?? `Imported ontology relationship ${relationship.label}.`,
         impact: 'MEDIUM' as const,
       },
-      warnings: ['OWL cardinality was not declared; imported as many-to-many for review.'],
+      warnings: relationship.cardinality ? [] : ['OWL cardinality was not declared; imported as many-to-many for review.'],
     }]
   })
   const unboundProperties = ontology.properties.filter((property) => !idBySource.has(property.domain)).length
@@ -282,8 +283,10 @@ function rdfDatatypeProperty(parentId: string, property: RdfProperty): PropertyD
           : ['datetime', 'datetimestamp'].includes(range) ? 'datetime'
             : 'string'
   const name = property.label || humanize(localName(property.sourceId))
+  const localId = slugify(localName(property.sourceId))
+  const propertyId = localId.startsWith(`${parentId}_`) ? localId.slice(parentId.length + 1) : localId
   return {
-    id: `${parentId}.${slugify(localName(property.sourceId))}`,
+    id: `${parentId}.${propertyId}`,
     name,
     dataType,
     description: property.description ?? `Imported ${name} datatype property.`,
@@ -333,6 +336,7 @@ function parseRdfXmlProperties(sourceText: string, tag: string): RdfProperty[] {
       sourceId,
       domain,
       range: xmlResource(element.body, 'rdfs:range'),
+      cardinality: rdfCardinality(xmlText(element.body, 'lattice:cardinality')),
       label: xmlText(element.body, 'rdfs:label') ?? humanize(localName(sourceId)),
       description: xmlText(element.body, 'rdfs:comment'),
     }]
@@ -398,6 +402,7 @@ const RDFS_RANGE = 'http://www.w3.org/2000/01/rdf-schema#range'
 const OWL_CLASS = 'http://www.w3.org/2002/07/owl#Class'
 const OWL_DATATYPE_PROPERTY = 'http://www.w3.org/2002/07/owl#DatatypeProperty'
 const OWL_OBJECT_PROPERTY = 'http://www.w3.org/2002/07/owl#ObjectProperty'
+const LATTICE_CARDINALITY = 'https://lattice.dev/vocab#cardinality'
 
 function parseTurtle(sourceText: string): ParsedRdfOntology {
   const prefixes = new Map<string, string>([
@@ -439,6 +444,7 @@ function parseTurtle(sourceText: string): ParsedRdfOntology {
       sourceId,
       domain,
       range: resourceFor(sourceId, RDFS_RANGE),
+      cardinality: rdfCardinality(literalFor(sourceId, LATTICE_CARDINALITY)),
       label: literalFor(sourceId, RDFS_LABEL) ?? humanize(localName(sourceId)),
       description: literalFor(sourceId, RDFS_COMMENT),
     }
@@ -446,6 +452,10 @@ function parseTurtle(sourceText: string): ParsedRdfOntology {
   const properties = typedSubjects(OWL_DATATYPE_PROPERTY).map(mapProperty).filter((value): value is RdfProperty => Boolean(value))
   const relationships = typedSubjects(OWL_OBJECT_PROPERTY).map(mapProperty).filter((value): value is RdfProperty => Boolean(value))
   return { entities, properties, relationships, warnings: [] }
+}
+
+function rdfCardinality(value: string | undefined): RdfProperty['cardinality'] {
+  return value === 'ONE_TO_ONE' || value === 'ONE_TO_MANY' || value === 'MANY_TO_ONE' || value === 'MANY_TO_MANY' ? value : undefined
 }
 
 function pushTurtleTriple(triples: TurtleTriple[], subject: string, predicateToken: string, objectToken: string, prefixes: Map<string, string>) {

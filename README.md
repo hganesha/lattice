@@ -16,6 +16,7 @@ The workspace includes published **counterparty exposure assurance** and **grid 
 - `@lattice/contracts`: typed industry workspace, shared ontology, ontology reference, concept scope, and Context Contract schemas.
 - `@lattice/compiler-core`: deterministic operation/entity resolution, policy-driven evidence and freshness enforcement, runtime approval escalation, clarification contracts, abstention, and version-pinned plans.
 - `@lattice/importer-core`: deterministic OpenAPI, JSON Schema, RDF/XML, Turtle, and CSV translation into checksum-stamped ontology proposals, operation discovery, response-field flattening, type inference, and collision analysis.
+- `@lattice/exporter-core`: deterministic OWL ontology serialization to RDF/XML and Turtle with stable IRIs, XML escaping, datatype ranges, and Lattice governance annotations.
 - `@lattice/api`: dependency-light HTTP API with a persistent contract registry, immutable assurance and review artifacts, versioned releases, safe draft restoration, runtime suspension, server-derived identity, Ed25519 plan signing, plan verification, and clarification continuation.
 - `@lattice/studio`: a React context studio with a draggable ontology canvas, schema Import Studio, Source Binding Studio, Policy Studio, Assurance Studio, Review Queue, Evidence Registry, Release Management, field mapping validation, publish gates, registry-backed drafts, and live question compilation.
 
@@ -42,7 +43,7 @@ The Studio opens on the active industry workspace's **Shared ontology**. Fundame
 
 Open **Compiler** to inspect governed objects and relationships in a domain-neutral graph or table, trace their evidence, and compile the contract's competency question. The first-run guide can compile any active published example immediately, before authoring. The Grid example resolves its outage, traverses the governed `AFFECTED_ASSET` relationship, and returns a short-lived Ed25519-signed execution plan pinned to contract `0.1.1`.
 
-Within a workspace, drag types to arrange the canvas, draw between node handles to create relationships, and edit properties in the inspector. The always-visible header save persists the active shared-ontology or contract draft; publish remains a separate governed release action. **Import schema** is available from navigation and the ontology canvas. It accepts OpenAPI, JSON Schema, RDF/XML, Turtle, or CSV; previews OWL classes, datatype properties, object properties, schema references, and inferred tabular fields; and lets an author merge, create, or skip every collision before staging an unpublished shared-ontology draft. Switch to **Compiler** to compile questions against a contract's latest published release.
+Within a workspace, drag types to arrange the canvas, draw between node handles to create relationships, and edit properties in the inspector. The always-visible header save persists the active shared-ontology or contract draft; publish remains a separate governed release action. **Import schema** is available from navigation and the ontology canvas. It accepts OpenAPI, JSON Schema, RDF/XML, Turtle, or CSV; previews OWL classes, datatype properties, object properties, schema references, and inferred tabular fields; and lets an author merge, create, or skip every collision before staging an unpublished shared-ontology draft. The ontology header exports the current model as native Lattice JSON, standards-compatible RDF/XML, or Turtle. Switch to **Compiler** to compile questions against a contract's latest published release.
 
 Open workspace-level **Ontology bindings** to map shared master or reference data once, or contract-level **Source bindings** for decision-specific sources. Both support Databricks, Microsoft Fabric, Snowflake, BigQuery, PostgreSQL, Kafka, S3/ADLS/OneLake, and OpenAPI. API bindings discover response fields from OpenAPI; data-platform bindings ingest a declared row or event schema. Both flows suggest property mappings and stage the endpoint, read-only resource/query scope, external credential reference, freshness limit, permissions, and source checksum. Credential values are deliberately excluded.
 
@@ -109,6 +110,7 @@ apps/
 packages/
   compiler-core/       Pure deterministic compiler
   contracts/           Shared contract and plan types
+  exporter-core/       Deterministic RDF/XML and Turtle serializer
   importer-core/       OpenAPI/JSON Schema proposal engine
 docs/
   architecture.md      Product and technical architecture

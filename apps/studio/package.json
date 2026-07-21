@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@lattice/contracts": "workspace:*",
+    "@lattice/exporter-core": "workspace:*",
     "@vitejs/plugin-react": "^4.3.0",
     "@xyflow/react": "^12.0.0",
     "react": "^18.3.0",

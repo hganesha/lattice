@@ -36,6 +36,9 @@ importers:
       '@lattice/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@lattice/exporter-core':
+        specifier: workspace:*
+        version: link:../../packages/exporter-core
       '@vitejs/plugin-react':
         specifier: ^4.3.0
         version: 4.7.0(vite@5.4.21(@types/node@22.20.1))
@@ -104,6 +107,22 @@ importers:
 
   packages/contracts:
     devDependencies:
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
+  packages/exporter-core:
+    dependencies:
+      '@lattice/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      '@lattice/importer-core':
+        specifier: workspace:*
+        version: link:../importer-core
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
       typescript:
         specifier: ^5.4.0
         version: 5.9.3

@@ -25,6 +25,9 @@ describe('OntologyBuilder inspector', () => {
   it('shows relationship details for the selected ontology node', () => {
     render(<LatticeI18nProvider><OntologyBuilder contract={counterpartyRiskContract} mode="workspace" onChange={() => undefined} onDirtyChange={() => undefined} /></LatticeI18nProvider>)
 
+    expect(screen.getByRole('button', { name: 'Export JSON ↗' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Export RDF/XML ↗' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Export Turtle ↗' })).toBeVisible()
     expect(screen.getByRole('tab', { name: 'Type definition' })).toHaveAttribute('aria-selected', 'true')
     const relationshipsTab = screen.getByRole('tab', { name: 'Relationships' })
     fireEvent.click(relationshipsTab)

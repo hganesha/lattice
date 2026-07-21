@@ -9,7 +9,7 @@
     "test:e2e": "pnpm --filter @lattice/studio test:e2e",
     "typecheck": "pnpm -r typecheck",
     "dev": "pnpm run build:core && pnpm --parallel --filter @lattice/api --filter @lattice/studio dev",
-    "build:core": "pnpm --filter @lattice/contracts build && pnpm --filter @lattice/importer-core build && pnpm --filter @lattice/compiler-core build",
+    "build:core": "pnpm --filter @lattice/contracts build && pnpm --filter @lattice/importer-core build && pnpm --filter @lattice/exporter-core build && pnpm --filter @lattice/compiler-core build",
     "generate:ontologies": "node scripts/generate-industry-ontologies.mjs"
   },
   "devDependencies": {
