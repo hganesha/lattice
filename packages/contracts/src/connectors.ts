@@ -10,7 +10,7 @@ export const connectorCatalog: ConnectorTemplate[] = [
   {
     id: 'MICROSOFT_FABRIC', label: 'Microsoft Fabric', category: 'WAREHOUSE', adapterType: 'DATABASE', transport: 'TDS',
     description: 'Bind a Fabric Warehouse or Lakehouse SQL analytics endpoint over TDS with Microsoft Entra identity.',
-    endpointPlaceholder: '<workspace>.datawarehouse.fabric.microsoft.com', credentialRefPlaceholder: 'managed-identity:fabric-runtime', permissionPlaceholder: 'fabric.warehouse.read',
+    endpointPlaceholder: '<item-id>.datawarehouse.fabric.microsoft.com', credentialRefPlaceholder: 'env:FABRIC_SQL_ACCESS_TOKEN', permissionPlaceholder: 'fabric.warehouse.read',
     operationVerb: 'QUERY', resourceFields: ['workspace', 'database', 'schema', 'object'], parameterStyle: 'NAMED', docsUrl: 'https://learn.microsoft.com/en-us/fabric/data-warehouse/connectivity',
   },
   {

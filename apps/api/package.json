@@ -6,7 +6,7 @@
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc -b tsconfig.json",
-    "dev": "node --watch dist/server.js",
+    "dev": "LATTICE_DEV_AUTH=true node --watch dist/server.js",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "pnpm run build && node --test dist/*.test.js"
@@ -15,7 +15,9 @@
     "@lattice/compiler-core": "workspace:*",
     "@lattice/contracts": "workspace:*",
     "@lattice/importer-core": "workspace:*",
-    "pg": "^8.22.0"
+    "jose": "^6.2.3",
+    "pg": "^8.22.0",
+    "tedious": "^20.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

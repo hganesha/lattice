@@ -16,6 +16,7 @@
   "dependencies": {
     "@lattice/contracts": "workspace:*",
     "@lattice/exporter-core": "workspace:*",
+    "@supabase/supabase-js": "2.110.8",
     "@vitejs/plugin-react": "^4.3.0",
     "@xyflow/react": "^12.0.0",
     "react": "^18.3.0",

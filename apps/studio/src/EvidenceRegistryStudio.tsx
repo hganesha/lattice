@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ContextContract, EvidenceRecord, ReviewRequestArtifact } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { useMessages } from './i18n/messages'
 type EvidenceFilter = 'ALL' | EvidenceRecord['type']
 
@@ -25,7 +25,7 @@ export function EvidenceRegistryStudio({ contract }: EvidenceRegistryStudioProps
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetch(`${API_URL}/v1/reviews?contractId=${encodeURIComponent(contract.id)}`, { headers: { Authorization: 'Bearer studio-demo' }, signal: controller.signal })
+    void fetch(`${API_URL}/v1/reviews?contractId=${encodeURIComponent(contract.id)}`, { headers: apiAuthHeaders(), signal: controller.signal })
       .then((response) => response.ok ? response.json() as Promise<ReviewRequestArtifact[]> : [])
       .then(setReviews)
       .catch(() => undefined)

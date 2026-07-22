@@ -7,7 +7,7 @@ import {
   type RuntimeApprovalArtifact,
 } from '@lattice/contracts'
 import { ExecutionReceiptCard } from './ExecutionReceiptCard'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { useMessages } from './i18n/messages'
 import { Toast } from './Toast'
 
@@ -29,7 +29,7 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
   const [error, setError] = useState('')
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
-    const headers = { Authorization: 'Bearer studio-runtime-reviewer' }
+    const headers = apiAuthHeaders('studio-runtime-reviewer')
     const requestOptions: RequestInit = { headers, ...(signal ? { signal } : {}) }
     const [approvalResponse, executionResponse] = await Promise.all([
       fetch(`${API_URL}/v1/runtime-approvals?contractId=${encodeURIComponent(contract.id)}`, requestOptions),
@@ -57,7 +57,7 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
     try {
       const response = await fetch(`${API_URL}/v1/runtime-approvals/${approval.id}/decisions`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-runtime-reviewer', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders('studio-runtime-reviewer'), 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision, rationale }),
       })
       const payload = await response.json() as { error?: string; message?: string }
@@ -76,7 +76,7 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
     try {
       const response = await fetch(`${API_URL}/v1/runtime-approvals/${approval.id}/resume`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: '{}',
       })
       const payload = await response.json() as { error?: string }
@@ -96,7 +96,7 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
     try {
       const response = await fetch(`${API_URL}/v1/plans/${approval.signedPlanId}/execute`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-runtime-agent', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders('studio-runtime-agent'), 'Content-Type': 'application/json' },
         body: JSON.stringify({ grantedPermissions: approval.pendingPlan.requiredPermissions }),
       })
       const payload = await response.json() as ExecutionReceipt & { error?: string }

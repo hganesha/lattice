@@ -17,7 +17,7 @@ The workspace includes published **counterparty exposure assurance** and **grid 
 - `@lattice/compiler-core`: deterministic operation/entity resolution, policy-driven evidence and freshness enforcement, runtime approval escalation, clarification contracts, abstention, and version-pinned plans.
 - `@lattice/importer-core`: deterministic OpenAPI, JSON Schema, RDF/XML, Turtle, and CSV translation into checksum-stamped ontology proposals, operation discovery, response-field flattening, type inference, and collision analysis.
 - `@lattice/exporter-core`: deterministic OWL ontology serialization to RDF/XML and Turtle with stable IRIs, XML escaping, datatype ranges, and Lattice governance annotations.
-- `@lattice/api`: dependency-light HTTP API with a persistent contract registry, immutable assurance and review artifacts, versioned releases, digest-backed release diffs, audited active-pointer rollback, safe draft restoration, runtime suspension, server-derived identity, Ed25519 plan signing, plan verification, and clarification continuation.
+- `@lattice/api`: dependency-light HTTP API with OIDC/JWKS-verified identity, a persistent contract registry, immutable assurance and review artifacts, versioned releases, digest-backed release diffs, audited active-pointer rollback, safe draft restoration, runtime suspension, Ed25519 plan signing, plan verification, and clarification continuation.
 - `@lattice/studio`: a React context studio with a draggable ontology canvas, schema Import Studio, Source Binding Studio, Policy Studio, Assurance Studio, Review Queue, Evidence Registry, Release Management, field mapping validation, publish gates, registry-backed drafts, and live question compilation.
 
 ## Start locally
@@ -33,6 +33,38 @@ pnpm dev
 
 Open `http://127.0.0.1:5173`. The Context API listens on `http://127.0.0.1:8787`.
 
+`pnpm dev` explicitly enables development authentication for the local Studio identities. Outside that development command, protected API routes deny access unless OIDC is configured:
+
+```bash
+export LATTICE_OIDC_ISSUER=https://identity.example.com
+export LATTICE_OIDC_AUDIENCE=lattice-api
+export LATTICE_OIDC_JWKS_URL=https://identity.example.com/.well-known/jwks.json
+# Optional: RS256,ES256 by default
+export LATTICE_OIDC_ALGORITHMS=RS256,ES256
+# Optional claim mappings and single-workspace tenant fallback
+export LATTICE_OIDC_TENANT_CLAIM=tid
+export LATTICE_OIDC_PRINCIPAL_CLAIM=sub
+export LATTICE_OIDC_ROLES_CLAIM=roles
+export LATTICE_OIDC_DEFAULT_TENANT_ID=tenant-example
+```
+
+The API verifies the asymmetric signature, key ID, issuer, audience, token lifetime, maximum token age, and configured algorithm before trusting identity claims. Remote issuer and JWKS URLs require HTTPS; loopback HTTP is accepted only for local identity-provider testing. Studio reads its production access token from session storage through `setApiAccessToken`; built-in role-specific demo identities are emitted only by development builds. `LATTICE_DEV_AUTH=true` is rejected when `NODE_ENV=production`.
+
+### Supabase production identity and tenancy
+
+Lattice can use Supabase Auth and Postgres as its production identity and tenancy boundary. Copy `.env.supabase.example` into your deployment secret configuration and set the same project URL and publishable key for the API and Studio. The Studio then uses PKCE sessions with automatic refresh, requires organization onboarding or membership, and sends the active organization in `X-Lattice-Organization`. The API derives the Supabase issuer and JWKS endpoint from `LATTICE_SUPABASE_URL`, verifies asymmetric user JWTs locally, and confirms the selected organization through the user-scoped Supabase Data API before accepting protected requests. Secret or legacy `service_role` keys are never used in the browser.
+
+The versioned migration under `supabase/migrations` creates organizations, memberships, workspaces, contracts, immutable releases and governed artifacts, connector health, and append-only audit events. Every exposed table has RLS, explicit authenticated grants, no anonymous grants, and composite organization keys. Authorization comes from `organization_memberships`; editable `user_metadata` is never trusted. With Docker Desktop running, verify it using:
+
+```bash
+pnpm supabase:start
+pnpm supabase:reset
+pnpm supabase:test
+pnpm exec supabase db advisors --local --type security
+```
+
+The current API registry still uses its atomic local JSON persistence adapter while the normalized Supabase repository adapter is completed. Do not treat that fallback as shared multi-tenant production storage; Supabase Auth and RLS are now wired, but production data cutover remains a separate migration step.
+
 Run `pnpm generate:ontologies` after adding or changing industry forms under `../Schemas`. The generator currently derives seven provenance-backed industry ontologies from 55 implemented forms and publishes a field-coverage report in `docs/generated-ontology-report.json`. See [form-schema ontology generation](docs/ontology-generation.md).
 
 Use the sun/moon and text-size switches in the header to toggle light or dark mode and the normal or large text scale. Both preferences are stored locally in the browser. The contrast-bearing foreground/background theme tokens meet WCAG AA contrast for normal text; the normal interface type floor is 12px, with a 13.5px large-text option.
@@ -43,11 +75,15 @@ The Studio opens on the active industry workspace's **Shared ontology**. Fundame
 
 Open **Compiler** to inspect governed objects and relationships in a domain-neutral graph or table, trace their evidence, and compile the contract's competency question. The first-run guide can compile any active published example immediately, before authoring. The Grid example resolves its outage, traverses the governed `AFFECTED_ASSET` relationship, and returns a short-lived Ed25519-signed execution plan pinned to contract `0.1.1`.
 
-Within a workspace, drag types to arrange the canvas, draw between node handles to create relationships, and edit properties in the inspector. The always-visible header save persists the active shared-ontology or contract draft; publish remains a separate governed release action. **Import schema** is available from navigation and the ontology canvas. It accepts OpenAPI, JSON Schema, RDF/XML, Turtle, or CSV; previews OWL classes, datatype properties, object properties, schema references, and inferred tabular fields; and lets an author merge, create, or skip every collision before staging an unpublished shared-ontology draft. The ontology header exports the current model as native Lattice JSON, standards-compatible RDF/XML, or Turtle. Switch to **Compiler** to compile questions against a contract's latest published release.
+Within a workspace, drag types to arrange the canvas, draw between node handles to create relationships, and edit properties in the inspector. The always-visible header save persists the active shared-ontology or contract draft; publish remains a separate governed release action. **Import schema** is available from navigation and the ontology canvas. It accepts OpenAPI, JSON Schema, RDF/XML, Turtle, or CSV; previews OWL classes, datatype properties, object properties, schema references, and inferred tabular fields; and lets an author merge, create, or skip every collision before staging an unpublished shared-ontology draft. The ontology header is context-aware: **package JSON** exports the active shared ontology or Context Contract with its governed bindings, while **semantic RDF/XML** and **semantic Turtle** serialize ontology meaning only. Portable JSON retains approved external credential references such as `env:`, `vault:`, workload identity, and managed identity, but strips sample payloads, embedded credential values, URL user information, fragments, and sensitive URL parameters. Switch to **Compiler** to compile questions against a contract's latest published release.
 
-Open workspace-level **Ontology bindings** to map shared master or reference data once, or contract-level **Source bindings** for decision-specific sources. Both support Databricks, Microsoft Fabric, Snowflake, BigQuery, PostgreSQL, Kafka, S3/ADLS/OneLake, and OpenAPI. API bindings discover response fields from OpenAPI; Databricks and PostgreSQL bindings can discover live provider metadata, while every data-platform binding can still ingest a declared row or event schema. Both flows suggest property mappings and stage the endpoint, read-only resource/query scope, external credential reference, freshness limit, permissions, and source checksum. Credential values are deliberately excluded.
+Open workspace-level **Ontology bindings** to map shared master or reference data once, or contract-level **Source bindings** for decision-specific sources. Both support Databricks, Microsoft Fabric, Snowflake, BigQuery, PostgreSQL, Kafka, S3/ADLS/OneLake, and OpenAPI. API bindings discover response fields from OpenAPI; Databricks, Microsoft Fabric, and PostgreSQL bindings can discover live provider metadata, while every data-platform binding can still ingest a declared row or event schema. Both flows suggest property mappings and stage the endpoint, read-only resource/query scope, external credential reference, freshness limit, permissions, and source checksum. Credential values are deliberately excluded.
 
-The Studio reads its connector catalog from the API and can validate endpoint shape, resource scope, query safety, credential resolution, and runtime-driver availability for every staged binding. Databricks uses built-in HTTPS adapters for Unity Catalog discovery and Statement Execution; PostgreSQL uses a native wire-protocol adapter for `information_schema` discovery and read-only transactions. Snowflake and BigQuery retain built-in HTTPS dispatchers. Microsoft Fabric, Kafka, and object-storage transports dispatch through a separately operated local connector runtime configured with `LATTICE_CONNECTOR_GATEWAY_URL=http://127.0.0.1:<port>`. Credential references such as `env:VARIABLE_NAME` are resolved only by the API or connector runtime; secret values never enter the contract or browser.
+The Studio reads its connector catalog from the API and can validate endpoint shape, resource scope, query safety, credential resolution, and runtime-driver availability for every staged binding. Databricks uses built-in HTTPS adapters for Unity Catalog discovery and Statement Execution; Microsoft Fabric uses encrypted native TDS with a Microsoft Entra SQL access token for `INFORMATION_SCHEMA` discovery and bounded T-SQL execution; PostgreSQL uses a native wire-protocol adapter for `information_schema` discovery and read-only transactions. Snowflake and BigQuery retain built-in HTTPS dispatchers. Kafka and object-storage transports remain delegated to a separately operated local connector runtime configured with `LATTICE_CONNECTOR_GATEWAY_URL=http://127.0.0.1:<port>`; further native connector expansion is deferred.
+
+Credentials are resolved by a server-only chain. `env:VARIABLE_NAME` reads the process environment; vault, workload-identity, and managed-identity references can be handled by an injected runtime resolver or a credential broker configured with `LATTICE_CREDENTIAL_BROKER_URL` and optional `LATTICE_CREDENTIAL_BROKER_TOKEN`. Remote brokers must use HTTPS (loopback HTTP is allowed for local development) and implement `POST /v1/credentials/resolve`, accepting `{ reference, provider, resource }` and returning `{ value, expiresAt? }`. Empty, malformed, or expired responses are rejected. Secret values never enter contracts, browser responses, telemetry records, or logs.
+
+Each connector card can run a health check. Native discovery adapters perform a non-mutating metadata probe; other adapters report configuration-only degraded status until a safe live probe exists. Results retain latency, credential source, sanitized failure code, last successful probe, and freshness state in the local connector-health ledger.
 
 Open **Assurance** to link competency questions to implemented operations and execute deterministic structural, question, mapping, policy, and release gates against the current draft. Each run is stored as a digest-backed immutable artifact, rendered as an evidence trace, and synchronized into contract test status. Critical failures block publishing.
 
@@ -95,7 +131,9 @@ Use `Arcadia` instead of `Arcadia Capital` to exercise the typed clarification p
 | `POST /v1/bindings/preview` | Discover OpenAPI operations or tabular fields and flatten them for semantic mapping. |
 | `GET /v1/connectors` | List the single-workspace governed connector catalog and runtime metadata. |
 | `POST /v1/connectors/validate` | Validate resource scope, read-only query safety, credential resolution, and runtime-driver availability. |
-| `POST /v1/connectors/discover` | Discover and normalize live Databricks or PostgreSQL fields within a governed binding scope. |
+| `GET /v1/connectors/health?bindingId=:id` | List durable connector health history, optionally scoped to one binding. |
+| `POST /v1/connectors/health` | Resolve server-side credentials, run a safe provider probe, and persist latency/freshness telemetry. |
+| `POST /v1/connectors/discover` | Discover and normalize live Databricks, Microsoft Fabric, or PostgreSQL fields within a governed binding scope. |
 | `GET /v1/assurance/runs?contractId=:id` | List immutable assurance artifacts for a contract. |
 | `POST /v1/assurance/runs` | Execute deterministic contract gates and persist a digest-backed run. |
 | `GET /v1/assurance/runs/:id` | Retrieve one immutable assurance artifact. |
@@ -122,7 +160,7 @@ docs/
 
 ## Next slices
 
-The current milestone proves the visual schema-authoring/import/versioning loop, standards and tabular ingestion, a provider-neutral binding catalog, native Databricks and PostgreSQL discovery/execution adapters, digest-backed release comparison, safe release-to-draft restoration, controlled active-pointer rollback, and the compile/clarify/escalate/abstain/sign/approve/execute loop. Multi-tenant storage remains intentionally deferred. The remaining implementation milestones are native Fabric/Kafka/object-storage adapters, broader live discovery and health telemetry, OIDC/JWKS authentication, a dedicated append-only evidence and audit ledger, richer purpose-aware policy expressions, and additional industry packs.
+The current milestone proves the visual schema-authoring/import/versioning loop, standards and tabular ingestion, a provider-neutral binding catalog, native Databricks, Microsoft Fabric, and PostgreSQL discovery/execution adapters, hardened server-only credential resolution, durable connector health telemetry, OIDC/JWKS authentication, digest-backed release comparison, safe release-to-draft restoration, controlled active-pointer rollback, and the compile/clarify/escalate/abstain/sign/approve/execute loop. Multi-tenant storage and further native connector expansion remain intentionally deferred. The next implementation milestones are a dedicated append-only evidence and audit ledger, richer purpose-aware policy expressions, server-side role/scope authorization, and additional industry packs.
 
 ## Design principles
 

@@ -1,4 +1,4 @@
-import { createHash, generateKeyPairSync, randomUUID, sign, verify } from 'node:crypto'
+import { generateKeyPairSync, randomUUID, sign, verify } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,6 +14,7 @@ import {
   type BindingPreviewRequest,
   type ConnectorValidationRequest,
   type ConnectorDiscoveryRequest,
+  type ConnectorHealthRequest,
   type CreateReviewDecisionRequest,
   type CreateReviewRequest,
   type CreateRuntimeApprovalDecisionRequest,
@@ -33,9 +34,13 @@ import { AssuranceStore } from './assuranceStore.js'
 import { ContractRegistry, ContractValidationError, type PublishRequest } from './registry.js'
 import { ReviewStore } from './reviewStore.js'
 import { ExecutionStore } from './executionStore.js'
+import { ConnectorHealthStore } from './connectorHealthStore.js'
 import { RuntimeApprovalStore } from './runtimeApprovalStore.js'
-import { discoverConnector, validateConnectorBinding } from './connectors.js'
+import { discoverConnector, probeConnectorHealth, validateConnectorBinding } from './connectors.js'
 import { buildReleaseDiffArtifact } from './releaseDiff.js'
+import { authenticatorFromEnvironment, type RequestIdentity } from './auth.js'
+import { applyTenantMembership, tenantMembershipResolverFromEnvironment } from './tenancy.js'
+import { hasOrganizationRole, requiredOrganizationRoles } from './authorization.js'
 
 const port = Number(process.env.PORT ?? 8787)
 const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
@@ -45,6 +50,10 @@ const assuranceStore = await AssuranceStore.open(join(dataDirectory, 'assurance-
 const reviewStore = await ReviewStore.open(join(dataDirectory, 'review-artifacts.json'))
 const runtimeApprovalStore = await RuntimeApprovalStore.open(join(dataDirectory, 'runtime-approvals.json'))
 const executionStore = await ExecutionStore.open(join(dataDirectory, 'execution-receipts.json'))
+const connectorHealthStore = await ConnectorHealthStore.open(join(dataDirectory, 'connector-health.json'))
+const authenticator = authenticatorFromEnvironment()
+const tenantMembershipResolver = tenantMembershipResolverFromEnvironment()
+const requestIdentityCache = new WeakMap<IncomingMessage, Promise<RequestIdentity | undefined>>()
 const clarifications = new Map<string, { request: CompileRequest; typeId: string }>()
 const plans = new Map<string, SignedExecutionPlan>()
 const planContractIds = new Map<string, string>()
@@ -66,8 +75,21 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (url.pathname.startsWith('/v1/') && url.pathname !== '/v1/keys/current') {
+      const identity = await authenticate(request)
+      if (!identity) {
+        send(response, 401, { error: 'UNAUTHENTICATED_OR_UNAUTHORIZED', message: 'A valid user session and organization membership are required.' })
+        return
+      }
+      const requiredRoles = requiredOrganizationRoles(request.method, url.pathname)
+      if (requiredRoles && !hasOrganizationRole(identity, requiredRoles)) {
+        send(response, 403, { error: 'ORGANIZATION_ROLE_REQUIRED', requiredRoles })
+        return
+      }
+    }
+
     if (request.method === 'GET' && url.pathname === '/v1/connectors') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -106,7 +128,7 @@ const server = createServer(async (request, response) => {
 
     const workspaceOntologyMatch = url.pathname.match(/^\/v1\/workspaces\/([^/]+)\/ontology$/)
     if (request.method === 'PUT' && workspaceOntologyMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -125,7 +147,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/connectors/validate') {
-      const identity = authenticate(request)
+      const identity = await authenticate(request)
       if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -141,8 +163,34 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    if (request.method === 'GET' && url.pathname === '/v1/connectors/health') {
+      if (!await authenticate(request)) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      send(response, 200, { records: connectorHealthStore.list(url.searchParams.get('bindingId') ?? undefined) })
+      return
+    }
+
+    if (request.method === 'POST' && url.pathname === '/v1/connectors/health') {
+      const identity = await authenticate(request)
+      if (!identity) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const body = await readJson<ConnectorHealthRequest>(request)
+      if (!body.binding?.connector) {
+        send(response, 400, { error: 'CONNECTOR_BINDING_REQUIRED' })
+        return
+      }
+      const record = await connectorHealthStore.append(await probeConnectorHealth(body.binding), body.binding.freshnessMinutes)
+      console.info('[connector.health]', { principalId: identity.principalId, bindingId: record.bindingId, provider: record.provider, status: record.status, latencyMs: record.latencyMs, credentialSource: record.credentialSource, errorCode: record.errorCode })
+      send(response, 200, record)
+      return
+    }
+
     if (request.method === 'POST' && url.pathname === '/v1/connectors/discover') {
-      const identity = authenticate(request)
+      const identity = await authenticate(request)
       if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -214,7 +262,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/contracts') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -230,7 +278,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/imports/preview') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -261,7 +309,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/bindings/preview') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -290,7 +338,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/assurance/runs') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -304,7 +352,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/assurance/runs') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -322,7 +370,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/reviews') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -336,7 +384,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/reviews') {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -369,7 +417,7 @@ const server = createServer(async (request, response) => {
 
     const reviewDecisionMatch = url.pathname.match(/^\/v1\/reviews\/([^/]+)\/decisions$/)
     if (request.method === 'POST' && reviewDecisionMatch?.[1]) {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -390,7 +438,7 @@ const server = createServer(async (request, response) => {
 
     const assuranceRunMatch = url.pathname.match(/^\/v1\/assurance\/runs\/([^/]+)$/)
     if (request.method === 'GET' && assuranceRunMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -415,7 +463,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'PUT' && contractMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -430,7 +478,7 @@ const server = createServer(async (request, response) => {
 
     const releaseDiffMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/diffs$/)
     if (request.method === 'GET' && releaseDiffMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -457,7 +505,7 @@ const server = createServer(async (request, response) => {
 
     const releaseEventsMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/release-events$/)
     if (request.method === 'GET' && releaseEventsMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -472,7 +520,7 @@ const server = createServer(async (request, response) => {
 
     const releaseMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/releases$/)
     if (request.method === 'POST' && releaseMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -488,7 +536,7 @@ const server = createServer(async (request, response) => {
 
     const restoreMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/restores$/)
     if (request.method === 'POST' && restoreMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -508,7 +556,7 @@ const server = createServer(async (request, response) => {
 
     const runtimeStatusMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/runtime-status$/)
     if (request.method === 'POST' && runtimeStatusMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -528,7 +576,7 @@ const server = createServer(async (request, response) => {
 
     const rollbackMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/rollbacks$/)
     if (request.method === 'POST' && rollbackMatch?.[1]) {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -561,7 +609,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/runtime-approvals') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -575,7 +623,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/executions') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -589,7 +637,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/compile') {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED', message: 'Use a Bearer token; identity is derived from the token, never the request body.' })
         return
@@ -624,7 +672,7 @@ const server = createServer(async (request, response) => {
 
     const clarificationMatch = url.pathname.match(/^\/v1\/clarifications\/([^/]+)$/)
     if (request.method === 'POST' && clarificationMatch?.[1]) {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -657,7 +705,7 @@ const server = createServer(async (request, response) => {
 
     const runtimeDecisionMatch = url.pathname.match(/^\/v1\/runtime-approvals\/([^/]+)\/decisions$/)
     if (request.method === 'POST' && runtimeDecisionMatch?.[1]) {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -678,7 +726,7 @@ const server = createServer(async (request, response) => {
 
     const runtimeResumeMatch = url.pathname.match(/^\/v1\/runtime-approvals\/([^/]+)\/resume$/)
     if (request.method === 'POST' && runtimeResumeMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -735,7 +783,7 @@ const server = createServer(async (request, response) => {
 
     const executeMatch = url.pathname.match(/^\/v1\/plans\/([^/]+)\/execute$/)
     if (request.method === 'POST' && executeMatch?.[1]) {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -858,13 +906,29 @@ function verifyPlan(plan: SignedExecutionPlan): boolean {
   return verify(null, Buffer.from(JSON.stringify(unsigned)), publicKey, Buffer.from(signature, 'base64url'))
 }
 
-function authenticate(request: IncomingMessage): { tenantId: string; principalId: string } | undefined {
-  const authorization = request.headers.authorization
-  if (!authorization?.startsWith('Bearer ') || authorization.length <= 7) return undefined
-  const token = authorization.slice(7)
-  return {
-    tenantId: 'tenant_dev',
-    principalId: `principal_${createHash('sha256').update(token).digest('hex').slice(0, 12)}`,
+async function authenticate(request: IncomingMessage): Promise<RequestIdentity | undefined> {
+  const cached = requestIdentityCache.get(request)
+  if (cached) return cached
+  const resolution = resolveRequestIdentity(request)
+  requestIdentityCache.set(request, resolution)
+  return resolution
+}
+
+async function resolveRequestIdentity(request: IncomingMessage): Promise<RequestIdentity | undefined> {
+  const identity = await authenticator.authenticate(request.headers.authorization)
+  if (!identity) return undefined
+  const organizationHeader = request.headers['x-lattice-organization']
+  const requestedOrganizationId = Array.isArray(organizationHeader) ? undefined : organizationHeader?.trim()
+  if (!tenantMembershipResolver) {
+    if (requestedOrganizationId && identity.tenantId && requestedOrganizationId !== identity.tenantId) return undefined
+    return identity
+  }
+  if (!requestedOrganizationId) return undefined
+  try {
+    const role = await tenantMembershipResolver.resolve(request.headers.authorization, requestedOrganizationId, identity.principalId)
+    return role ? applyTenantMembership(identity, requestedOrganizationId, role) : undefined
+  } catch {
+    return undefined
   }
 }
 
@@ -886,7 +950,7 @@ async function readJson<T>(request: IncomingMessage): Promise<T> {
 
 function setCors(response: ServerResponse): void {
   response.setHeader('Access-Control-Allow-Origin', studioOrigin)
-  response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+  response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Lattice-Organization')
   response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS')
 }
 

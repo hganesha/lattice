@@ -19,7 +19,7 @@ import type {
   PropertyDefinition,
   RelationshipTypeDefinition,
 } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { ImportStudio } from './ImportStudio'
 import { useMessages } from './i18n/messages'
 import { OntologyLaneNode, type OntologyLaneNodeType } from './OntologyLaneNode'
@@ -111,7 +111,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     if (mode === 'workspace') return
     const controller = new AbortController()
     setReleases([])
-    void fetch(`${API_URL}/v1/contracts/${contract.id}`, { signal: controller.signal })
+    void fetch(`${API_URL}/v1/contracts/${contract.id}`, { headers: apiAuthHeaders(), signal: controller.signal })
       .then((response) => response.ok ? response.json() as Promise<ContractRegistryEntry> : undefined)
       .then((entry) => { if (entry) setReleases(entry.releases) })
       .catch(() => undefined)
@@ -224,7 +224,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     try {
       const response = await fetch(`${API_URL}/v1/contracts/${contract.id}/releases`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contract,
           bump: String(data.get('bump')),
@@ -274,10 +274,13 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     commit({ ...contract, schemaLayout })
   }
 
-  function exportContract(format: 'JSON' | 'RDF_XML' | 'TURTLE') {
+  function exportArtifact(format: 'JSON' | 'RDF_XML' | 'TURTLE') {
     if (format === 'JSON') downloadJson(exportDocument)
     else downloadOntology(exportDocument, format)
-    setNotice(t('ontologyExportNotice', { format: format === 'RDF_XML' ? 'RDF/XML' : format === 'TURTLE' ? 'Turtle' : 'JSON' }))
+    setNotice(t('ontologyExportContextNotice', {
+      kind: t(mode === 'workspace' ? 'ontologyExportKindOntology' : 'ontologyExportKindContract'),
+      format: format === 'RDF_XML' ? 'RDF/XML' : format === 'TURTLE' ? 'Turtle' : 'JSON',
+    }))
   }
 
   return (
@@ -289,7 +292,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
           <div className="panel-header ontology-model-header">
             <div><span className="panel-kicker">{t('ontologyEditableModel').toLocaleUpperCase()}</span><h2>{contract.name}</h2></div>
             <div className="ontology-model-tools">
-              <div className="builder-meta"><span>{t('ontologyTypeCount', { count: contract.entityTypes.length })}</span><span>{t('ontologyRelationCount', { count: contract.relationshipTypes.length })}</span><button onClick={() => exportContract('JSON')}>{t('ontologyExportJson')}</button><button onClick={() => exportContract('RDF_XML')}>{t('ontologyExportRdf')}</button><button onClick={() => exportContract('TURTLE')}>{t('ontologyExportTurtle')}</button></div>
+              <div className="builder-meta"><span>{t('ontologyTypeCount', { count: contract.entityTypes.length })}</span><span>{t('ontologyRelationCount', { count: contract.relationshipTypes.length })}</span><button onClick={() => exportArtifact('JSON')}>{t('ontologyExportPackageJson')}</button><button onClick={() => exportArtifact('RDF_XML')}>{t('ontologyExportSemanticRdf')}</button><button onClick={() => exportArtifact('TURTLE')}>{t('ontologyExportSemanticTurtle')}</button></div>
               <div className="model-actions">
                 <button className="ghost import-launch" onClick={() => setImportOpen(true)}>{t('ontologyImportSchema')}</button>
                 <button className="ghost" onClick={() => setDialog('relationship')}>{t('ontologyAddRelationship')}</button>

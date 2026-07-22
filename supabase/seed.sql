@@ -1,0 +1,2 @@
+-- Production tenant membership is provisioned through authenticated application flows.
+-- Keep the shared migration deterministic; local demo users are intentionally not seeded.

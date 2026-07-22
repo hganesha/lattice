@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { ContractRegistryEntry, ContractStarter, ImpactLevel, IndustryWorkspace } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { Brand } from './Brand'
 import { useMessages } from './i18n/messages'
 import { SelectOrCreateField } from './SelectOrCreateField'
@@ -74,7 +74,7 @@ export function NewContractWizard({ onClose, onCreated, workspace }: NewContract
     try {
       const response = await fetch(`${API_URL}/v1/contracts`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...brief,
           starter,

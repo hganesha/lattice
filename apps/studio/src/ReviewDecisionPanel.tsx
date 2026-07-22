@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { CreateReviewDecisionRequest, ReviewRequestArtifact } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { useMessages } from './i18n/messages'
 
 interface ReviewDecisionPanelProps {
@@ -23,7 +23,7 @@ export function ReviewDecisionPanel({ review, onClose, onDecided }: ReviewDecisi
     try {
       const response = await fetch(`${API_URL}/v1/reviews/${review.id}/decisions`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-reviewer', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders('studio-reviewer'), 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision, rationale }),
       })
       const payload = await response.json() as ReviewRequestArtifact & { error?: string; message?: string }

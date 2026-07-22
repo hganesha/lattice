@@ -26,6 +26,9 @@
 .binding-card-main h3 { font: 600 10px Manrope; color: var(--text); }
 .binding-health { padding: 3px 5px; border: 1px solid var(--accent); border-radius: 3px; color: var(--accent-strong); background: var(--accent-soft); font: 6px DM Mono; }
 .binding-health.warning { border-color: var(--warning); color: var(--warning); background: var(--warning-soft); }
+.binding-health.degraded { border-color: var(--warning); color: var(--warning); background: var(--warning-soft); }
+.binding-health.unhealthy, .binding-health.invalid { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+.binding-health.healthy { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
 .binding-health.not_tested { color: var(--text-secondary); background: var(--surface-soft); border-color: var(--border); }
 .connector-validation { padding: 3px 5px; border: 1px solid var(--border-strong); border-radius: 3px; color: var(--text-secondary); background: var(--surface-soft); font: 6px DM Mono; }
 .connector-validation.ready { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
@@ -33,6 +36,7 @@
 .connector-validation.invalid { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
 .binding-card-main code { display: block; margin-top: 5px; color: var(--text-secondary); font: 7px DM Mono; }
 .binding-card-main p { margin-top: 4px; color: var(--text-muted); font-size: 7px; }
+.binding-card-main p.binding-health-detail { color: var(--text-secondary); font-family: DM Mono; }
 .binding-card-main > div:last-child { display: flex; gap: 5px; margin-top: 7px; }
 .binding-card-main > div:last-child span { padding: 3px 5px; border: 1px solid var(--border); border-radius: 3px; color: var(--text-muted); font: 6px DM Mono; }
 .binding-card-main .binding-card-actions { margin-top: 9px; }

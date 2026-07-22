@@ -7,7 +7,7 @@ import type {
   ProposedEntityType,
   RelationshipTypeDefinition,
 } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { useMessages } from './i18n/messages'
 type CollisionResolution = 'MERGE' | 'CREATE' | 'SKIP'
 
@@ -107,7 +107,7 @@ export function ImportStudio({ contract, onClose, onApply }: ImportStudioProps) 
     try {
       const response = await fetch(`${API_URL}/v1/imports/preview`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ contractId: contract.id, sourceName, sourceText, format }),
       })
       const payload = await response.json() as ImportProposal & { message?: string; error?: string }

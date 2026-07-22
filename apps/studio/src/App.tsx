@@ -29,7 +29,8 @@ import { AppearanceSettings } from './AppearanceSettings'
 import { Brand } from './Brand'
 import { ConfirmDialog } from './ConfirmDialog'
 import { IndustryWorkspaceIcon } from './IndustryWorkspaceIcon'
-import { API_URL } from './api'
+import { AccountControl } from './AccountControl'
+import { API_URL, apiAuthHeaders } from './api'
 import { useMessages, type MessageKey } from './i18n/messages'
 
 const WorkspaceOntologyStudio = lazy(() => import('./WorkspaceOntologyStudio').then((module) => ({ default: module.WorkspaceOntologyStudio })))
@@ -109,9 +110,9 @@ export function App() {
     const controller = new AbortController()
     const activeContractId = new URL(window.location.href).searchParams.get('contract') ?? localStorage.getItem(ACTIVE_CONTRACT_KEY) ?? counterpartyRiskContract.id
     void Promise.all([
-      fetch(`${API_URL}/v1/contracts`, { signal: controller.signal }),
-      fetch(`${API_URL}/v1/contracts/${activeContractId}`, { signal: controller.signal }),
-      fetch(`${API_URL}/v1/workspaces`, { signal: controller.signal }),
+      fetch(`${API_URL}/v1/contracts`, { headers: apiAuthHeaders(), signal: controller.signal }),
+      fetch(`${API_URL}/v1/contracts/${activeContractId}`, { headers: apiAuthHeaders(), signal: controller.signal }),
+      fetch(`${API_URL}/v1/workspaces`, { headers: apiAuthHeaders(), signal: controller.signal }),
     ]).then(async ([listResponse, entryResponse, workspaceListResponse]) => {
         if (listResponse.ok) setContracts(await listResponse.json() as ContractSummary[])
         const workspaceSummaries = workspaceListResponse.ok ? await workspaceListResponse.json() as WorkspaceSummary[] : []
@@ -122,7 +123,7 @@ export function App() {
           localStorage.setItem('lattice:contract-draft', JSON.stringify(entry.draft))
           const workspaceId = new URL(window.location.href).searchParams.get('workspace') ?? localStorage.getItem(ACTIVE_WORKSPACE_KEY) ?? entry.draft.ontologyRef?.workspaceId ?? workspaceSummaries.find((item) => item.domain === entry.draft.domain)?.id
           if (workspaceId) {
-            const workspaceResponse = await fetch(`${API_URL}/v1/workspaces/${workspaceId}`, { signal: controller.signal })
+            const workspaceResponse = await fetch(`${API_URL}/v1/workspaces/${workspaceId}`, { headers: apiAuthHeaders(), signal: controller.signal })
             if (workspaceResponse.ok) setWorkspace(await workspaceResponse.json() as IndustryWorkspace)
           }
         }
@@ -153,7 +154,7 @@ export function App() {
       setPendingNavigation({ kind: 'CONTRACT', id: contractId })
       return
     }
-    const response = await fetch(`${API_URL}/v1/contracts/${contractId}`)
+    const response = await fetch(`${API_URL}/v1/contracts/${contractId}`, { headers: apiAuthHeaders() })
     if (!response.ok) return
     const entry = await response.json() as ContractRegistryEntry
     setContract(entry.draft)
@@ -167,7 +168,7 @@ export function App() {
       setPendingNavigation({ kind: 'WORKSPACE', id: workspaceId })
       return
     }
-    const response = await fetch(`${API_URL}/v1/workspaces/${workspaceId}`)
+    const response = await fetch(`${API_URL}/v1/workspaces/${workspaceId}`, { headers: apiAuthHeaders() })
     if (!response.ok) return
     const nextWorkspace = await response.json() as IndustryWorkspace
     setWorkspace(nextWorkspace)
@@ -180,7 +181,7 @@ export function App() {
   }
 
   async function handleContractCreated(entry: ContractRegistryEntry) {
-    const listResponse = await fetch(`${API_URL}/v1/contracts`)
+    const listResponse = await fetch(`${API_URL}/v1/contracts`, { headers: apiAuthHeaders() })
     if (listResponse.ok) setContracts(await listResponse.json() as ContractSummary[])
     setContract(entry.draft)
     setDraftDirty(false)
@@ -190,7 +191,7 @@ export function App() {
     localStorage.setItem('lattice:contract-draft', JSON.stringify(entry.draft))
     const workspaceId = entry.draft.ontologyRef?.workspaceId
     if (workspaceId) {
-      const response = await fetch(`${API_URL}/v1/workspaces/${workspaceId}`)
+      const response = await fetch(`${API_URL}/v1/workspaces/${workspaceId}`, { headers: apiAuthHeaders() })
       if (response.ok) setWorkspace(await response.json() as IndustryWorkspace)
     }
   }
@@ -199,7 +200,7 @@ export function App() {
     setContract(entry.draft)
     setDraftDirty(false)
     localStorage.setItem('lattice:contract-draft', JSON.stringify(entry.draft))
-    const listResponse = await fetch(`${API_URL}/v1/contracts`)
+    const listResponse = await fetch(`${API_URL}/v1/contracts`, { headers: apiAuthHeaders() })
     if (listResponse.ok) setContracts(await listResponse.json() as ContractSummary[])
   }
 
@@ -246,7 +247,7 @@ export function App() {
     try {
       const response = await fetch(`${API_URL}/v1/contracts/${contract.id}`, {
         method: 'PUT',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ contract }),
       })
       if (!response.ok) throw new Error(`Registry returned ${response.status}`)
@@ -263,7 +264,7 @@ export function App() {
     try {
       const response = await fetch(`${API_URL}/v1/workspaces/${workspace.id}/ontology`, {
         method: 'PUT',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ ontology: workspace.ontology }),
       })
       if (!response.ok) throw new Error(`Registry returned ${response.status}`)
@@ -331,7 +332,7 @@ export function App() {
             <button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button>
             <AppearanceSettings />
             {hasActiveWorkspaceContract && <button className="ghost" onClick={() => void shareContract()} title={shareState === 'FAILED' ? t('linkClipboardDenied') : undefined}>{shareState === 'COPIED' ? t('linkCopied') : shareState === 'FAILED' ? t('linkReady') : t('share')}</button>}
-            <span className="avatar">HG</span>
+            <AccountControl />
           </div>
         </header>
 

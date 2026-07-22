@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { canLoadGridOutageExample, loadGridOutageExample, type CompileResponse, type ContextContract, type ReleaseRuntimeStatus } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { CompileResolution } from './CompileResolution'
 import { RuntimeGraph } from './RuntimeGraph'
 import { RuntimeInspector } from './RuntimeInspector'
@@ -43,7 +43,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     try {
       const response = await fetch(`${API_URL}/v1/compile`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, contractId: contract.id }),
       })
       const payload = await response.json() as CompileResponse & { error?: string; message?: string }
@@ -65,7 +65,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     try {
       const response = await fetch(`${API_URL}/v1/clarifications/${result.clarification.id}`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ entityId }),
       })
       setResult(await response.json() as CompileResponse)

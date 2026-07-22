@@ -8,6 +8,18 @@ import { LatticeI18nProvider } from './i18n/I18nProvider'
 afterEach(() => vi.unstubAllGlobals())
 
 describe('BindingEditor live discovery', () => {
+  it('defaults Microsoft Fabric to live provider discovery', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ connectors: connectorCatalog }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
+
+    render(<LatticeI18nProvider><BindingEditor contract={structuredClone(counterpartyRiskContract)} onCancel={vi.fn()} onApply={vi.fn()} /></LatticeI18nProvider>)
+
+    await user.click(screen.getByRole('button', { name: /Microsoft Fabric/i }))
+    expect(screen.getByRole('checkbox', { name: /Discover from the live provider/i })).toBeChecked()
+    expect(screen.queryByLabelText(/Column schema/i)).not.toBeInTheDocument()
+    expect(screen.getByDisplayValue('env:FABRIC_SQL_ACCESS_TOKEN')).toBeVisible()
+  })
+
   it('requests governed Databricks metadata without requiring a pasted schema', async () => {
     const user = userEvent.setup()
     const preview = {

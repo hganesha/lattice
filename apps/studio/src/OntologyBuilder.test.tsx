@@ -21,13 +21,21 @@ vi.mock('@xyflow/react', () => ({
   },
 }))
 
+vi.mock('./jsonExport', () => ({
+  downloadJson: vi.fn(),
+  downloadOntology: vi.fn(),
+}))
+
 describe('OntologyBuilder inspector', () => {
   it('shows relationship details for the selected ontology node', () => {
     render(<LatticeI18nProvider><OntologyBuilder contract={counterpartyRiskContract} mode="workspace" onChange={() => undefined} onDirtyChange={() => undefined} /></LatticeI18nProvider>)
 
-    expect(screen.getByRole('button', { name: 'Export JSON ↗' })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Export RDF/XML ↗' })).toBeVisible()
-    expect(screen.getByRole('button', { name: 'Export Turtle ↗' })).toBeVisible()
+    const jsonExport = screen.getByRole('button', { name: 'Export package JSON ↗' })
+    expect(jsonExport).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Export semantic RDF/XML ↗' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Export semantic Turtle ↗' })).toBeVisible()
+    fireEvent.click(jsonExport)
+    expect(screen.getByText('Ontology exported as JSON')).toBeVisible()
     expect(screen.getByRole('tab', { name: 'Type definition' })).toHaveAttribute('aria-selected', 'true')
     const relationshipsTab = screen.getByRole('tab', { name: 'Relationships' })
     fireEvent.click(relationshipsTab)
@@ -43,5 +51,13 @@ describe('OntologyBuilder inspector', () => {
     expect(screen.getByRole('heading', { name: 'Position' })).toBeVisible()
     expect(screen.getByText('REFERENCES')).toBeVisible()
     expect(screen.queryByText('TRADES_WITH')).not.toBeInTheDocument()
+  })
+
+  it('identifies a contract export in contract mode', () => {
+    render(<LatticeI18nProvider><OntologyBuilder contract={counterpartyRiskContract} mode="contract" onChange={() => undefined} onDirtyChange={() => undefined} /></LatticeI18nProvider>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export package JSON ↗' }))
+
+    expect(screen.getByText('Context Contract exported as JSON')).toBeVisible()
   })
 })

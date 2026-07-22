@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { compareContracts, suggestReleaseBump, type ContextContract, type ContractRegistryEntry, type ReleaseChange, type ReleaseDiffArtifact } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { ConfirmDialog } from './ConfirmDialog'
 import { useMessages } from './i18n/messages'
 import { Toast } from './Toast'
@@ -29,7 +29,7 @@ export function ReleaseManagementStudio({ contract, onRegistryChange, onManageDr
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetch(`${API_URL}/v1/contracts/${contract.id}`, { signal: controller.signal })
+    void fetch(`${API_URL}/v1/contracts/${contract.id}`, { headers: apiAuthHeaders(), signal: controller.signal })
       .then((response) => response.ok ? response.json() as Promise<ContractRegistryEntry> : undefined)
       .then((next) => {
         if (!next) return
@@ -60,7 +60,7 @@ export function ReleaseManagementStudio({ contract, onRegistryChange, onManageDr
     setReleaseDiff(undefined)
     setDiffLoading(true)
     void fetch(`${API_URL}/v1/contracts/${contract.id}/diffs?from=${encodeURIComponent(selectedRelease.digest)}&to=${encodeURIComponent(comparisonDigest)}`, {
-      headers: { Authorization: 'Bearer studio-release-manager' },
+      headers: apiAuthHeaders('studio-release-manager'),
       signal: controller.signal,
     }).then(async (response) => {
       const payload = await response.json() as ReleaseDiffArtifact & { error?: string }
@@ -77,7 +77,7 @@ export function ReleaseManagementStudio({ contract, onRegistryChange, onManageDr
     setWorking(true)
     setNotice('')
     try {
-      const response = await fetch(`${API_URL}/v1/contracts/${contract.id}/runtime-status`, { method: 'POST', headers: { Authorization: 'Bearer studio-release-manager', 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+      const response = await fetch(`${API_URL}/v1/contracts/${contract.id}/runtime-status`, { method: 'POST', headers: { ...apiAuthHeaders('studio-release-manager'), 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
       const payload = await response.json() as ContractRegistryEntry & { error?: string }
       if (!response.ok) throw new Error(payload.error ?? t('releaseRuntimeChangeFailed'))
       setEntry(payload)
@@ -96,7 +96,7 @@ export function ReleaseManagementStudio({ contract, onRegistryChange, onManageDr
     setWorking(true)
     setNotice('')
     try {
-      const response = await fetch(`${API_URL}/v1/contracts/${contract.id}/restores`, { method: 'POST', headers: { Authorization: 'Bearer studio-release-manager', 'Content-Type': 'application/json' }, body: JSON.stringify({ digest: selectedRelease.digest }) })
+      const response = await fetch(`${API_URL}/v1/contracts/${contract.id}/restores`, { method: 'POST', headers: { ...apiAuthHeaders('studio-release-manager'), 'Content-Type': 'application/json' }, body: JSON.stringify({ digest: selectedRelease.digest }) })
       const payload = await response.json() as ContractRegistryEntry & { error?: string }
       if (!response.ok) throw new Error(payload.error ?? t('releaseRestoreFailed'))
       setEntry(payload)
@@ -116,7 +116,7 @@ export function ReleaseManagementStudio({ contract, onRegistryChange, onManageDr
     try {
       const response = await fetch(`${API_URL}/v1/contracts/${contract.id}/rollbacks`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-release-manager', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders('studio-release-manager'), 'Content-Type': 'application/json' },
         body: JSON.stringify({ digest: selectedRelease.digest, rationale: rollbackRationale }),
       })
       const payload = await response.json() as { entry?: ContractRegistryEntry; error?: string }

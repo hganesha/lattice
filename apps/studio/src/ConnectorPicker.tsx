@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { connectorCatalog, type ConnectorProvider, type ConnectorTemplate } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { useMessages } from './i18n/messages'
 import amazonS3Icon from './assets/connectors/amazon-s3.svg'
 import bigQueryIcon from './assets/connectors/bigquery.png'
@@ -35,7 +35,7 @@ export function ConnectorPicker({ onCancel, onSelect }: ConnectorPickerProps) {
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetch(`${API_URL}/v1/connectors`, { headers: { Authorization: 'Bearer studio-demo' }, signal: controller.signal })
+    void fetch(`${API_URL}/v1/connectors`, { headers: apiAuthHeaders(), signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`Connector catalog returned ${response.status}`)
         const payload = await response.json() as { connectors: ConnectorTemplate[] }

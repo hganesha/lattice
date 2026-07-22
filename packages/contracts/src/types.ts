@@ -218,6 +218,28 @@ export interface ConnectorDiscoveryRequest {
   sourceName?: string
 }
 
+export type ConnectorHealthStatus = 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY'
+
+export interface ConnectorHealthRequest {
+  binding: SourceBinding
+}
+
+export interface ConnectorHealthRecord {
+  id: string
+  bindingId: string
+  provider: ConnectorProvider
+  status: ConnectorHealthStatus
+  checkedAt: string
+  latencyMs: number
+  credentialSource: 'ENVIRONMENT' | 'BROKER' | 'RUNTIME' | 'DELEGATED' | 'UNRESOLVED'
+  probe: 'LIVE_DISCOVERY' | 'CONFIGURATION_ONLY'
+  lastSuccessfulAt?: string
+  freshnessStatus: FreshnessStatus
+  maximumFreshnessMinutes: number
+  checks: Array<{ id: string; status: 'PASS' | 'FAIL' | 'INFO'; message: string }>
+  errorCode?: string
+}
+
 export interface BindingFieldMapping {
   sourcePath: string
   targetTypeId: string

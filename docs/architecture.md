@@ -38,7 +38,7 @@ flowchart LR
     X --> V["Verify signature, versions, expiry, nonce"]
 ```
 
-The compiler is pure: it produces an unsigned plan or a non-execution decision. The API is the trust boundary that derives identity, signs plans, stores continuation state, and exposes verification keys.
+The compiler is pure: it produces an unsigned plan or a non-execution decision. The API is the trust boundary that verifies OIDC access tokens against a configured remote JWKS, derives tenant and principal identity from trusted claims, signs plans, stores continuation state, and exposes verification keys.
 
 ## Governed schema ingestion
 
@@ -46,9 +46,13 @@ Import Studio treats external schemas as evidence-backed proposals, not authorit
 
 ## Governed source bindings
 
-Source Binding Studio connects a specific source operation to governed meaning. Shared ontology bindings describe reusable master and reference data and are inherited by contracts whose concept scope includes their targets. Contract bindings remain local when a source exists only to answer a particular governed decision. For OpenAPI sources the Studio discovers methods and paths, resolves success-response schemas, flattens nested fields, and suggests ontology-property mappings. Databricks and PostgreSQL can instead discover metadata directly within the declared catalog/schema/object scope. The author reviews type compatibility and declares environment, maximum freshness age, and permissions. Credentials are never stored; declared-schema previews remain offline, while live discovery resolves credential references only in the API process.
+Source Binding Studio connects a specific source operation to governed meaning. Shared ontology bindings describe reusable master and reference data and are inherited by contracts whose concept scope includes their targets. Contract bindings remain local when a source exists only to answer a particular governed decision. For OpenAPI sources the Studio discovers methods and paths, resolves success-response schemas, flattens nested fields, and suggests ontology-property mappings. Databricks, Microsoft Fabric, and PostgreSQL can instead discover metadata directly within the declared provider resource scope. The author reviews type compatibility and declares environment, maximum freshness age, and permissions. Credentials are never stored; declared-schema previews remain offline, while live discovery resolves credential references only in the API process.
 
-The connector catalog generalizes the same contract across Databricks, Microsoft Fabric, Snowflake, BigQuery, PostgreSQL, Kafka, object storage, and OpenAPI. A data-platform binding adds provider and transport identity, a read-only resource scope, parameterized query or selector, and a credential reference resolved by the execution environment. It stores neither a token nor a connection secret. The implemented Databricks adapter combines Unity Catalog metadata with bounded Statement Execution API queries; the implemented PostgreSQL adapter combines `information_schema.columns` with read-only wire-protocol transactions. Other connector templates retain their provider-neutral dispatch boundaries without coupling ontology meaning to a vendor SDK.
+The connector catalog generalizes the same contract across Databricks, Microsoft Fabric, Snowflake, BigQuery, PostgreSQL, Kafka, object storage, and OpenAPI. A data-platform binding adds provider and transport identity, a read-only resource scope, parameterized query or selector, and a credential reference resolved by the execution environment. It stores neither a token nor a connection secret. The implemented Databricks adapter combines Unity Catalog metadata with bounded Statement Execution API queries; Microsoft Fabric combines encrypted TDS, Entra access-token authentication, `INFORMATION_SCHEMA.COLUMNS`, and bounded parameterized T-SQL; PostgreSQL combines `information_schema.columns` with read-only wire-protocol transactions. Other connector templates retain their provider-neutral dispatch boundaries without coupling ontology meaning to a vendor SDK, and additional native adapters are intentionally deferred.
+
+Credential resolution is a server-side chain: environment variables, injected runtime resolvers, then an HTTPS or loopback credential broker for vault and workload-identity references. Broker responses are validated for non-empty values and optional expiry before use. The API never serializes the resolved value into validation, health, audit, or browser payloads. Connector health probes reuse the scoped metadata path for native discovery adapters and persist append-only latency, sanitized error, last-success, and freshness records. Adapters without a non-invasive live probe are explicitly `DEGRADED`, rather than being reported healthy from configuration alone.
+
+Export follows the active ownership context. Portable package JSON serializes either the shared ontology or the Context Contract, including governed source-binding metadata and safe external credential references. A mandatory export sanitizer removes sample payloads, redacts secret-like fields and unapproved credential-reference forms, and removes URL user information, fragments, and sensitive query parameters. RDF/XML and Turtle are semantic profiles: they serialize ontology metadata, types, properties, and relationships, but intentionally omit bindings and runtime governance.
 
 This milestone stays single-workspace. Tenant routing, tenant-scoped encryption keys, per-tenant connector inventories, and row-level isolation are explicitly deferred rather than simulated in the contract model.
 
@@ -99,19 +103,19 @@ Industry packs should contribute semantics, evidence adapters, policy profiles, 
 - Plans are short-lived and signed with Ed25519.
 - Executors must reject invalid signatures, expired plans, unexpected contracts, missing permissions, or reused nonces.
 
-The development API uses an ephemeral signing key and a placeholder Bearer-token mapper. Production must replace these with managed KMS/HSM keys, OIDC/JWKS validation, scoped tenant resolution, durable nonce storage, and auditable authorization decisions.
+The development API uses an ephemeral plan-signing key and an explicitly enabled development identity mapper. Production authentication validates asymmetric JWT signatures, issuer, audience, lifetime, algorithm, and principal claims against a cached remote JWKS. In Supabase mode the Studio selects an organization from authoritative memberships and the API independently resolves that membership through the user-scoped Data API before accepting protected requests. A centralized route matrix then limits authoring, review decisions, runtime operations, and release rollback to the appropriate organization roles. Managed KMS/HSM plan-signing keys, normalized registry cutover, durable nonce storage, and fine-grained permission scopes remain production hardening work.
 
 ## Current boundaries and intentional gaps
 
 | Area | Starter | Production direction |
 |---|---|---|
-| Contract store | Atomic local JSON registry with immutable releases, active pointers, suspension, staged restoration, and visual diffs | Multi-tenant transactional database and object storage |
-| Authentication | Development Bearer mapper | OIDC/JWKS and server-side tenant membership |
+| Contract store | Atomic local JSON registry plus a versioned Supabase organization/RLS schema | Cut over registry operations to the normalized multi-tenant Postgres tables and object storage |
+| Authentication | OIDC/JWKS or Supabase Auth verification, authoritative organization-membership resolution, route-level organization roles, PKCE Studio sessions, explicit non-production fallback | Fine-grained permission scopes and sensitive-operation session revocation checks |
 | Signing | Ephemeral process key | KMS/HSM rotation and key history |
 | Evidence | Contract-local content-addressed records with freshness and dependency tracing | Append-only evidence ledger with retention, lineage federation, and signed external attestations |
 | Policy | Risk-tier profiles with evidence strength, freshness, runtime escalation, review approval, and release gates | Purpose-aware expressions, obligations, policy simulation, and delegated approval workflows |
 | Resolution | Deterministic lexical resolver | Governed hybrid resolution with explainable candidate scores |
-| Bindings | OpenAPI plus live Databricks/PostgreSQL discovery, native bounded execution, field mappings, schema compatibility, freshness and permission declarations | Remaining sandboxed provider adapters, live health and freshness telemetry |
+| Bindings | OpenAPI plus live Databricks/Fabric/PostgreSQL discovery, native bounded execution, server-only pluggable credential resolution, durable health/freshness telemetry, field mappings, schema compatibility, freshness and permission declarations | Additional native provider adapters are deferred |
 | Audit | In-memory plan lookup | Tamper-evident resolution, decision, approval, and execution log |
 | Assurance | Deterministic draft gates and persistent digest-backed runs | Distributed adapter tests, signed attestations, and policy-specific release thresholds |
 | Review | Authenticated rationale-backed decisions with immutable artifacts | Role-based assignments, quorum rules, escalation, and delegated approval authority |
