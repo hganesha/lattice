@@ -219,6 +219,34 @@ export const IconLoader = (p: IconProps) => (
   </Icon>
 )
 
+export const IconRows = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M3 9h18" />
+    <path d="M3 15h18" />
+  </Icon>
+)
+
+export const IconIsometric = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m12 2 9 5-9 5-9-5 9-5Z" />
+    <path d="m3 7 9 5 9-5" />
+    <path d="M3 7v10l9 5 9-5V7" />
+    <path d="M12 12v10" />
+  </Icon>
+)
+
+export const IconAutoLayout = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m15 4 5 5L7 22l-5-5L15 4Z" />
+    <path d="m6 15 3 3" />
+    <path d="M19 2v4" />
+    <path d="M17 4h4" />
+    <path d="M5 2v2" />
+    <path d="M4 3h2" />
+  </Icon>
+)
+
 export const IconSun = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="4" />

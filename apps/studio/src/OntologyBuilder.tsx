@@ -30,6 +30,7 @@ import { DomainGroupField } from './DomainGroupField'
 import { EntityIconPicker } from './EntityIconPicker'
 import { EntityIcon, DEFAULT_ENTITY_ICON } from './entityIcons'
 import { downloadJson, downloadOntology } from './jsonExport'
+import { IconAutoLayout, IconIsometric, IconRows } from './icons'
 
 const ontologyNodeTypes = { ontologyLane: OntologyLaneNode, ontologyEntity: OntologyEntityNode }
 
@@ -310,10 +311,10 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
           <div className={`schema-canvas flow-mode ontology-canvas-${layoutMode}`}>
             <div className="canvas-layout-controls">
               <div className="layout-view-selector" role="group" aria-label={t('ontologyLayoutView')}>
-                <button type="button" aria-pressed={layoutMode === 'lanes'} className={layoutMode === 'lanes' ? 'selected' : ''} onClick={() => setLayoutMode('lanes')}>{t('ontologyLayoutLanes')}</button>
-                <button type="button" aria-pressed={layoutMode === 'isometric'} className={layoutMode === 'isometric' ? 'selected' : ''} onClick={() => setLayoutMode('isometric')}>{t('ontologyLayoutIsometric')}</button>
+                <button type="button" aria-label={t('ontologyLayoutLanes')} title={t('ontologyLayoutLanes')} aria-pressed={layoutMode === 'lanes'} className={layoutMode === 'lanes' ? 'selected' : ''} onClick={() => setLayoutMode('lanes')}><IconRows /></button>
+                <button type="button" aria-label={t('ontologyLayoutIsometric')} title={t('ontologyLayoutIsometric')} aria-pressed={layoutMode === 'isometric'} className={layoutMode === 'isometric' ? 'selected' : ''} onClick={() => setLayoutMode('isometric')}><IconIsometric /></button>
               </div>
-              <button className={`ghost layout-toggle ${autoLayoutEnabled ? 'active' : ''}`} aria-pressed={autoLayoutEnabled} disabled={layoutMode === 'isometric'} onClick={toggleAutoLayout}>{t('ontologyAutoLayout')} <span>{autoLayoutEnabled ? 'ON' : 'OFF'}</span></button>
+              <button className={`ghost layout-toggle ${autoLayoutEnabled ? 'active' : ''}`} aria-label={t('ontologyAutoLayout')} title={t('ontologyAutoLayout')} aria-pressed={autoLayoutEnabled} disabled={layoutMode === 'isometric'} onClick={toggleAutoLayout}><IconAutoLayout /></button>
             </div>
             <ReactFlow
               key={layoutMode}

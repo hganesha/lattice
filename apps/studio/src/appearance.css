@@ -439,8 +439,8 @@ h3 { font-size: 15px; }
   right: 12px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px;
+  gap: 2px;
+  padding: 3px;
   border: 1px solid color-mix(in srgb,var(--border-strong) 86%,transparent);
   border-radius: 9px;
   background: color-mix(in srgb,var(--surface) 90%,transparent);
@@ -449,28 +449,32 @@ h3 { font-size: 15px; }
 }
 .layout-view-selector {
   display: inline-flex;
-  padding: 2px;
-  border: 1px solid var(--border-strong);
-  border-radius: 7px;
-  background: var(--surface-soft);
+  gap: 2px;
 }
-.layout-view-selector button {
-  min-height: 28px;
-  padding: 0 9px;
+.layout-view-selector button,
+.canvas-layout-controls>.layout-toggle {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 !important;
   border: 0;
   border-radius: 5px;
   color: var(--text-muted);
   background: transparent;
-  font: 600 var(--ui-meta-size) "DM Mono",monospace;
   cursor: pointer;
 }
-.layout-view-selector button:hover { color: var(--text); }
+.layout-view-selector button svg,
+.canvas-layout-controls>.layout-toggle svg { width: 15px; height: 15px; }
+.layout-view-selector button:hover,
+.canvas-layout-controls>.layout-toggle:hover { color: var(--text); background: var(--surface-raised); }
 .layout-view-selector button.selected {
   color: var(--accent-strong);
   background: var(--accent-soft);
   box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--accent) 28%,transparent);
 }
-.canvas-layout-controls .layout-toggle { min-height: 32px; }
+.canvas-layout-controls>.layout-toggle.active { color: var(--accent-strong); }
 .layout-toggle:disabled { opacity: .45; cursor: not-allowed; }
 
 .ontology-canvas-isometric .react-flow {
