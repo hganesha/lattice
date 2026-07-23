@@ -25,7 +25,7 @@ export interface OidcAuthenticatorConfig {
 }
 
 export function authenticatorFromEnvironment(): Authenticator {
-  const supabaseUrl = process.env.LATTICE_SUPABASE_URL?.trim()
+  const supabaseUrl = (process.env.LATTICE_SUPABASE_URL ?? process.env.SUPABASE_URL)?.trim()
   const issuer = process.env.LATTICE_OIDC_ISSUER?.trim()
   const audience = process.env.LATTICE_OIDC_AUDIENCE?.trim()
   const jwksUrl = process.env.LATTICE_OIDC_JWKS_URL?.trim()

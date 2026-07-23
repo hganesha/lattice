@@ -6,6 +6,7 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.supabase.example
 coverage/
 playwright-report/
 test-results/

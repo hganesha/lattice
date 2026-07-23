@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
     server: { port: 5173, strictPort: true },
     test: {
       environment: 'jsdom',

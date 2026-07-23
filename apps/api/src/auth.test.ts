@@ -59,10 +59,12 @@ test('allows explicit development authentication outside production only', async
   const previousSupabaseUrl = process.env.LATTICE_SUPABASE_URL
   const previousAudience = process.env.LATTICE_OIDC_AUDIENCE
   const previousJwksUrl = process.env.LATTICE_OIDC_JWKS_URL
+  const previousMarketplaceSupabaseUrl = process.env.SUPABASE_URL
   delete process.env.LATTICE_OIDC_ISSUER
   delete process.env.LATTICE_OIDC_AUDIENCE
   delete process.env.LATTICE_OIDC_JWKS_URL
   delete process.env.LATTICE_SUPABASE_URL
+  delete process.env.SUPABASE_URL
   process.env.LATTICE_DEV_AUTH = 'true'
   process.env.NODE_ENV = 'development'
   try {
@@ -78,15 +80,17 @@ test('allows explicit development authentication outside production only', async
     previousAudience === undefined ? delete process.env.LATTICE_OIDC_AUDIENCE : process.env.LATTICE_OIDC_AUDIENCE = previousAudience
     previousJwksUrl === undefined ? delete process.env.LATTICE_OIDC_JWKS_URL : process.env.LATTICE_OIDC_JWKS_URL = previousJwksUrl
     previousSupabaseUrl === undefined ? delete process.env.LATTICE_SUPABASE_URL : process.env.LATTICE_SUPABASE_URL = previousSupabaseUrl
+    previousMarketplaceSupabaseUrl === undefined ? delete process.env.SUPABASE_URL : process.env.SUPABASE_URL = previousMarketplaceSupabaseUrl
   }
 })
 
 test('fails closed for incomplete, insecure, or symmetric OIDC configuration', () => {
-  const keys = ['LATTICE_OIDC_ISSUER', 'LATTICE_OIDC_AUDIENCE', 'LATTICE_OIDC_JWKS_URL', 'LATTICE_OIDC_ALGORITHMS', 'LATTICE_DEV_AUTH', 'LATTICE_SUPABASE_URL'] as const
+  const keys = ['LATTICE_OIDC_ISSUER', 'LATTICE_OIDC_AUDIENCE', 'LATTICE_OIDC_JWKS_URL', 'LATTICE_OIDC_ALGORITHMS', 'LATTICE_DEV_AUTH', 'LATTICE_SUPABASE_URL', 'SUPABASE_URL'] as const
   const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]))
   try {
     delete process.env.LATTICE_DEV_AUTH
     delete process.env.LATTICE_SUPABASE_URL
+    delete process.env.SUPABASE_URL
     process.env.LATTICE_OIDC_ISSUER = 'https://identity.example.com'
     delete process.env.LATTICE_OIDC_AUDIENCE
     delete process.env.LATTICE_OIDC_JWKS_URL
@@ -99,6 +103,18 @@ test('fails closed for incomplete, insecure, or symmetric OIDC configuration', (
     process.env.LATTICE_OIDC_JWKS_URL = 'https://identity.example.com/jwks'
     process.env.LATTICE_OIDC_ALGORITHMS = 'HS256'
     assert.throws(() => authenticatorFromEnvironment(), /OIDC_ALGORITHM_NOT_ALLOWED/)
+  } finally {
+    for (const key of keys) previous[key] === undefined ? delete process.env[key] : process.env[key] = previous[key]
+  }
+})
+
+test('accepts the Supabase project URL injected by Vercel Marketplace', async () => {
+  const keys = ['LATTICE_SUPABASE_URL', 'SUPABASE_URL', 'LATTICE_OIDC_ISSUER', 'LATTICE_OIDC_AUDIENCE', 'LATTICE_OIDC_JWKS_URL', 'LATTICE_DEV_AUTH'] as const
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]))
+  try {
+    for (const key of keys) delete process.env[key]
+    process.env.SUPABASE_URL = 'https://project.supabase.co'
+    assert.equal(await authenticatorFromEnvironment().authenticate(undefined), undefined)
   } finally {
     for (const key of keys) previous[key] === undefined ? delete process.env[key] : process.env[key] = previous[key]
   }

@@ -7,8 +7,8 @@ export interface TenantMembershipResolver {
 }
 
 export function tenantMembershipResolverFromEnvironment(): TenantMembershipResolver | undefined {
-  const supabaseUrl = process.env.LATTICE_SUPABASE_URL?.trim()
-  const publishableKey = process.env.LATTICE_SUPABASE_PUBLISHABLE_KEY?.trim()
+  const supabaseUrl = (process.env.LATTICE_SUPABASE_URL ?? process.env.SUPABASE_URL)?.trim()
+  const publishableKey = (process.env.LATTICE_SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_PUBLISHABLE_KEY)?.trim()
   if (!supabaseUrl && !publishableKey) return undefined
   if (!supabaseUrl || !publishableKey) throw new Error('SUPABASE_TENANCY_CONFIGURATION_INCOMPLETE')
   return createSupabaseTenantMembershipResolver(supabaseUrl, publishableKey)
