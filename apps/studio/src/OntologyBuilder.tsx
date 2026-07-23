@@ -24,7 +24,7 @@ import { ImportStudio } from './ImportStudio'
 import { useMessages } from './i18n/messages'
 import { OntologyLaneNode, type OntologyLaneNodeType } from './OntologyLaneNode'
 import { OntologyEntityNode } from './OntologyEntityNode'
-import { buildOntologyLaneLayout } from './ontologyLaneLayout'
+import { buildOntologyIsometricLayout, buildOntologyLaneLayout } from './ontologyLaneLayout'
 import { Toast } from './Toast'
 import { DomainGroupField } from './DomainGroupField'
 import { EntityIconPicker } from './EntityIconPicker'
@@ -34,6 +34,7 @@ import { downloadJson, downloadOntology } from './jsonExport'
 const ontologyNodeTypes = { ontologyLane: OntologyLaneNode, ontologyEntity: OntologyEntityNode }
 
 type BuilderDialog = 'entity' | 'relationship' | 'property' | 'publish' | null
+type OntologyLayoutMode = 'lanes' | 'isometric'
 
 interface OntologyBuilderProps {
   contract: ContextContract
@@ -53,6 +54,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   const [saving, setSaving] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [inspectorTab, setInspectorTab] = useState<'DEFINITION' | 'RELATIONSHIPS'>('DEFINITION')
+  const [layoutMode, setLayoutMode] = useState<OntologyLayoutMode>('lanes')
   const [autoLayoutEnabled, setAutoLayoutEnabled] = useState(true)
   const [manualLayout, setManualLayout] = useState<NonNullable<ContextContract['schemaLayout']>>(contract.schemaLayout ?? {})
 
@@ -65,11 +67,14 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   const propsLabel = t('ontologyProperties').toLocaleLowerCase()
   const domainGroups = useMemo(() => uniqueDomainGroups(contract.entityTypes), [contract.entityTypes])
   const laneLayout = useMemo(() => buildOntologyLaneLayout(contract.entityTypes), [contract.entityTypes])
-  const resolvedPositions = useMemo(() => autoLayoutEnabled
+  const isometricLayout = useMemo(() => buildOntologyIsometricLayout(contract.entityTypes), [contract.entityTypes])
+  const displayLayout = layoutMode === 'isometric' ? isometricLayout : laneLayout
+  const lanePositions = useMemo(() => autoLayoutEnabled
     ? laneLayout.positions
     : { ...laneLayout.positions, ...manualLayout }, [autoLayoutEnabled, laneLayout.positions, manualLayout])
+  const resolvedPositions = layoutMode === 'isometric' ? isometricLayout.positions : lanePositions
   const derivedNodes = useMemo<Node[]>(() => [
-    ...laneLayout.lanes.map((lane): OntologyLaneNodeType => ({
+    ...displayLayout.lanes.map((lane): OntologyLaneNodeType => ({
       id: `__lane_${lane.id}`,
       type: 'ontologyLane',
       position: lane.position,
@@ -92,20 +97,20 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
       className: `ontology-flow-node ${type.approvalStatus === 'APPROVED' ? 'approved' : 'draft'} ${selectedTypeId === type.id ? 'selected' : ''}`,
       zIndex: 2,
     })),
-  ], [contract.entityTypes, domainGroupLabel, laneLayout.lanes, propsLabel, resolvedPositions, selectedTypeId])
+  ], [contract.entityTypes, displayLayout.lanes, domainGroupLabel, propsLabel, resolvedPositions, selectedTypeId])
   const [graphNodes, setGraphNodes, onNodesChange] = useNodesState(derivedNodes)
   const graphEdges = useMemo<Edge[]>(() => contract.relationshipTypes.map((relationship) => ({
     id: relationship.id,
     source: relationship.sourceTypeId,
     target: relationship.targetTypeId,
     label: relationship.label,
-    type: 'smoothstep',
-    pathOptions: { offset: 44, borderRadius: 8 },
+    type: layoutMode === 'isometric' ? 'straight' : 'smoothstep',
+    ...(layoutMode === 'lanes' ? { pathOptions: { offset: 44, borderRadius: 8 } } : {}),
     labelShowBg: true,
     labelBgPadding: [6, 4],
     labelBgBorderRadius: 4,
     className: 'ontology-flow-edge',
-  })), [contract.relationshipTypes])
+  })), [contract.relationshipTypes, layoutMode])
 
   useEffect(() => {
     if (mode === 'workspace') return
@@ -253,6 +258,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   }
 
   function toggleAutoLayout() {
+    if (layoutMode === 'isometric') return
     if (autoLayoutEnabled) {
       const positions = Object.fromEntries(graphNodes
         .filter((node) => !node.id.startsWith('__lane_'))
@@ -297,13 +303,20 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
                 <button className="ghost import-launch" onClick={() => setImportOpen(true)}>{t('ontologyImportSchema')}</button>
                 <button className="ghost" onClick={() => setDialog('relationship')}>{t('ontologyAddRelationship')}</button>
                 <button className="ghost" onClick={() => setDialog('entity')}>{t('ontologyAddEntityType')}</button>
-                <button className={`ghost layout-toggle ${autoLayoutEnabled ? 'active' : ''}`} aria-pressed={autoLayoutEnabled} onClick={toggleAutoLayout}>{t('ontologyAutoLayout')} <span>{autoLayoutEnabled ? 'ON' : 'OFF'}</span></button>
                 {mode === 'contract' && <button className="release" onClick={() => setDialog('publish')} disabled={saving || issues.length > 0}>{t('ontologyPublishRelease')}</button>}
               </div>
             </div>
           </div>
-          <div className="schema-canvas flow-mode">
+          <div className={`schema-canvas flow-mode ontology-canvas-${layoutMode}`}>
+            <div className="canvas-layout-controls">
+              <div className="layout-view-selector" role="group" aria-label={t('ontologyLayoutView')}>
+                <button type="button" aria-pressed={layoutMode === 'lanes'} className={layoutMode === 'lanes' ? 'selected' : ''} onClick={() => setLayoutMode('lanes')}>{t('ontologyLayoutLanes')}</button>
+                <button type="button" aria-pressed={layoutMode === 'isometric'} className={layoutMode === 'isometric' ? 'selected' : ''} onClick={() => setLayoutMode('isometric')}>{t('ontologyLayoutIsometric')}</button>
+              </div>
+              <button className={`ghost layout-toggle ${autoLayoutEnabled ? 'active' : ''}`} aria-pressed={autoLayoutEnabled} disabled={layoutMode === 'isometric'} onClick={toggleAutoLayout}>{t('ontologyAutoLayout')} <span>{autoLayoutEnabled ? 'ON' : 'OFF'}</span></button>
+            </div>
             <ReactFlow
+              key={layoutMode}
               nodes={graphNodes}
               edges={graphEdges}
               onNodesChange={onNodesChange}
@@ -316,7 +329,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
               maxZoom={1.8}
               snapToGrid
               snapGrid={[15, 15]}
-              nodesDraggable={!autoLayoutEnabled}
+              nodesDraggable={layoutMode === 'lanes' && !autoLayoutEnabled}
               nodeTypes={ontologyNodeTypes}
               proOptions={{ hideAttribution: true }}
             >

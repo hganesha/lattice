@@ -431,6 +431,102 @@ h3 { font-size: 15px; }
 @keyframes lattice-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .lattice-spin { animation: none; } }
 
+/* Ontology canvas layout selector and readable 2.5D isometric projection. */
+.canvas-layout-controls {
+  position: absolute;
+  z-index: 10;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px;
+  border: 1px solid color-mix(in srgb,var(--border-strong) 86%,transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb,var(--surface) 90%,transparent);
+  box-shadow: 0 8px 22px color-mix(in srgb,#000 30%,transparent);
+  backdrop-filter: blur(10px);
+}
+.layout-view-selector {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--surface-soft);
+}
+.layout-view-selector button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text-muted);
+  background: transparent;
+  font: 600 var(--ui-meta-size) "DM Mono",monospace;
+  cursor: pointer;
+}
+.layout-view-selector button:hover { color: var(--text); }
+.layout-view-selector button.selected {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--accent) 28%,transparent);
+}
+.canvas-layout-controls .layout-toggle { min-height: 32px; }
+.layout-toggle:disabled { opacity: .45; cursor: not-allowed; }
+
+.ontology-canvas-isometric .react-flow {
+  background-color: var(--canvas) !important;
+  background-image:
+    linear-gradient(30deg,color-mix(in srgb,var(--canvas-grid) 38%,transparent) 1px,transparent 1px),
+    linear-gradient(150deg,color-mix(in srgb,var(--canvas-grid) 26%,transparent) 1px,transparent 1px) !important;
+  background-size: 36px 21px !important;
+}
+.ontology-canvas-isometric .react-flow__background { opacity: .2; }
+.ontology-canvas-isometric .ontology-lane-node {
+  overflow: hidden;
+  border-style: solid !important;
+  border-radius: 4px !important;
+  background:
+    linear-gradient(145deg,color-mix(in srgb,var(--accent) 7%,var(--surface)) 0%,color-mix(in srgb,var(--surface) 78%,transparent) 58%,color-mix(in srgb,var(--canvas) 90%,transparent) 100%) !important;
+  box-shadow: inset -18px -18px 40px color-mix(in srgb,#000 22%,transparent) !important;
+  clip-path: polygon(22px 0,100% 0,calc(100% - 22px) 100%,0 100%);
+  filter: drop-shadow(12px 16px 13px color-mix(in srgb,#000 36%,transparent));
+}
+.ontology-canvas-isometric .ontology-lane-content {
+  padding-inline: 28px 18px;
+  background: linear-gradient(90deg,color-mix(in srgb,var(--accent) 9%,transparent),transparent 65%);
+}
+.ontology-canvas-isometric .ontology-flow-node {
+  isolation: isolate;
+  box-shadow: 0 13px 25px color-mix(in srgb,#000 46%,transparent) !important;
+}
+.ontology-canvas-isometric .ontology-flow-node::before,
+.ontology-canvas-isometric .ontology-flow-node::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+.ontology-canvas-isometric .ontology-flow-node::before {
+  right: -9px;
+  bottom: -7px;
+  left: 8px;
+  height: 8px;
+  background: color-mix(in srgb,var(--surface-raised) 55%,#000);
+  clip-path: polygon(0 0,100% 0,calc(100% - 9px) 100%,9px 100%);
+}
+.ontology-canvas-isometric .ontology-flow-node::after {
+  top: 7px;
+  right: -9px;
+  bottom: -7px;
+  width: 10px;
+  background: color-mix(in srgb,var(--surface-raised) 66%,#000);
+  clip-path: polygon(0 0,100% 7px,100% 100%,0 calc(100% - 7px));
+}
+.ontology-canvas-isometric .ontology-flow-edge .react-flow__edge-path {
+  stroke: color-mix(in srgb,var(--accent) 28%,var(--text-muted));
+  stroke-width: 1.5;
+}
+
 /* Keyboard-shortcut hint on the compile button. */
 .compile-button .kbd-hint { display: inline-block; margin-left: 9px; padding: 1px 5px; border-radius: 4px; color: color-mix(in srgb,currentColor 62%,transparent); background: color-mix(in srgb,currentColor 12%,transparent); font: 500 var(--text-xs) "DM Mono",monospace; }
 

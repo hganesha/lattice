@@ -65,6 +65,21 @@ pnpm supabase:test
 pnpm exec supabase db advisors --local --type security
 ```
 
+#### Invite-only access
+
+Public and email signup are disabled in `supabase/config.toml`. A Before User Created Auth Hook checks `private.signup_email_allowlist`; the table is not exposed through the Data API and an empty list denies every new identity. Existing Auth users are not affected by this creation-time hook.
+
+Before inviting someone, add their email in the Supabase SQL Editor. The helper trims whitespace, normalizes case, and safely re-enables an existing entry:
+
+```sql
+select private.allow_signup_email(
+  'person@example.com',
+  'Approved by workspace owner'
+);
+```
+
+Direct Table Editor inserts are also normalized automatically, and `entry_type` defaults to `EMAIL`. To approve an exact domain instead, set `entry_type` to `DOMAIN`; subdomains are not included automatically. Entries can be disabled or assigned an `expires_at` timestamp. After allowlisting, send the invitation from **Authentication → Users → Send invitation**. In each hosted project, also disable **Authentication → Sign In / Providers → Allow new users to sign up** and select `private.hook_restrict_signup_to_allowlist` under **Authentication → Hooks → Before User Created**. The repository config applies these controls to the local Supabase stack, but hosted Auth configuration must be selected for the intended project. Never invoke the invitation Admin API from the browser.
+
 The current API registry still uses its atomic local JSON persistence adapter while the normalized Supabase repository adapter is completed. Do not treat that fallback as shared multi-tenant production storage; Supabase Auth and RLS are now wired, but production data cutover remains a separate migration step.
 
 Run `pnpm generate:ontologies` after adding or changing industry forms under `../Schemas`. The generator currently derives seven provenance-backed industry ontologies from 55 implemented forms and publishes a field-coverage report in `docs/generated-ontology-report.json`. See [form-schema ontology generation](docs/ontology-generation.md).

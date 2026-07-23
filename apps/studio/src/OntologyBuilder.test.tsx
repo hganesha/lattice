@@ -60,4 +60,21 @@ describe('OntologyBuilder inspector', () => {
 
     expect(screen.getByText('Context Contract exported as JSON')).toBeVisible()
   })
+
+  it('switches to an isometric projection without persisting new schema positions', () => {
+    const onChange = vi.fn()
+    render(<LatticeI18nProvider><OntologyBuilder contract={counterpartyRiskContract} mode="workspace" onChange={onChange} onDirtyChange={() => undefined} /></LatticeI18nProvider>)
+
+    const lanes = screen.getByRole('button', { name: 'Lanes' })
+    const isometric = screen.getByRole('button', { name: 'Isometric' })
+    expect(lanes).toHaveAttribute('aria-pressed', 'true')
+    expect(isometric).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(isometric)
+
+    expect(lanes).toHaveAttribute('aria-pressed', 'false')
+    expect(isometric).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /Auto-layout/ })).toBeDisabled()
+    expect(onChange).not.toHaveBeenCalled()
+  })
 })
