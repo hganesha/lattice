@@ -296,7 +296,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
       <div className="builder-workbench">
         <section className="schema-panel panel">
           <div className="panel-header ontology-model-header">
-            <div><span className="panel-kicker">{t('ontologyEditableModel').toLocaleUpperCase()}</span><h2>{contract.name}</h2></div>
+            <div><span className="panel-kicker"></span><h2>{contract.name}</h2></div>
             <div className="ontology-model-tools">
               <div className="builder-meta"><span>{t('ontologyTypeCount', { count: contract.entityTypes.length })}</span><span>{t('ontologyRelationCount', { count: contract.relationshipTypes.length })}</span><button onClick={() => exportArtifact('JSON')}>{t('ontologyExportPackageJson')}</button><button onClick={() => exportArtifact('RDF_XML')}>{t('ontologyExportSemanticRdf')}</button><button onClick={() => exportArtifact('TURTLE')}>{t('ontologyExportSemanticTurtle')}</button></div>
               <div className="model-actions">
