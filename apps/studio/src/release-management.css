@@ -34,10 +34,10 @@
 .release-card dt, .release-card dd { font: 6px DM Mono; }
 .release-card dt { color: var(--text-muted); }
 .release-card dd { margin: 0; color: var(--text-secondary); }
-.release-detail > header { min-height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid var(--border); }
-.release-detail > header h2 { margin-top: 4px; font: 600 14px Manrope; color: var(--text); }
-.release-detail > header > span { color: var(--text-muted); font: 6px DM Mono; }
-.release-detail > header > span.active-release { color: var(--accent-strong); }
+.release-detail > header, .release-detail .collapsible-inspector-header > header { min-height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid var(--border); }
+.release-detail > header h2, .release-detail .collapsible-inspector-header > header h2 { margin-top: 4px; font: 600 14px Manrope; color: var(--text); }
+.release-detail > header > span, .release-detail .collapsible-inspector-header > header > span { color: var(--text-muted); font: 6px DM Mono; }
+.release-detail > header > span.active-release, .release-detail .collapsible-inspector-header > header > span.active-release { color: var(--accent-strong); }
 .release-digest, .release-notes { margin: 13px 15px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-raised); }
 .release-digest span, .release-digest code, .release-notes span { display: block; }
 .release-digest span, .release-notes span { color: var(--text-muted); font: 6px DM Mono; }

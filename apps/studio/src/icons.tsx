@@ -206,6 +206,18 @@ export const IconChevronDown = (p: IconProps) => (
   </Icon>
 )
 
+export const IconChevronLeft = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m15 18-6-6 6-6" />
+  </Icon>
+)
+
+export const IconChevronRight = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m9 18 6-6-6-6" />
+  </Icon>
+)
+
 export const IconArrowUpRight = (p: IconProps) => (
   <Icon {...p}>
     <path d="M7 7h10v10" />

@@ -7,6 +7,7 @@ import { RuntimeInspector } from './RuntimeInspector'
 import { useMessages } from './i18n/messages'
 import { Toast } from './Toast'
 import { IconZap } from './icons'
+import { PanelCollapseButton, usePersistentCollapsed } from './PanelCollapseButton'
 
 interface RuntimeStudioProps {
   contract: ContextContract
@@ -19,6 +20,7 @@ interface RuntimeStudioProps {
 
 export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange, onManageRelease, onOpenAssurance }: RuntimeStudioProps) {
   const { t, formatDate } = useMessages()
+  const { collapsed: inspectorCollapsed, toggleCollapsed: toggleInspector } = usePersistentCollapsed('lattice:inspector-collapsed')
   const [question, setQuestion] = useState(contract.competencyQuestions[0]?.question ?? t('runtimeDefaultQuestion', { workflow: contract.workflow.replaceAll('_', ' ') }))
   const [result, setResult] = useState<CompileResponse>()
   const [selectedId, setSelectedId] = useState(contract.entities[0]?.id ?? '')
@@ -91,7 +93,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     />}
     {result && <CompileResolution result={result} onChoose={(id) => void resolveClarification(id)} />}
 
-    <div className="workbench runtime-workbench">
+    <div className={`workbench runtime-workbench ${inspectorCollapsed ? 'inspector-collapsed' : ''}`}>
       <section className="map-panel panel">
         <div className="panel-header"><div><span className="panel-kicker">{t('runtimeObjectsKicker')}</span><h2>{t('runtimeMapTitle', { workflow: titleCase(contract.workflow) })}</h2></div><div className="view-controls"><button className={view === 'MAP' ? 'selected' : ''} onClick={() => setView('MAP')}>{t('runtimeMapView')}</button><button className={view === 'TABLE' ? 'selected' : ''} onClick={() => setView('TABLE')}>{t('runtimeTableView')}</button></div></div>
         <div className="legend"><span><i className="legend-dot exact"/>{t('runtimeExactEvidence')}</span><span><i className="legend-dot derived"/>{t('runtimeSupportedEvidence')}</span><span><i className="legend-line"/>{t('runtimeGovernedRelation')}</span></div>
@@ -99,7 +101,13 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
         <div className="map-footer"><span>{t('runtimeObjectCount', { count: contract.entities.length })}</span><span>{t('runtimeRelationshipCount', { count: contract.relationships.length })}</span><span className="spacer"/><span>{runtimeStatus === 'SUSPENDED' ? t('runtimeSuspended') : contract.releaseStatus === 'PUBLISHED' ? t('runtimePublishedVersion', { version: contract.version }) : t('runtimeUnpublishedDraft')}</span></div>
       </section>
 
-      <aside className="inspector panel"><div className="inspector-tabs"><span className="active">{t('runtimeInspector')}</span></div><RuntimeInspector entity={selected} contract={contract} /></aside>
+      <aside className={`inspector collapsible-inspector panel ${inspectorCollapsed ? 'collapsed' : ''}`} id="runtime-inspector">
+        <div className="collapsible-inspector-header">
+          {!inspectorCollapsed && <div className="inspector-tabs"><span className="active">{t('runtimeInspector')}</span></div>}
+          <PanelCollapseButton collapsed={inspectorCollapsed} collapseLabel={t('collapseInspector')} expandLabel={t('expandInspector')} panelId="runtime-inspector" side="right" onToggle={toggleInspector} />
+        </div>
+        {!inspectorCollapsed && <RuntimeInspector entity={selected} contract={contract} />}
+      </aside>
     </div>
 
     <section className="runtime-readiness"><div><span className="panel-kicker">{t('runtimeReadiness').toLocaleUpperCase()}</span><h2>{t('runtimeReadinessTitle')}</h2><p>{t('runtimeReadinessSummary', { operations: contract.operations.length, bindings: contract.bindings.length, policies: contract.policies.length })}</p></div><div><button className="ghost" onClick={onOpenAssurance}>{t('runtimeViewAssurance')}</button><button className="release" onClick={onManageRelease}>{contract.releaseStatus === 'PUBLISHED' ? `${t('manageRelease')} →` : t('runtimePublishContract')}</button></div></section>

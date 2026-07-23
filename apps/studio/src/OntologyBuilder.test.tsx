@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { counterpartyRiskContract } from '@lattice/contracts'
 import type { Node } from '@xyflow/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LatticeI18nProvider } from './i18n/I18nProvider'
 import { OntologyBuilder } from './OntologyBuilder'
 
@@ -27,6 +27,8 @@ vi.mock('./jsonExport', () => ({
 }))
 
 describe('OntologyBuilder inspector', () => {
+  beforeEach(() => localStorage.removeItem('lattice:inspector-collapsed'))
+
   it('shows relationship details for the selected ontology node', () => {
     render(<LatticeI18nProvider><OntologyBuilder contract={counterpartyRiskContract} mode="workspace" onChange={() => undefined} onDirtyChange={() => undefined} /></LatticeI18nProvider>)
 
@@ -76,5 +78,21 @@ describe('OntologyBuilder inspector', () => {
     expect(isometric).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: /Auto-layout/ })).toBeDisabled()
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('collapses the inspector without losing its selected tab', () => {
+    const { container } = render(<LatticeI18nProvider><OntologyBuilder contract={counterpartyRiskContract} mode="workspace" onChange={() => undefined} onDirtyChange={() => undefined} /></LatticeI18nProvider>)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Relationships' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse inspector' }))
+
+    expect(container.querySelector('.builder-workbench')).toHaveClass('inspector-collapsed')
+    expect(screen.queryByRole('tab', { name: 'Relationships' })).not.toBeInTheDocument()
+    expect(localStorage.getItem('lattice:inspector-collapsed')).toBe('true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand inspector' }))
+
+    expect(screen.getByRole('tab', { name: 'Relationships' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('TRADES_WITH')).toBeVisible()
   })
 })

@@ -426,12 +426,57 @@ h3 { font-size: 15px; }
 .runtime-empty>span svg { width: 30px; height: 30px; }
 .header-actions button svg { width: 13px; height: 13px; vertical-align: -2px; }
 
+/* Collapsible application rails preserve working state while returning canvas space. */
+.sidebar-brand-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.sidebar-brand-row .brand { min-width: 0; }
+.panel-collapse-button { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 auto; padding: 0; border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); background: var(--surface-raised); cursor: pointer; }
+.panel-collapse-button:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-soft); }
+.panel-collapse-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.panel-collapse-button svg { width: 15px; height: 15px; }
+.nav-collapsed { grid-template-columns: 76px minmax(0,1fr) !important; }
+.nav-collapsed .sidebar { width: auto !important; padding-inline: 12px; }
+.nav-collapsed .sidebar-brand-row { flex-direction: column; align-items: center; }
+.nav-collapsed .brand { padding: 0 0 10px; }
+.nav-collapsed .brand > span:last-child,
+.nav-collapsed .workspace-switcher > div,
+.nav-collapsed .nav-label,
+.nav-collapsed .nav-item > span:not(.nav-icon),
+.nav-collapsed .nav-item > em,
+.nav-collapsed .sidebar-footer > div { display: none; }
+.nav-collapsed .workspace-switcher { justify-content: center; padding: 7px; margin-block: 14px; }
+.nav-collapsed .workspace-icon { flex: 0 0 auto; }
+.nav-collapsed nav { align-items: center; }
+.nav-collapsed .nav-item { justify-content: center; width: 42px; padding: 0; }
+.nav-collapsed .nav-icon { width: 18px; }
+.nav-collapsed .sidebar-footer { justify-content: center; padding-inline: 0; }
+.collapsible-inspector-header { min-height: 48px; display: flex; align-items: center; border-bottom: 1px solid var(--border); }
+.collapsible-inspector-header > .inspector-tabs,
+.collapsible-inspector-header > header { min-width: 0; flex: 1; border-bottom: 0 !important; margin-bottom: 0; }
+.collapsible-inspector-header > .panel-collapse-button { margin: 8px; }
+.collapsible-inspector.collapsed { min-width: 48px; min-height: 0; }
+.collapsible-inspector.collapsed .collapsible-inspector-header { justify-content: center; border-bottom: 0; }
+.collapsible-inspector.collapsed .panel-collapse-button { margin: 8px 0; }
+.builder-workbench.inspector-collapsed,
+.runtime-workbench.inspector-collapsed,
+.evidence-layout.inspector-collapsed,
+.release-layout.inspector-collapsed { grid-template-columns: minmax(0,1fr) 48px !important; }
+
 /* Loading spinner used by empty/loading states. */
 .lattice-spin { animation: lattice-spin .8s linear infinite; }
 @keyframes lattice-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .lattice-spin { animation: none; } }
 
 /* Ontology canvas layout selector and readable 2.5D isometric projection. */
+.model-actions .compact-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 8px !important;
+  border-radius: 6px;
+  font-size: var(--ui-meta-size);
+}
+.model-actions .compact-action svg { width: 13px; height: 13px; flex: none; }
 .canvas-layout-controls {
   position: absolute;
   z-index: 10;

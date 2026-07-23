@@ -35,8 +35,8 @@
 .evidence-row footer { display: flex; gap: 9px; margin-top: 6px; color: var(--text-muted); font: 6px DM Mono; }
 .evidence-row footer code { color: var(--text-secondary); }
 .evidence-row time { color: var(--text-muted); font: 6px DM Mono; text-align: right; }
-.evidence-inspector > header { min-height: 75px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
-.evidence-inspector > header h2 { max-width: 220px; margin-top: 5px; font: 600 11px/1.35 Manrope; color: var(--text); }
+.evidence-inspector > header, .evidence-inspector .collapsible-inspector-header > header { min-height: 75px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.evidence-inspector > header h2, .evidence-inspector .collapsible-inspector-header > header h2 { max-width: 220px; margin-top: 5px; font: 600 11px/1.35 Manrope; color: var(--text); }
 .evidence-source-card { display: flex; align-items: center; gap: 10px; margin: 13px 15px; padding: 11px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-raised); }
 .evidence-source-card > span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 5px; background: var(--success-soft); color: var(--success); font: 7px DM Mono; }
 .evidence-source-card b, .evidence-source-card small { display: block; }

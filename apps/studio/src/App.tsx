@@ -32,6 +32,7 @@ import { IndustryWorkspaceIcon } from './IndustryWorkspaceIcon'
 import { AccountControl } from './AccountControl'
 import { API_URL, apiAuthHeaders } from './api'
 import { useMessages, type MessageKey } from './i18n/messages'
+import { PanelCollapseButton, usePersistentCollapsed } from './PanelCollapseButton'
 
 const WorkspaceOntologyStudio = lazy(() => import('./WorkspaceOntologyStudio').then((module) => ({ default: module.WorkspaceOntologyStudio })))
 const NewContractWizard = lazy(() => import('./NewContractWizard').then((module) => ({ default: module.NewContractWizard })))
@@ -76,6 +77,7 @@ const governanceNavigation: ReadonlyArray<{ mode: StudioMode; icon: ReactNode; l
 
 export function App() {
   const { t } = useMessages()
+  const { collapsed: navigationCollapsed, toggleCollapsed: toggleNavigation } = usePersistentCollapsed('lattice:navigation-collapsed')
   const [contract, setContract] = useState<ContextContract>(loadContractDraft)
   const [studioMode, setStudioMode] = useState<StudioMode>('ontology')
   const [draftDirty, setDraftDirty] = useState(false)
@@ -307,9 +309,19 @@ export function App() {
   }
 
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <Brand />
+    <div className={`shell ${navigationCollapsed ? 'nav-collapsed' : ''}`}>
+      <aside className="sidebar" id="primary-navigation">
+        <div className="sidebar-brand-row">
+          <Brand />
+          <PanelCollapseButton
+            collapsed={navigationCollapsed}
+            collapseLabel={t('collapseNavigation')}
+            expandLabel={t('expandNavigation')}
+            panelId="primary-navigation"
+            side="left"
+            onToggle={toggleNavigation}
+          />
+        </div>
         <div className="workspace-switcher"><span className="workspace-icon"><IndustryWorkspaceIcon domain={workspace?.domain} /></span><div><label htmlFor="active-workspace">{t('industryWorkspace')}</label><select id="active-workspace" value={workspace?.id ?? ''} onChange={(event) => void selectWorkspace(event.target.value)}>{!workspace && <option value="">{t('workspaceLoading')}</option>}{workspaces.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select><span>{workspace ? t('workspaceFoundationMeta', { types: workspace.ontology.entityTypes.length, contracts: workspace.contractIds.length }) : t('crossIndustryPlane')}</span></div></div>
         <nav>
           {workspaceNavigation.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={studioMode === item.mode} onClick={() => navigateTo(item.mode)} key={item.mode} />)}

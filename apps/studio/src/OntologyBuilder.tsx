@@ -30,7 +30,8 @@ import { DomainGroupField } from './DomainGroupField'
 import { EntityIconPicker } from './EntityIconPicker'
 import { EntityIcon, DEFAULT_ENTITY_ICON } from './entityIcons'
 import { downloadJson, downloadOntology } from './jsonExport'
-import { IconAutoLayout, IconIsometric, IconRows } from './icons'
+import { IconAutoLayout, IconDownload, IconIsometric, IconLink, IconPlus, IconRows } from './icons'
+import { PanelCollapseButton, usePersistentCollapsed } from './PanelCollapseButton'
 
 const ontologyNodeTypes = { ontologyLane: OntologyLaneNode, ontologyEntity: OntologyEntityNode }
 
@@ -47,6 +48,7 @@ interface OntologyBuilderProps {
 
 export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'contract', exportDocument = contract }: OntologyBuilderProps) {
   const { t, formatDate } = useMessages()
+  const { collapsed: inspectorCollapsed, toggleCollapsed: toggleInspector } = usePersistentCollapsed('lattice:inspector-collapsed')
   const [selectedTypeId, setSelectedTypeId] = useState(contract.entityTypes[0]?.id ?? '')
   const [dialog, setDialog] = useState<BuilderDialog>(null)
   const [notice, setNotice] = useState('')
@@ -294,16 +296,16 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     <>
       {notice && <Toast message={notice} closeLabel={t('commonClose')} onDismiss={() => setNotice('')} />}
 
-      <div className="builder-workbench">
+      <div className={`builder-workbench ${inspectorCollapsed ? 'inspector-collapsed' : ''}`}>
         <section className="schema-panel panel">
           <div className="panel-header ontology-model-header">
             <div><span className="panel-kicker"></span><h2>{contract.name}</h2></div>
             <div className="ontology-model-tools">
               <div className="builder-meta"><span>{t('ontologyTypeCount', { count: contract.entityTypes.length })}</span><span>{t('ontologyRelationCount', { count: contract.relationshipTypes.length })}</span><button onClick={() => exportArtifact('JSON')}>{t('ontologyExportPackageJson')}</button><button onClick={() => exportArtifact('RDF_XML')}>{t('ontologyExportSemanticRdf')}</button><button onClick={() => exportArtifact('TURTLE')}>{t('ontologyExportSemanticTurtle')}</button></div>
               <div className="model-actions">
-                <button className="ghost import-launch" onClick={() => setImportOpen(true)}>{t('ontologyImportSchema')}</button>
-                <button className="ghost" onClick={() => setDialog('relationship')}>{t('ontologyAddRelationship')}</button>
-                <button className="ghost" onClick={() => setDialog('entity')}>{t('ontologyAddEntityType')}</button>
+                <button className="ghost compact-action import-launch" onClick={() => setImportOpen(true)}><IconDownload /> <span>{t('ontologyImportSchema')}</span></button>
+                <button className="ghost compact-action" onClick={() => setDialog('relationship')}><IconLink /> <span>{t('ontologyAddRelationship')}</span></button>
+                <button className="ghost compact-action" onClick={() => setDialog('entity')}><IconPlus /> <span>{t('ontologyAddEntityType')}</span></button>
                 {mode === 'contract' && <button className="release" onClick={() => setDialog('publish')} disabled={saving || issues.length > 0}>{t('ontologyPublishRelease')}</button>}
               </div>
             </div>
@@ -353,12 +355,15 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
           </div>}
         </section>
 
-        <aside className="builder-inspector panel">
-          <div className="inspector-tabs" role="tablist" aria-label={t('ontologyInspectorLabel')}>
-            <button id="ontology-definition-tab" role="tab" aria-controls="ontology-definition-panel" aria-selected={inspectorTab === 'DEFINITION'} className={inspectorTab === 'DEFINITION' ? 'active' : ''} onClick={() => setInspectorTab('DEFINITION')}>{t('ontologyTypeDefinition')}</button>
-            <button id="ontology-relationships-tab" role="tab" aria-controls="ontology-relationships-panel" aria-selected={inspectorTab === 'RELATIONSHIPS'} className={inspectorTab === 'RELATIONSHIPS' ? 'active' : ''} onClick={() => setInspectorTab('RELATIONSHIPS')}>{t('summaryRelationships')}</button>
+        <aside className={`builder-inspector collapsible-inspector panel ${inspectorCollapsed ? 'collapsed' : ''}`} id="ontology-inspector">
+          <div className="collapsible-inspector-header">
+            {!inspectorCollapsed && <div className="inspector-tabs" role="tablist" aria-label={t('ontologyInspectorLabel')}>
+              <button id="ontology-definition-tab" role="tab" aria-controls="ontology-definition-panel" aria-selected={inspectorTab === 'DEFINITION'} className={inspectorTab === 'DEFINITION' ? 'active' : ''} onClick={() => setInspectorTab('DEFINITION')}>{t('ontologyTypeDefinition')}</button>
+              <button id="ontology-relationships-tab" role="tab" aria-controls="ontology-relationships-panel" aria-selected={inspectorTab === 'RELATIONSHIPS'} className={inspectorTab === 'RELATIONSHIPS' ? 'active' : ''} onClick={() => setInspectorTab('RELATIONSHIPS')}>{t('summaryRelationships')}</button>
+            </div>}
+            <PanelCollapseButton collapsed={inspectorCollapsed} collapseLabel={t('collapseInspector')} expandLabel={t('expandInspector')} panelId="ontology-inspector" side="right" onToggle={toggleInspector} />
           </div>
-          {selectedType && inspectorTab === 'DEFINITION' ? <div id="ontology-definition-panel" className="type-form" role="tabpanel" aria-labelledby="ontology-definition-tab">
+          {!inspectorCollapsed && (selectedType && inspectorTab === 'DEFINITION' ? <div id="ontology-definition-panel" className="type-form" role="tabpanel" aria-labelledby="ontology-definition-tab">
             <div className="entity-title"><span className="large-icon"><EntityIcon icon={selectedType.icon} /></span><div><span>{t('ontologyEntityType').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
             <label>{t('ontologyDisplayName')}<input value={selectedType.label} onChange={(event) => updateSelected({ label: event.target.value })} /></label>
             <label>{t('ontologyDescription')}<textarea value={selectedType.description} onChange={(event) => updateSelected({ description: event.target.value })} /></label>
@@ -386,7 +391,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
                 </article>
               })}
             </div>
-          </div> : <div className="empty-properties"><span>◇</span><b>{t('ontologySelectEntity')}</b></div>}
+          </div> : <div className="empty-properties"><span>◇</span><b>{t('ontologySelectEntity')}</b></div>)}
         </aside>
       </div>
 
