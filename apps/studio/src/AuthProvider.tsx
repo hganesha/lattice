@@ -20,6 +20,8 @@ interface AuthContextValue {
   signOut(): Promise<void>
 }
 
+type PasswordSetupMode = 'invite' | 'recovery'
+
 const AuthContext = createContext<AuthContextValue>({
   configured: false,
   memberships: [],
@@ -33,6 +35,8 @@ export function useLatticeAuth(): AuthContextValue {
 
 export function LatticeAuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>()
+  const [passwordSetupMode, setPasswordSetupMode] = useState<PasswordSetupMode | undefined>(authActionFromLocation)
+  const [authError] = useState(authErrorFromLocation)
   const [memberships, setMemberships] = useState<OrganizationMembership[]>([])
   const [membershipsLoading, setMembershipsLoading] = useState(Boolean(supabase))
   const [activeOrganizationId, setActiveOrganization] = useState<string>()
@@ -46,7 +50,11 @@ export function LatticeAuthProvider({ children }: { children: ReactNode }) {
     }
     let active = true
     void supabase.auth.getSession().then(({ data }) => { if (active) setSession(data.session) })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => { if (active) setSession(nextSession) })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return
+      if (event === 'PASSWORD_RECOVERY') setPasswordSetupMode('recovery')
+      setSession(nextSession)
+    })
     return () => {
       active = false
       subscription.unsubscribe()
@@ -108,7 +116,13 @@ export function LatticeAuthProvider({ children }: { children: ReactNode }) {
 
   if (!supabase) return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   if (session === undefined || membershipsLoading) return <AuthLoading />
-  if (!session) return <SignInPanel />
+  if (!session) return <SignInPanel initialError={authError} />
+  const requiredPasswordSetup = passwordSetupMode ?? (requiresInvitePasswordSetup(session.user) ? 'invite' : undefined)
+  if (requiredPasswordSetup) return <PasswordSetupPanel mode={requiredPasswordSetup} onUpdated={(user) => {
+    setSession((current) => current ? { ...current, user } : current)
+    setPasswordSetupMode(undefined)
+    clearAuthParameters()
+  }} />
   if (memberships.length === 0) return <OrganizationOnboarding onCreated={() => setMembershipRevision((revision) => revision + 1)} />
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
@@ -143,32 +157,89 @@ function AuthLoading() {
   return <main className="auth-shell"><div className="auth-card" role="status"><span className="auth-mark">⌁</span><h1>{t('authLoading')}</h1></div></main>
 }
 
-function SignInPanel() {
+function SignInPanel({ initialError = '' }: { initialError?: string }) {
   const { t } = useMessages()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [recovering, setRecovering] = useState(false)
   const [working, setWorking] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(initialError)
+  const [notice, setNotice] = useState('')
 
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (!supabase || working) return
     setWorking(true)
     setError('')
-    const result = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-    if (result.error) setError(result.error.message)
+    setNotice('')
+    if (recovering) {
+      const result = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: passwordRecoveryRedirectUrl() })
+      if (result.error) setError(result.error.message)
+      else setNotice(t('authRecoverySent'))
+    } else {
+      const result = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      if (result.error) setError(result.error.message)
+    }
     setWorking(false)
+  }
+
+  function changeMode(nextRecovering: boolean) {
+    setRecovering(nextRecovering)
+    setError('')
+    setNotice('')
+    setPassword('')
   }
 
   return <main className="auth-shell"><form className="auth-card" onSubmit={(event) => void submit(event)}>
     <span className="auth-mark">⌁</span>
     <p className="panel-kicker">{t('authKicker')}</p>
-    <h1>{t('authTitle')}</h1>
-    <p>{t('authDescription')}</p>
+    <h1>{t(recovering ? 'authForgotTitle' : 'authTitle')}</h1>
+    <p>{t(recovering ? 'authForgotDescription' : 'authDescription')}</p>
     <label>{t('authEmail')}<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-    <label>{t('authPassword')}<input type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+    {!recovering && <label>{t('authPassword')}<input type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} /></label>}
     {error && <div className="auth-error" role="alert">{error}</div>}
-    <button className="release" type="submit" disabled={working}>{working ? t('authSigningIn') : t('authSignIn')}</button>
+    {notice && <div className="auth-notice" role="status">{notice}</div>}
+    <button className="release" type="submit" disabled={working}>{working ? t(recovering ? 'authRecoverySending' : 'authSigningIn') : t(recovering ? 'authRecoverySend' : 'authSignIn')}</button>
+    <button className="auth-link" type="button" onClick={() => changeMode(!recovering)}>{t(recovering ? 'authBackToSignIn' : 'authForgotPassword')}</button>
+  </form></main>
+}
+
+function PasswordSetupPanel({ mode, onUpdated }: { mode: PasswordSetupMode; onUpdated(user: User): void }) {
+  const { t } = useMessages()
+  const [password, setPassword] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState('')
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if (!supabase || working) return
+    setError('')
+    if (!passwordMeetsPolicy(password)) {
+      setError(t('authPasswordRequirements'))
+      return
+    }
+    if (password !== confirmation) {
+      setError(t('authPasswordMismatch'))
+      return
+    }
+    setWorking(true)
+    const result = await supabase.auth.updateUser({ password, data: { lattice_invite_completed: true } })
+    if (result.error) setError(result.error.message)
+    else if (result.data.user) onUpdated(result.data.user)
+    setWorking(false)
+  }
+
+  return <main className="auth-shell"><form className="auth-card" onSubmit={(event) => void submit(event)}>
+    <span className="auth-mark">⌁</span>
+    <p className="panel-kicker">{t(mode === 'invite' ? 'authInviteKicker' : 'authRecoveryKicker')}</p>
+    <h1>{t(mode === 'invite' ? 'authInviteTitle' : 'authRecoveryTitle')}</h1>
+    <p>{t(mode === 'invite' ? 'authInviteDescription' : 'authRecoveryDescription')}</p>
+    <label>{t('authNewPassword')}<input type="password" autoComplete="new-password" minLength={10} required value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+    <p className="auth-help">{t('authPasswordRequirements')}</p>
+    <label>{t('authConfirmPassword')}<input type="password" autoComplete="new-password" minLength={10} required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label>
+    {error && <div className="auth-error" role="alert">{error}</div>}
+    <button className="release" type="submit" disabled={working}>{working ? t('authPasswordSaving') : t('authPasswordSave')}</button>
   </form></main>
 }
 
@@ -203,4 +274,44 @@ function OrganizationOnboarding({ onCreated }: { onCreated(): void }) {
 
 function organizationSlug(value: string): string {
   return value.trim().toLocaleLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80)
+}
+
+function authActionFromLocation(): PasswordSetupMode | undefined {
+  if (typeof window === 'undefined') return undefined
+  const search = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const action = search.get('auth_action') ?? search.get('type') ?? hash.get('type')
+  if (action === 'invite') return 'invite'
+  if (action === 'recovery' || action === 'update-password') return 'recovery'
+  return undefined
+}
+
+function authErrorFromLocation(): string {
+  if (typeof window === 'undefined') return ''
+  const search = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  return search.get('error_description') ?? hash.get('error_description') ?? ''
+}
+
+function requiresInvitePasswordSetup(user: User): boolean {
+  return Boolean(user.invited_at && user.user_metadata?.lattice_invite_completed !== true)
+}
+
+function passwordMeetsPolicy(password: string): boolean {
+  return password.length >= 10 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password)
+}
+
+function passwordRecoveryRedirectUrl(): string {
+  const url = new URL(window.location.href)
+  url.search = ''
+  url.hash = ''
+  url.searchParams.set('auth_action', 'update-password')
+  return url.toString()
+}
+
+function clearAuthParameters(): void {
+  const url = new URL(window.location.href)
+  for (const parameter of ['auth_action', 'code', 'error', 'error_code', 'error_description', 'type']) url.searchParams.delete(parameter)
+  url.hash = ''
+  window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`)
 }
