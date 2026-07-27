@@ -1,0 +1,25 @@
+{
+  "document_type": "airworthiness_release",
+  "vertical": "airline",
+  "family": "airline_airworthiness",
+  "schema_version": "airline_airworthiness_release_v1",
+  "fields": [
+    { "name": "air_carrier_name", "type": "string", "required": true, "description": "Certificate holder responsible for the aircraft." },
+    { "name": "aircraft_tail_number", "type": "string", "required": true, "description": "Aircraft registration or tail number." },
+    { "name": "airworthiness_release_number", "type": "string", "required": true, "description": "Unique release or aircraft-log-entry reference." },
+    { "name": "maintenance_record_number", "type": "string", "required": true, "description": "Maintenance record or work order covered by the release." },
+    { "name": "maintenance_manual_compliance", "type": "boolean", "required": true, "description": "Certification that work followed the certificate holder's manual." },
+    { "name": "required_inspections_completed", "type": "boolean", "required": true, "description": "Certification that required inspections were completed by authorized persons." },
+    { "name": "known_unairworthy_condition", "type": "boolean", "required": true, "description": "Whether any known condition would make the aircraft unairworthy." },
+    { "name": "safe_operation_condition", "type": "boolean", "required": true, "description": "Certification that the aircraft is in condition for safe operation as to the work performed." },
+    { "name": "return_to_service_status", "type": "string", "required": true, "description": "Authorized, withheld, or conditional return-to-service status." },
+    { "name": "authorized_mechanic_name", "type": "string", "required": true, "description": "Authorized certificated mechanic, repairman, or repair-station signer." },
+    { "name": "authorized_mechanic_certificate_number", "type": "string", "required": true, "description": "Certificate or authorization identifier for the signer." },
+    { "name": "release_signature", "type": "string", "required": true, "description": "Controlled electronic or physical signature reference." },
+    { "name": "release_signed_at", "type": "string", "required": true, "description": "Timestamp when the release or log entry was signed." },
+    { "name": "pilot_in_command_copy_provided", "type": "boolean", "required": true, "description": "Whether a copy of the airworthiness release was provided to the pilot in command." },
+    { "name": "record_retain_until", "type": "date", "required": true, "description": "Minimum retention date for the release record." },
+    { "name": "regulation_citations", "type": "string", "required": true, "description": "Applicable citations including 14 CFR 121.709." },
+    { "name": "compliance_status", "type": "string", "required": true, "description": "Evidence-backed release completeness status; the authorized signer retains release authority." }
+  ]
+}

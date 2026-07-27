@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./airline-contracts": {
+      "types": "./dist/airlineContracts.d.ts",
+      "import": "./dist/airlineContracts.js"
     }
   },
   "scripts": {
@@ -20,4 +24,3 @@
     "typescript": "^5.4.0"
   }
 }
-

@@ -1,0 +1,14 @@
+{
+  "schema_catalog_version": "2026-07-27",
+  "rollout_notes": "Repository-owned airline source schemas used to generate the airline shared ontology and its provenance report.",
+  "document_types": [
+    { "vertical": "airline", "family": "airline_operational_control", "doc_type": "dispatch_release", "availability": "available", "regulatory_alignment": "14 CFR Part 121 subparts T and U" },
+    { "vertical": "airline", "family": "airline_crew_management", "doc_type": "crew_duty_record", "availability": "available", "regulatory_alignment": "14 CFR Part 117" },
+    { "vertical": "airline", "family": "airline_airworthiness", "doc_type": "aircraft_maintenance_log", "availability": "available", "regulatory_alignment": "14 CFR Part 121 subparts L and V" },
+    { "vertical": "airline", "family": "airline_airworthiness", "doc_type": "airworthiness_release", "availability": "available", "regulatory_alignment": "14 CFR 121.709" },
+    { "vertical": "airline", "family": "airline_safety_management", "doc_type": "safety_event_report", "availability": "available", "regulatory_alignment": "14 CFR Part 5 and 14 CFR 121.703" },
+    { "vertical": "airline", "family": "airline_passenger_protection", "doc_type": "tarmac_delay_report", "availability": "available", "regulatory_alignment": "14 CFR 259.4" },
+    { "vertical": "airline", "family": "airline_passenger_protection", "doc_type": "passenger_refund_case", "availability": "available", "regulatory_alignment": "14 CFR Part 260" },
+    { "vertical": "airline", "family": "airline_cargo_security", "doc_type": "dangerous_goods_declaration", "availability": "available", "regulatory_alignment": "14 CFR Part 121, 49 CFR Parts 100-185, 49 CFR Part 1544, and ICAO Technical Instructions" }
+  ]
+}

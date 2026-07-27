@@ -1,0 +1,33 @@
+{
+  "document_type": "dispatch_release",
+  "vertical": "airline",
+  "family": "airline_operational_control",
+  "schema_version": "airline_dispatch_release_v1",
+  "fields": [
+    { "name": "air_carrier_name", "type": "string", "required": true, "description": "Legal or operating name of the air carrier." },
+    { "name": "certificate_holder_number", "type": "string", "required": false, "description": "FAA certificate-holder identifier." },
+    { "name": "flight_number", "type": "string", "required": true, "description": "Marketing or operating flight number for the released leg." },
+    { "name": "aircraft_tail_number", "type": "string", "required": true, "description": "Registration or tail number of the assigned aircraft." },
+    { "name": "aircraft_type", "type": "string", "required": true, "description": "Aircraft fleet or type designator." },
+    { "name": "origin_airport_code", "type": "string", "required": true, "description": "IATA or ICAO code for the departure airport." },
+    { "name": "destination_airport_code", "type": "string", "required": true, "description": "IATA or ICAO code for the planned destination airport." },
+    { "name": "alternate_airport_code", "type": "string", "required": false, "description": "IATA or ICAO code for the dispatch alternate when required." },
+    { "name": "scheduled_departure_at", "type": "string", "required": true, "description": "Scheduled departure timestamp with time zone." },
+    { "name": "dispatch_release_number", "type": "string", "required": true, "description": "Unique identifier for the dispatch release." },
+    { "name": "release_status", "type": "string", "required": true, "description": "Draft, authorized, amended, cancelled, or superseded release status." },
+    { "name": "release_amendment_number", "type": "integer", "required": false, "description": "Sequence number for a release amendment or redispatch." },
+    { "name": "dispatcher_name", "type": "string", "required": true, "description": "Aircraft dispatcher exercising operational-control responsibilities." },
+    { "name": "dispatcher_certificate_number", "type": "string", "required": true, "description": "FAA aircraft-dispatcher certificate number." },
+    { "name": "pilot_in_command_name", "type": "string", "required": true, "description": "Pilot in command jointly responsible for preflight planning and release." },
+    { "name": "dispatch_authorized_at", "type": "string", "required": true, "description": "Timestamp when the aircraft dispatcher authorized the flight." },
+    { "name": "route", "type": "string", "required": true, "description": "Planned route of flight." },
+    { "name": "planned_fuel_quantity", "type": "number", "required": true, "description": "Total planned dispatch fuel in the stated unit." },
+    { "name": "reserve_fuel_minutes", "type": "integer", "required": true, "description": "Planned reserve expressed in minutes at the applicable consumption basis." },
+    { "name": "takeoff_weight", "type": "number", "required": true, "description": "Planned takeoff weight." },
+    { "name": "weather_summary", "type": "string", "required": true, "description": "Current and forecast weather considered for the route and airports." },
+    { "name": "notam_summary", "type": "string", "required": true, "description": "Material notices and facility irregularities considered for release." },
+    { "name": "operational_control_exception", "type": "string", "required": false, "description": "Unresolved condition requiring delay, amendment, redispatch, or cancellation." },
+    { "name": "regulation_citations", "type": "string", "required": true, "description": "Applicable current regulatory citations, including 14 CFR Part 121 subparts T and U." },
+    { "name": "compliance_status", "type": "string", "required": true, "description": "Evidence-based readiness status; not a substitute for dispatcher or pilot authority." }
+  ]
+}

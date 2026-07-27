@@ -3,9 +3,9 @@ import test from 'node:test'
 import { coreOntology, generatedIndustryOntologyCatalog } from '@lattice/contracts'
 
 test('generates provenance-backed ontologies for every implemented schema industry', () => {
-  assert.equal(generatedIndustryOntologyCatalog.length, 7)
-  assert.equal(generatedIndustryOntologyCatalog.reduce((sum, artifact) => sum + artifact.provenance.coverage.formCount, 0), 55)
-  assert.equal(generatedIndustryOntologyCatalog.reduce((sum, artifact) => sum + artifact.provenance.coverage.sourceFieldCount, 0), 1043)
+  assert.equal(generatedIndustryOntologyCatalog.length, 8)
+  assert.equal(generatedIndustryOntologyCatalog.reduce((sum, artifact) => sum + artifact.provenance.coverage.formCount, 0), 63)
+  assert.equal(generatedIndustryOntologyCatalog.reduce((sum, artifact) => sum + artifact.provenance.coverage.sourceFieldCount, 0), 1224)
 
   for (const artifact of generatedIndustryOntologyCatalog) {
     const typeIds = new Set(artifact.ontology.entityTypes.map((type) => type.id))
@@ -14,6 +14,11 @@ test('generates provenance-backed ontologies for every implemented schema indust
     assert.ok(artifact.ontology.relationshipTypes.every((relationship) => typeIds.has(relationship.sourceTypeId) && typeIds.has(relationship.targetTypeId)))
     assert.ok(artifact.ontology.entityTypes.every((type) => type.properties.every((property) => artifact.provenance.propertySources[property.id]?.length)))
   }
+
+  const airline = generatedIndustryOntologyCatalog.find((artifact) => artifact.ontology.domain === 'airline')!
+  assert.equal(airline.ontology.entityTypes.length, 15)
+  assert.equal(airline.ontology.relationshipTypes.length, 19)
+  assert.equal(airline.provenance.coverage.mappedPercent, 100)
 })
 
 test('ships a published, property-bearing cross-industry Core ontology', () => {

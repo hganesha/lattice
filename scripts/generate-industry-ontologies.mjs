@@ -31,14 +31,57 @@ const ICON_KEYS = {
   // real estate
   real_property: 'organization', real_estate_party: 'people', lease: 'document', property_transaction: 'handshake',
   title_record: 'clipboard', closing: 'key', property_management: 'briefcase', rent_roll: 'chart',
+  // airline
+  air_carrier: 'organization', aircraft: 'asset', airport: 'location', flight: 'event',
+  dispatch_release: 'clipboard', crew_member: 'people', crew_duty_record: 'clock', maintenance_record: 'workflow',
+  airworthiness_release: 'shield', safety_event: 'flag', passenger_journey: 'document', consumer_remedy: 'money',
+  tarmac_delay_event: 'clock', dangerous_goods_shipment: 'package', regulatory_requirement: 'landmark',
 }
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const schemaRoot = resolve(scriptDirectory, '../../Schemas')
+const workspaceSchemaRoot = resolve(scriptDirectory, '../schemas')
 const outputFile = resolve(scriptDirectory, '../packages/contracts/src/generatedIndustryOntologies.ts')
 const reportFile = resolve(scriptDirectory, '../docs/generated-ontology-report.json')
 
 const configs = {
+  airline: industry('Airline', 'Shared Part 121 airline operations, aircraft, airport, dispatch, crew, maintenance, safety, passenger-protection, security, and dangerous-goods semantics.', [
+    entity('air_carrier', 'Air Carrier', 'Organizations', 'AC', 'A certificated air carrier accountable for operational control, airworthiness, safety, security, and passenger obligations.', ['air_carrier', 'carrier', 'certificate_holder', 'operator']),
+    entity('aircraft', 'Aircraft', 'Fleet', 'AR', 'A governed transport aircraft, its identity, configuration, operating status, and technical condition.', ['aircraft', 'tail_number', 'registration_number', 'fleet_type', 'airframe', 'engine']),
+    entity('airport', 'Airport', 'Network', 'AP', 'An origin, destination, alternate, diversion, or delay airport and its operational conditions.', ['airport', 'aerodrome', 'runway', 'gate', 'station']),
+    entity('flight', 'Flight', 'Operations', 'FL', 'A scheduled or operated flight leg with route, timing, weather, fuel, weight, and operating context.', ['flight', 'origin', 'destination', 'route', 'departure', 'arrival', 'alternate', 'fuel', 'weight', 'payload', 'weather', 'notam']),
+    entity('dispatch_release', 'Dispatch Release', 'Operational Control', 'DR', 'The controlled authorization record jointly used by the pilot in command and aircraft dispatcher for a Part 121 flight.', ['dispatch_release', 'release_status', 'dispatcher', 'operational_control', 'pilot_in_command', 'dispatch_authorized', 'release_amendment']),
+    entity('crew_member', 'Crew Member', 'People', 'CM', 'A pilot, flight attendant, dispatcher, mechanic, or other certificated or assigned operational person.', ['crew_member', 'captain', 'first_officer', 'flight_attendant', 'dispatcher_certificate', 'mechanic']),
+    entity('crew_duty_record', 'Crew Duty Record', 'People', 'CD', 'A record of assignment, flight duty period, cumulative time, rest, acclimation, and fatigue status.', ['duty', 'rest', 'fatigue', 'fit_for_duty', 'acclimated', 'sleep_opportunity', 'extension_authorization']),
+    entity('maintenance_record', 'Maintenance Record', 'Airworthiness', 'MR', 'A discrepancy, inspection, maintenance action, alteration, deferral, or service-difficulty record for an aircraft.', ['maintenance', 'defect', 'discrepancy', 'corrective', 'inspection', 'mel', 'cddl', 'work_order', 'service_difficulty']),
+    entity('airworthiness_release', 'Airworthiness Release', 'Airworthiness', 'AW', 'A signed airworthiness release or aircraft-log entry supporting return to service after maintenance.', ['airworthiness', 'return_to_service', 'authorized_mechanic', 'release_signature', 'release_signed', 'safe_operation', 'known_unairworthy', 'required_inspections', 'record_retain']),
+    entity('safety_event', 'Safety Event', 'Safety Management', 'SE', 'A reported hazard, incident, malfunction, risk assessment, or corrective action within the carrier safety management system.', ['safety_event', 'incident', 'hazard', 'risk', 'malfunction', 'failure', 'sms', 'corrective_action', 'immediate_action']),
+    entity('passenger_journey', 'Passenger Journey', 'Passenger Service', 'PJ', 'A governed itinerary, ticket, reservation, checked bag, class of service, and delivered ancillary service.', ['passenger', 'itinerary', 'ticket', 'reservation', 'checked_bag', 'ancillary', 'class_of_service', 'accessibility_feature']),
+    entity('consumer_remedy', 'Consumer Remedy', 'Passenger Service', 'CR', 'A refund, rebooking, voucher, credit, notification, or other passenger remedy and its disposition.', ['refund', 'remedy', 'voucher', 'credit', 'rebooking', 'merchant_of_record', 'payment_method', 'alternative_transportation']),
+    entity('tarmac_delay_event', 'Tarmac Delay Event', 'Passenger Service', 'TD', 'A ground delay with deplaning, care, notification, exception, and reporting evidence.', ['tarmac', 'deplane', 'food_water', 'lavatory', 'medical_attention', 'delay_notification']),
+    entity('dangerous_goods_shipment', 'Dangerous Goods Shipment', 'Cargo and Security', 'DG', 'A cargo or dangerous-goods consignment with classification, acceptance, handling, screening, and loading controls.', ['dangerous_goods', 'hazmat', 'shipment', 'proper_shipping', 'un_number', 'packing', 'cargo', 'known_shipper', 'security_screening', 'air_waybill', 'shipper', 'acceptance_check', 'loading_position', 'pilot_notification', 'emergency_response', 'package_count', 'quantity_per_package']),
+    entity('regulatory_requirement', 'Regulatory Requirement', 'Governance', 'RQ', 'A versioned FAA, DOT, TSA, NTSB, or other applicable requirement, citation, applicability rule, and reporting deadline.', ['regulation', 'cfr', 'rule', 'requirement', 'compliance', 'reporting_deadline', 'regulator']),
+  ], [
+    relation('operates', 'air_carrier', 'flight'),
+    relation('assigned_aircraft', 'flight', 'aircraft'),
+    relation('departs_from', 'flight', 'airport'),
+    relation('arrives_at', 'flight', 'airport'),
+    relation('authorized_by', 'flight', 'dispatch_release'),
+    relation('staffed_by', 'flight', 'crew_member'),
+    relation('governed_by_duty_record', 'crew_member', 'crew_duty_record'),
+    relation('maintained_through', 'aircraft', 'maintenance_record'),
+    relation('released_by', 'aircraft', 'airworthiness_release'),
+    relation('produces_safety_event', 'flight', 'safety_event'),
+    relation('carries_journey', 'flight', 'passenger_journey'),
+    relation('creates_remedy', 'passenger_journey', 'consumer_remedy'),
+    relation('experiences_tarmac_delay', 'flight', 'tarmac_delay_event'),
+    relation('transports', 'flight', 'dangerous_goods_shipment'),
+    relation('flight_subject_to', 'flight', 'regulatory_requirement'),
+    relation('maintenance_subject_to', 'maintenance_record', 'regulatory_requirement'),
+    relation('remedy_subject_to', 'consumer_remedy', 'regulatory_requirement'),
+    relation('delay_subject_to', 'tarmac_delay_event', 'regulatory_requirement'),
+    relation('shipment_subject_to', 'dangerous_goods_shipment', 'regulatory_requirement'),
+  ]),
   energy: industry('Energy', 'Shared upstream, field-service, production, and well lifecycle semantics.', [
     entity('well', 'Well', 'Assets', 'WL', 'A governed well across drilling, completion, and production.', ['well', 'api_well', 'field', 'formation', 'depth', 'casing', 'hole', 'mud', 'completion', 'perforated', 'stimulation', 'choke']),
     entity('operator', 'Operator', 'Organizations', 'OP', 'An organization accountable for operating an energy asset.', ['operator', 'company_representative', 'customer_representative', 'report_preparer']),
@@ -110,9 +153,12 @@ const configs = {
   ], [relation('describes', 'lease', 'real_property'), relation('has_party', 'lease', 'real_estate_party'), relation('transfers', 'property_transaction', 'real_property'), relation('involves', 'property_transaction', 'real_estate_party'), relation('evidenced_by', 'real_property', 'title_record'), relation('settled_at', 'property_transaction', 'closing'), relation('managed_by', 'real_property', 'property_management'), relation('summarized_by', 'real_property', 'rent_roll')]),
 }
 
-const catalog = JSON.parse(await readFile(join(schemaRoot, 'schema_catalog.json'), 'utf8'))
+const catalogs = new Map([
+  [schemaRoot, JSON.parse(await readFile(join(schemaRoot, 'schema_catalog.json'), 'utf8'))],
+  [workspaceSchemaRoot, JSON.parse(await readFile(join(workspaceSchemaRoot, 'schema_catalog.json'), 'utf8'))],
+])
 const generated = []
-for (const [vertical, config] of Object.entries(configs)) generated.push(await generate(vertical, config, catalog.schema_catalog_version))
+for (const [vertical, config] of Object.entries(configs)) generated.push(await generate(vertical, config))
 
 await mkdir(dirname(outputFile), { recursive: true })
 const source = `/* This file is generated by scripts/generate-industry-ontologies.mjs. Do not edit directly. */\nimport type { GeneratedIndustryOntology } from './types.js'\n\nexport const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = ${JSON.stringify(generated, null, 2)}\n`
@@ -120,8 +166,10 @@ await writeFile(outputFile, source, 'utf8')
 await writeFile(reportFile, `${JSON.stringify(generated.map(({ ontology, provenance }) => ({ industry: ontology.domain, ontologyId: ontology.id, entities: ontology.entityTypes.length, relationships: ontology.relationshipTypes.length, ...provenance.coverage, unmappedFields: provenance.unmappedFields })), null, 2)}\n`, 'utf8')
 console.log(`Generated ${generated.length} industry ontologies from ${generated.reduce((sum, item) => sum + item.provenance.coverage.formCount, 0)} forms.`)
 
-async function generate(vertical, config, catalogVersion) {
-  const directory = join(schemaRoot, vertical)
+async function generate(vertical, config) {
+  const sourceRoot = await schemaSourceRoot(vertical)
+  const catalogVersion = catalogs.get(sourceRoot)?.schema_catalog_version ?? 'unversioned'
+  const directory = join(sourceRoot, vertical)
   const formDirectories = (await readdir(directory, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort()
   const forms = []
   for (const formDirectory of formDirectories) {
@@ -162,6 +210,18 @@ async function generate(vertical, config, catalogVersion) {
   const ontology = { id: `${ontologySlug}-ontology`, workspaceId: `workspace-${ontologySlug}`, name: `${config.name} Ontology`, description: config.description, domain: ontologyDomain, version: '0.1.0', digest, releaseStatus: 'UNPUBLISHED', entityTypes, relationshipTypes, schemaLayout: Object.fromEntries(entityTypes.map((type, index) => [type.id, { x: 70 + (index % 3) * 285, y: 50 + Math.floor(index / 3) * 145 }])) }
   const unmappedFields = [...new Set(forms.flatMap((form) => form.fields.filter((field) => !mappedFields.has(`${form.document_type}:${field.name}`)).map((field) => field.name)))].sort()
   return { ontology, provenance: { generatorVersion: GENERATOR_VERSION, sourceSchemaCatalogVersion: catalogVersion, sourceForms: forms.map((form) => ({ documentType: form.document_type, family: form.family, schemaVersion: form.schema_version, fieldCount: form.fields.length })), entitySources, propertySources, unmappedFields, coverage: { formCount: forms.length, sourceFieldCount, mappedFieldCount: mappedFields.size, unmappedFieldCount: sourceFieldCount - mappedFields.size, mappedPercent: sourceFieldCount === 0 ? 0 : Math.round(mappedFields.size / sourceFieldCount * 1000) / 10 } } }
+}
+
+async function schemaSourceRoot(vertical) {
+  for (const root of [workspaceSchemaRoot, schemaRoot]) {
+    try {
+      await readdir(join(root, vertical))
+      return root
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error
+    }
+  }
+  throw new Error(`No schema source directory found for ${vertical}`)
 }
 
 function industry(name, description, entities, relations) { return { name, description, entities, relations } }

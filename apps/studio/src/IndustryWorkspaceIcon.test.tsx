@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { IndustryWorkspaceIcon } from './IndustryWorkspaceIcon'
 
 describe('IndustryWorkspaceIcon', () => {
-  it.each(['core', 'energy', 'financial_services', 'healthcare', 'insurance', 'legal', 'manufacturing', 'real_estate'])('renders the %s workspace icon', (domain) => {
+  it.each(['airline', 'core', 'energy', 'financial_services', 'healthcare', 'insurance', 'legal', 'manufacturing', 'real_estate'])('renders the %s workspace icon', (domain) => {
     const { container } = render(<IndustryWorkspaceIcon domain={domain} />)
     expect(container.querySelector(`[data-industry-icon="${domain}"]`)).toBeInTheDocument()
   })

@@ -175,6 +175,12 @@ export const IconUmbrella = (p: IconProps) => (
   </Icon>
 )
 
+export const IconPlane = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M17.8 19 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 5 6 3 8l6.5 3.5L6 15H3l-1 1 4 2 2 4 1-1v-3l3.5-3.5L16 21Z" />
+  </Icon>
+)
+
 export const IconFactory = (p: IconProps) => (
   <Icon {...p}>
     <path d="M12 16h.01" />

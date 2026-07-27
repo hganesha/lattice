@@ -585,6 +585,7 @@ export type ReleaseRuntimeStatus = 'NO_RELEASE' | 'ACTIVE' | 'SUSPENDED'
 
 export type ContractStarter =
   | 'blank'
+  | 'airline'
   | 'financial-services'
   | 'energy'
   | 'healthcare'

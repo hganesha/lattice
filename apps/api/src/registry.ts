@@ -15,6 +15,7 @@ import {
   type RelationshipTypeDefinition,
   type ReleaseControlEvent,
 } from '@lattice/contracts'
+import { airlineExampleContracts } from '@lattice/contracts/airline-contracts'
 
 interface RegistryDocument {
   schemaVersion: '1.0' | '1.1'
@@ -46,6 +47,7 @@ export class ContractRegistry {
         const latestDigest = entry.releases.at(-1)?.digest
         if (!entry.activeReleaseDigest && latestDigest) entry.activeReleaseDigest = latestDigest
       }
+      seedReferenceContracts(document.entries)
       document.workspaces = hydrateWorkspaces(document.entries, document.workspaces)
       document.workspaces = seedGeneratedOntologies(document.workspaces)
       repairGeneratedContractScopes(document.entries, document.workspaces)
@@ -78,6 +80,7 @@ export class ContractRegistry {
         },
         workspaces: {},
       }
+      seedReferenceContracts(document.entries)
       document.workspaces = hydrateWorkspaces(document.entries, document.workspaces)
       document.workspaces = seedGeneratedOntologies(document.workspaces)
       repairGeneratedContractScopes(document.entries, document.workspaces)
@@ -300,6 +303,27 @@ export class ContractRegistry {
   }
 }
 
+function seedReferenceContracts(entries: Record<string, ContractRegistryEntry>): void {
+  for (const contract of airlineExampleContracts) {
+    if (entries[contract.id]) continue
+    const release: ContractRelease = {
+      version: contract.version,
+      digest: contract.digest,
+      publishedAt: '2026-07-27T20:00:00.000Z',
+      notes: 'Initial airline regulatory decision-support reference.',
+      contract: structuredClone(contract),
+    }
+    entries[contract.id] = {
+      contractId: contract.id,
+      draft: structuredClone(contract),
+      updatedAt: release.publishedAt,
+      releases: [release],
+      runtimeStatus: 'ACTIVE',
+      activeReleaseDigest: release.digest,
+    }
+  }
+}
+
 export class ContractValidationError extends Error {
   constructor(readonly issues: string[]) {
     super('CONTRACT_VALIDATION_FAILED')
@@ -453,7 +477,7 @@ function hydrateWorkspaces(entries: Record<string, ContractRegistryEntry>, store
       ontologyId: workspace.ontology.id,
     }))
   }
-  const migratingLegacyRegistry = !stored
+  const migratingLegacyRegistry = !stored || Object.keys(stored).length === 0
   for (const entry of Object.values(entries)) {
     const workspaceId = entry.draft.ontologyRef?.workspaceId ?? `workspace-${slugify(entry.draft.domain)}`
     const existing = workspaces[workspaceId]

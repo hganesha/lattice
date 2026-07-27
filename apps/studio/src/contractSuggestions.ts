@@ -6,6 +6,10 @@ interface ContractSuggestions {
 }
 
 const suggestions: Record<string, ContractSuggestions> = {
+  airline: catalog(
+    ['dispatch_release', 'crew_legality', 'airworthiness_release', 'safety_event_reporting', 'passenger_disruption'],
+    ['System Operations Control', 'Crew Scheduling', 'Maintenance Control', 'Safety and Regulatory Compliance', 'Customer Care'],
+  ),
   healthcare: catalog(
     ['care_authorization', 'clinical_eligibility', 'claims_review', 'patient_flow'],
     ['Clinical Policy', 'Care Management', 'Revenue Cycle', 'Clinical Operations'],

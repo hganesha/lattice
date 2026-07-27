@@ -1,0 +1,32 @@
+{
+  "document_type": "dangerous_goods_declaration",
+  "vertical": "airline",
+  "family": "airline_cargo_security",
+  "schema_version": "airline_dangerous_goods_declaration_v1",
+  "fields": [
+    { "name": "air_carrier_name", "type": "string", "required": true, "description": "Part 121 carrier accepting or transporting the shipment." },
+    { "name": "flight_number", "type": "string", "required": true, "description": "Flight on which the shipment is planned to move." },
+    { "name": "aircraft_tail_number", "type": "string", "required": false, "description": "Assigned aircraft when known." },
+    { "name": "dangerous_goods_shipment_id", "type": "string", "required": true, "description": "Carrier-controlled shipment identifier." },
+    { "name": "air_waybill_number", "type": "string", "required": true, "description": "Air waybill associated with the consignment." },
+    { "name": "shipper_name", "type": "string", "required": true, "description": "Declared shipper organization." },
+    { "name": "known_shipper_status", "type": "string", "required": true, "description": "Applicable known-shipper or cargo-security acceptance status." },
+    { "name": "security_screening_method", "type": "string", "required": true, "description": "Approved cargo-screening method or program reference." },
+    { "name": "security_screening_completed_at", "type": "string", "required": true, "description": "Timestamp when required cargo screening was completed." },
+    { "name": "un_number", "type": "string", "required": true, "description": "United Nations dangerous-goods number." },
+    { "name": "proper_shipping_name", "type": "string", "required": true, "description": "Regulated proper shipping name." },
+    { "name": "hazard_class", "type": "string", "required": true, "description": "Primary hazard class or division." },
+    { "name": "subsidiary_risk", "type": "string", "required": false, "description": "Subsidiary hazard risk when applicable." },
+    { "name": "packing_group", "type": "string", "required": false, "description": "Applicable packing group." },
+    { "name": "package_count", "type": "integer", "required": true, "description": "Number of packages in the consignment." },
+    { "name": "quantity_per_package", "type": "number", "required": true, "description": "Dangerous-goods quantity per package in the stated unit." },
+    { "name": "packing_instruction", "type": "string", "required": true, "description": "Applicable packing instruction." },
+    { "name": "cargo_aircraft_only", "type": "boolean", "required": true, "description": "Whether transport is restricted to cargo aircraft." },
+    { "name": "acceptance_check_completed", "type": "boolean", "required": true, "description": "Whether the operator dangerous-goods acceptance check was completed." },
+    { "name": "loading_position", "type": "string", "required": false, "description": "Planned aircraft loading position." },
+    { "name": "pilot_notification_reference", "type": "string", "required": true, "description": "Notification-to-pilot-in-command reference." },
+    { "name": "emergency_response_information", "type": "string", "required": true, "description": "Emergency response or handling information available to the operator." },
+    { "name": "regulation_citations", "type": "string", "required": true, "description": "Applicable 14 CFR, 49 CFR, TSA security-program, and ICAO Technical Instructions references." },
+    { "name": "compliance_status", "type": "string", "required": true, "description": "Acceptance status with security-sensitive procedures referenced but not reproduced." }
+  ]
+}

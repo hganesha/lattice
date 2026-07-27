@@ -4,6 +4,2339 @@ import type { GeneratedIndustryOntology } from './types.js'
 export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
   {
     "ontology": {
+      "id": "airline-ontology",
+      "workspaceId": "workspace-airline",
+      "name": "Airline Ontology",
+      "description": "Shared Part 121 airline operations, aircraft, airport, dispatch, crew, maintenance, safety, passenger-protection, security, and dangerous-goods semantics.",
+      "domain": "airline",
+      "version": "0.1.0",
+      "digest": "sha256:dc5c6a655af570f3fe5f232b98b226cbe243dfdcceea481f335ca284e9993c7e",
+      "releaseStatus": "UNPUBLISHED",
+      "entityTypes": [
+        {
+          "id": "air_carrier",
+          "label": "Air Carrier",
+          "description": "A certificated air carrier accountable for operational control, airworthiness, safety, security, and passenger obligations.",
+          "group": "Organizations",
+          "icon": "organization",
+          "properties": [
+            {
+              "id": "air_carrier.air_carrier_name",
+              "name": "Air Carrier Name",
+              "dataType": "string",
+              "description": "Certificate holder primarily responsible for aircraft airworthiness.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "air_carrier.certificate_holder_number",
+              "name": "Certificate Holder Number",
+              "dataType": "string",
+              "description": "FAA certificate-holder identifier.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "air_carrier.marketing_carrier_name",
+              "name": "Marketing Carrier Name",
+              "dataType": "string",
+              "description": "Marketing carrier when different from the operating carrier.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "aircraft",
+          "label": "Aircraft",
+          "description": "A governed transport aircraft, its identity, configuration, operating status, and technical condition.",
+          "group": "Fleet",
+          "icon": "asset",
+          "properties": [
+            {
+              "id": "aircraft.aircraft_type",
+              "name": "Aircraft Type",
+              "dataType": "string",
+              "description": "Aircraft model or fleet type.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "aircraft.airframe_total_hours",
+              "name": "Airframe Total Hours",
+              "dataType": "decimal",
+              "description": "Airframe time in service at the recorded event.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "aircraft.cargo_aircraft_only",
+              "name": "Cargo Aircraft Only",
+              "dataType": "boolean",
+              "description": "Whether transport is restricted to cargo aircraft.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "aircraft.aircraft_tail_number",
+              "name": "Aircraft Tail Number",
+              "dataType": "string",
+              "description": "Aircraft registration or tail number.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "aircraft.engine_cycles",
+              "name": "Engine Cycles",
+              "dataType": "integer",
+              "description": "Relevant engine or component cycles.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "airport",
+          "label": "Airport",
+          "description": "An origin, destination, alternate, diversion, or delay airport and its operational conditions.",
+          "group": "Network",
+          "icon": "location",
+          "properties": [
+            {
+              "id": "airport.destination_airport_code",
+              "name": "Destination Airport Code",
+              "dataType": "string",
+              "description": "IATA or ICAO code for the planned destination airport.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "airport.origin_airport_code",
+              "name": "Origin Airport Code",
+              "dataType": "string",
+              "description": "IATA or ICAO code for the departure airport.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "airport.maintenance_station",
+              "name": "Maintenance Station",
+              "dataType": "string",
+              "description": "Station or facility where maintenance was performed.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "airport.tarmac_delay_airport_code",
+              "name": "Tarmac Delay Airport Code",
+              "dataType": "string",
+              "description": "U.S. airport at which the delay occurred.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "airport.airport_code",
+              "name": "Airport Code",
+              "dataType": "string",
+              "description": "Airport or station associated with the event.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "airport.alternate_airport_code",
+              "name": "Alternate Airport Code",
+              "dataType": "string",
+              "description": "IATA or ICAO code for the dispatch alternate when required.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "flight",
+          "label": "Flight",
+          "description": "A scheduled or operated flight leg with route, timing, weather, fuel, weight, and operating context.",
+          "group": "Operations",
+          "icon": "event",
+          "properties": [
+            {
+              "id": "flight.destination_airport_code",
+              "name": "Destination Airport Code",
+              "dataType": "string",
+              "description": "IATA or ICAO code for the planned destination airport.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.origin_airport_code",
+              "name": "Origin Airport Code",
+              "dataType": "string",
+              "description": "IATA or ICAO code for the departure airport.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.scheduled_departure_at",
+              "name": "Scheduled Departure At",
+              "dataType": "string",
+              "description": "Scheduled departure timestamp with time zone.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.cumulative_flight_time_365_days",
+              "name": "Cumulative Flight Time 365 Days",
+              "dataType": "integer",
+              "description": "Cumulative flight time in the preceding 365 calendar days.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.cumulative_flight_time_672_hours",
+              "name": "Cumulative Flight Time 672 Hours",
+              "dataType": "integer",
+              "description": "Cumulative flight time in the preceding 672 consecutive hours.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.flight_cancelled",
+              "name": "Flight Cancelled",
+              "dataType": "boolean",
+              "description": "Whether the covered flight was cancelled.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.flight_duty_period_minutes",
+              "name": "Flight Duty Period Minutes",
+              "dataType": "integer",
+              "description": "Calculated flight duty period duration.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.flight_time_minutes",
+              "name": "Flight Time Minutes",
+              "dataType": "integer",
+              "description": "Flight time credited to this assignment.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.notam_summary",
+              "name": "Notam Summary",
+              "dataType": "string",
+              "description": "Material notices and facility irregularities considered for release.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.planned_fuel_quantity",
+              "name": "Planned Fuel Quantity",
+              "dataType": "decimal",
+              "description": "Total planned dispatch fuel in the stated unit.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.reserve_fuel_minutes",
+              "name": "Reserve Fuel Minutes",
+              "dataType": "integer",
+              "description": "Planned reserve expressed in minutes at the applicable consumption basis.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.route",
+              "name": "Route",
+              "dataType": "string",
+              "description": "Planned route of flight.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.scheduled_arrival_at",
+              "name": "Scheduled Arrival At",
+              "dataType": "string",
+              "description": "Original scheduled arrival timestamp.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.takeoff_weight",
+              "name": "Takeoff Weight",
+              "dataType": "decimal",
+              "description": "Planned takeoff weight.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.weather_summary",
+              "name": "Weather Summary",
+              "dataType": "string",
+              "description": "Current and forecast weather considered for the route and airports.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "flight.flight_number",
+              "name": "Flight Number",
+              "dataType": "string",
+              "description": "Flight number associated with the assignment.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "flight.alternate_airport_code",
+              "name": "Alternate Airport Code",
+              "dataType": "string",
+              "description": "IATA or ICAO code for the dispatch alternate when required.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "flight.changed_arrival_at",
+              "name": "Changed Arrival At",
+              "dataType": "string",
+              "description": "Changed arrival timestamp.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "flight.changed_departure_at",
+              "name": "Changed Departure At",
+              "dataType": "string",
+              "description": "Changed departure timestamp.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "dispatch_release",
+          "label": "Dispatch Release",
+          "description": "The controlled authorization record jointly used by the pilot in command and aircraft dispatcher for a Part 121 flight.",
+          "group": "Operational Control",
+          "icon": "clipboard",
+          "properties": [
+            {
+              "id": "dispatch_release.dispatch_authorized_at",
+              "name": "Dispatch Authorized At",
+              "dataType": "string",
+              "description": "Timestamp when the aircraft dispatcher authorized the flight.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dispatch_release.dispatch_release_number",
+              "name": "Dispatch Release Number",
+              "dataType": "string",
+              "description": "Unique identifier for the dispatch release.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "dispatch_release.dispatcher_certificate_number",
+              "name": "Dispatcher Certificate Number",
+              "dataType": "string",
+              "description": "FAA aircraft-dispatcher certificate number.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "dispatch_release.dispatcher_name",
+              "name": "Dispatcher Name",
+              "dataType": "string",
+              "description": "Aircraft dispatcher exercising operational-control responsibilities.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dispatch_release.pilot_in_command_copy_provided",
+              "name": "Pilot In Command Copy Provided",
+              "dataType": "boolean",
+              "description": "Whether a copy of the airworthiness release was provided to the pilot in command.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dispatch_release.pilot_in_command_name",
+              "name": "Pilot In Command Name",
+              "dataType": "string",
+              "description": "Pilot in command jointly responsible for preflight planning and release.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dispatch_release.release_status",
+              "name": "Release Status",
+              "dataType": "string",
+              "description": "Draft, authorized, amended, cancelled, or superseded release status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dispatch_release.operational_control_exception",
+              "name": "Operational Control Exception",
+              "dataType": "string",
+              "description": "Unresolved condition requiring delay, amendment, redispatch, or cancellation.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "dispatch_release.release_amendment_number",
+              "name": "Release Amendment Number",
+              "dataType": "integer",
+              "description": "Sequence number for a release amendment or redispatch.",
+              "required": false,
+              "identifier": true
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "crew_member",
+          "label": "Crew Member",
+          "description": "A pilot, flight attendant, dispatcher, mechanic, or other certificated or assigned operational person.",
+          "group": "People",
+          "icon": "people",
+          "properties": [
+            {
+              "id": "crew_member.authorized_mechanic_certificate_number",
+              "name": "Authorized Mechanic Certificate Number",
+              "dataType": "string",
+              "description": "Certificate or authorization identifier for the signer.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "crew_member.authorized_mechanic_name",
+              "name": "Authorized Mechanic Name",
+              "dataType": "string",
+              "description": "Authorized certificated mechanic, repairman, or repair-station signer.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_member.crew_member_id",
+              "name": "Crew Member Id",
+              "dataType": "string",
+              "description": "Carrier-controlled identifier for the crew member.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "crew_member.crew_member_name",
+              "name": "Crew Member Name",
+              "dataType": "string",
+              "description": "Name of the assigned crew member.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_member.crew_member_role",
+              "name": "Crew Member Role",
+              "dataType": "string",
+              "description": "Captain, first officer, augmented flightcrew, flight attendant, or other role.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_member.dispatcher_certificate_number",
+              "name": "Dispatcher Certificate Number",
+              "dataType": "string",
+              "description": "FAA aircraft-dispatcher certificate number.",
+              "required": true,
+              "identifier": true
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "crew_duty_record",
+          "label": "Crew Duty Record",
+          "description": "A record of assignment, flight duty period, cumulative time, rest, acclimation, and fatigue status.",
+          "group": "People",
+          "icon": "clock",
+          "properties": [
+            {
+              "id": "crew_duty_record.acclimated_status",
+              "name": "Acclimated Status",
+              "dataType": "string",
+              "description": "Crew-member acclimation status used for the applicable flight-duty limit table.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_duty_record.duty_start_at",
+              "name": "Duty Start At",
+              "dataType": "string",
+              "description": "Start of the assigned duty period with time zone.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_duty_record.fatigue_reported",
+              "name": "Fatigue Reported",
+              "dataType": "boolean",
+              "description": "Whether the crew member reported fatigue or inability to perform safely.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_duty_record.fit_for_duty_attestation",
+              "name": "Fit For Duty Attestation",
+              "dataType": "boolean",
+              "description": "Crew-member fitness-for-duty attestation.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_duty_record.flight_duty_period_minutes",
+              "name": "Flight Duty Period Minutes",
+              "dataType": "integer",
+              "description": "Calculated flight duty period duration.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_duty_record.rest_end_at",
+              "name": "Rest End At",
+              "dataType": "string",
+              "description": "End of the immediately preceding rest period.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_duty_record.rest_minutes",
+              "name": "Rest Minutes",
+              "dataType": "integer",
+              "description": "Duration of the immediately preceding rest period.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_duty_record.rest_start_at",
+              "name": "Rest Start At",
+              "dataType": "string",
+              "description": "Start of the immediately preceding rest period.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_duty_record.sleep_opportunity_minutes",
+              "name": "Sleep Opportunity Minutes",
+              "dataType": "integer",
+              "description": "Uninterrupted sleep opportunity within the rest period.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "crew_duty_record.duty_end_at",
+              "name": "Duty End At",
+              "dataType": "string",
+              "description": "Actual or projected end of duty with time zone.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "crew_duty_record.duty_extension_minutes",
+              "name": "Duty Extension Minutes",
+              "dataType": "integer",
+              "description": "Any applied extension and its duration.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "crew_duty_record.extension_authorization",
+              "name": "Extension Authorization",
+              "dataType": "string",
+              "description": "Record of the person, basis, and concurrence for an extension.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "maintenance_record",
+          "label": "Maintenance Record",
+          "description": "A discrepancy, inspection, maintenance action, alteration, deferral, or service-difficulty record for an aircraft.",
+          "group": "Airworthiness",
+          "icon": "workflow",
+          "properties": [
+            {
+              "id": "maintenance_record.maintenance_record_number",
+              "name": "Maintenance Record Number",
+              "dataType": "string",
+              "description": "Unique maintenance-record or work-order identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "maintenance_record.service_difficulty_reportable",
+              "name": "Service Difficulty Reportable",
+              "dataType": "boolean",
+              "description": "Whether the detected condition meets service-difficulty reporting criteria.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.discrepancy_description",
+              "name": "Discrepancy Description",
+              "dataType": "string",
+              "description": "Reported defect, discrepancy, or inspection finding.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.inspection_required",
+              "name": "Inspection Required",
+              "dataType": "boolean",
+              "description": "Whether an independent or required inspection applies.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.maintenance_completed_at",
+              "name": "Maintenance Completed At",
+              "dataType": "string",
+              "description": "Timestamp when the recorded work was completed.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.maintenance_manual_compliance",
+              "name": "Maintenance Manual Compliance",
+              "dataType": "boolean",
+              "description": "Certification that work followed the certificate holder's manual.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.maintenance_program_reference",
+              "name": "Maintenance Program Reference",
+              "dataType": "string",
+              "description": "Approved carrier maintenance-program or manual reference.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "maintenance_record.maintenance_station",
+              "name": "Maintenance Station",
+              "dataType": "string",
+              "description": "Station or facility where maintenance was performed.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.corrective_action",
+              "name": "Corrective Action",
+              "dataType": "string",
+              "description": "Maintenance or preventive-maintenance action taken.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.corrective_action_due_date",
+              "name": "Corrective Action Due Date",
+              "dataType": "date",
+              "description": "Target completion date for the corrective action.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.corrective_action_owner",
+              "name": "Corrective Action Owner",
+              "dataType": "string",
+              "description": "Accountable owner for the corrective action.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.defect_code",
+              "name": "Defect Code",
+              "dataType": "string",
+              "description": "Carrier or industry defect classification.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.inspection_completed_by",
+              "name": "Inspection Completed By",
+              "dataType": "string",
+              "description": "Authorized inspector who completed the required inspection.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.mel_category",
+              "name": "Mel Category",
+              "dataType": "string",
+              "description": "Applicable MEL repair category.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.mel_expiration_at",
+              "name": "Mel Expiration At",
+              "dataType": "string",
+              "description": "Repair interval deadline for the deferred item.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "maintenance_record.mel_item_number",
+              "name": "Mel Item Number",
+              "dataType": "string",
+              "description": "Minimum Equipment List item supporting a permitted deferral.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "maintenance_record.service_difficulty_category",
+              "name": "Service Difficulty Category",
+              "dataType": "string",
+              "description": "Failure, malfunction, or defect category under 14 CFR 121.703.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "airworthiness_release",
+          "label": "Airworthiness Release",
+          "description": "A signed airworthiness release or aircraft-log entry supporting return to service after maintenance.",
+          "group": "Airworthiness",
+          "icon": "shield",
+          "properties": [
+            {
+              "id": "airworthiness_release.airworthiness_release_number",
+              "name": "Airworthiness Release Number",
+              "dataType": "string",
+              "description": "Unique release or aircraft-log-entry reference.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "airworthiness_release.authorized_mechanic_certificate_number",
+              "name": "Authorized Mechanic Certificate Number",
+              "dataType": "string",
+              "description": "Certificate or authorization identifier for the signer.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "airworthiness_release.authorized_mechanic_name",
+              "name": "Authorized Mechanic Name",
+              "dataType": "string",
+              "description": "Authorized certificated mechanic, repairman, or repair-station signer.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "airworthiness_release.known_unairworthy_condition",
+              "name": "Known Unairworthy Condition",
+              "dataType": "boolean",
+              "description": "Whether any known condition would make the aircraft unairworthy.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "airworthiness_release.record_retain_until",
+              "name": "Record Retain Until",
+              "dataType": "date",
+              "description": "Minimum retention date for the release record.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "airworthiness_release.release_signature",
+              "name": "Release Signature",
+              "dataType": "string",
+              "description": "Controlled electronic or physical signature reference.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "airworthiness_release.release_signed_at",
+              "name": "Release Signed At",
+              "dataType": "string",
+              "description": "Timestamp when the release or log entry was signed.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "airworthiness_release.required_inspections_completed",
+              "name": "Required Inspections Completed",
+              "dataType": "boolean",
+              "description": "Certification that required inspections were completed by authorized persons.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "airworthiness_release.return_to_service_status",
+              "name": "Return To Service Status",
+              "dataType": "string",
+              "description": "Authorized, withheld, or conditional return-to-service status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "airworthiness_release.safe_operation_condition",
+              "name": "Safe Operation Condition",
+              "dataType": "boolean",
+              "description": "Certification that the aircraft is in condition for safe operation as to the work performed.",
+              "required": true,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "safety_event",
+          "label": "Safety Event",
+          "description": "A reported hazard, incident, malfunction, risk assessment, or corrective action within the carrier safety management system.",
+          "group": "Safety Management",
+          "icon": "flag",
+          "properties": [
+            {
+              "id": "safety_event.hazard_class",
+              "name": "Hazard Class",
+              "dataType": "string",
+              "description": "Primary hazard class or division.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.hazard_description",
+              "name": "Hazard Description",
+              "dataType": "string",
+              "description": "Identified condition that could cause or contribute to an undesired event.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.incident_description",
+              "name": "Incident Description",
+              "dataType": "string",
+              "description": "Factual description of the reported event.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.incident_occurred_at",
+              "name": "Incident Occurred At",
+              "dataType": "string",
+              "description": "Timestamp of the occurrence or detection.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.incident_resolution",
+              "name": "Incident Resolution",
+              "dataType": "string",
+              "description": "How the tarmac delay was resolved.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.risk_acceptability",
+              "name": "Risk Acceptability",
+              "dataType": "string",
+              "description": "Acceptable, acceptable with mitigation, or unacceptable risk disposition.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.risk_likelihood",
+              "name": "Risk Likelihood",
+              "dataType": "string",
+              "description": "Assessed likelihood under the approved SMS matrix.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.risk_severity",
+              "name": "Risk Severity",
+              "dataType": "string",
+              "description": "Assessed consequence severity under the approved SMS matrix.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.safety_event_id",
+              "name": "Safety Event Id",
+              "dataType": "string",
+              "description": "Unique carrier safety-event identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "safety_event.safety_event_type",
+              "name": "Safety Event Type",
+              "dataType": "string",
+              "description": "Hazard report, incident, accident, service difficulty, audit finding, or other safety-event class.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.sms_assurance_status",
+              "name": "Sms Assurance Status",
+              "dataType": "string",
+              "description": "Monitoring and effectiveness-verification status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.corrective_action",
+              "name": "Corrective Action",
+              "dataType": "string",
+              "description": "Maintenance or preventive-maintenance action taken.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.corrective_action_due_date",
+              "name": "Corrective Action Due Date",
+              "dataType": "date",
+              "description": "Target completion date for the corrective action.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.corrective_action_owner",
+              "name": "Corrective Action Owner",
+              "dataType": "string",
+              "description": "Accountable owner for the corrective action.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.immediate_action",
+              "name": "Immediate Action",
+              "dataType": "string",
+              "description": "Immediate containment or safety action taken.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "safety_event.subsidiary_risk",
+              "name": "Subsidiary Risk",
+              "dataType": "string",
+              "description": "Subsidiary hazard risk when applicable.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "passenger_journey",
+          "label": "Passenger Journey",
+          "description": "A governed itinerary, ticket, reservation, checked bag, class of service, and delivered ancillary service.",
+          "group": "Passenger Service",
+          "icon": "document",
+          "properties": [
+            {
+              "id": "passenger_journey.class_of_service_changed",
+              "name": "Class Of Service Changed",
+              "dataType": "boolean",
+              "description": "Whether the passenger was downgraded to a lower class of service.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "passenger_journey.itinerary_type",
+              "name": "Itinerary Type",
+              "dataType": "string",
+              "description": "Domestic or international covered itinerary.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "passenger_journey.passenger_journey_id",
+              "name": "Passenger Journey Id",
+              "dataType": "string",
+              "description": "Privacy-safe journey or case identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "passenger_journey.reservation_number",
+              "name": "Reservation Number",
+              "dataType": "string",
+              "description": "Reservation or passenger-name-record locator.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "passenger_journey.ticket_number",
+              "name": "Ticket Number",
+              "dataType": "string",
+              "description": "Ticket or document identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "passenger_journey.accessibility_feature_unavailable",
+              "name": "Accessibility Feature Unavailable",
+              "dataType": "boolean",
+              "description": "Whether substitute aircraft lacked a disability-related accessibility feature needed by the passenger.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "passenger_journey.ancillary_service_fee",
+              "name": "Ancillary Service Fee",
+              "dataType": "decimal",
+              "description": "Amount paid for the unprovided ancillary service.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "passenger_journey.ancillary_service_name",
+              "name": "Ancillary Service Name",
+              "dataType": "string",
+              "description": "Paid ancillary service that was not provided.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "passenger_journey.checked_bag_delivered_at",
+              "name": "Checked Bag Delivered At",
+              "dataType": "string",
+              "description": "Timestamp when a checked bag was delivered or made available.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "passenger_journey.checked_bag_fee",
+              "name": "Checked Bag Fee",
+              "dataType": "decimal",
+              "description": "Fee paid for checked-bag transport.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "passenger_journey.passenger_notification_summary",
+              "name": "Passenger Notification Summary",
+              "dataType": "string",
+              "description": "Summary of delay and deplaning notifications given to passengers.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "consumer_remedy",
+          "label": "Consumer Remedy",
+          "description": "A refund, rebooking, voucher, credit, notification, or other passenger remedy and its disposition.",
+          "group": "Passenger Service",
+          "icon": "money",
+          "properties": [
+            {
+              "id": "consumer_remedy.alternative_transportation_accepted",
+              "name": "Alternative Transportation Accepted",
+              "dataType": "boolean",
+              "description": "Whether the consumer accepted rebooking or alternative transportation.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "consumer_remedy.merchant_of_record",
+              "name": "Merchant Of Record",
+              "dataType": "string",
+              "description": "Carrier or ticket agent responsible for the payment transaction.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "consumer_remedy.payment_method",
+              "name": "Payment Method",
+              "dataType": "string",
+              "description": "Credit card, cash, check, debit card, or other payment method.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "consumer_remedy.refund_status",
+              "name": "Refund Status",
+              "dataType": "string",
+              "description": "Pending evidence, eligible, issued, rejected, or escalated status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "consumer_remedy.voucher_or_credit_accepted",
+              "name": "Voucher Or Credit Accepted",
+              "dataType": "boolean",
+              "description": "Whether the consumer accepted a voucher, credit, or other compensation in lieu of refund.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "consumer_remedy.refund_amount",
+              "name": "Refund Amount",
+              "dataType": "decimal",
+              "description": "Amount determined to be refundable.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "consumer_remedy.refund_due_date",
+              "name": "Refund Due Date",
+              "dataType": "date",
+              "description": "Prompt-refund deadline based on payment method and the applicable trigger.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "consumer_remedy.refund_eligibility_reason",
+              "name": "Refund Eligibility Reason",
+              "dataType": "string",
+              "description": "Cancelled flight, significant change, unprovided ancillary service, or delayed/lost bag basis.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "tarmac_delay_event",
+          "label": "Tarmac Delay Event",
+          "description": "A ground delay with deplaning, care, notification, exception, and reporting evidence.",
+          "group": "Passenger Service",
+          "icon": "clock",
+          "properties": [
+            {
+              "id": "tarmac_delay_event.lavatory_operable",
+              "name": "Lavatory Operable",
+              "dataType": "boolean",
+              "description": "Whether required lavatory facilities remained operable.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "tarmac_delay_event.medical_attention_available",
+              "name": "Medical Attention Available",
+              "dataType": "boolean",
+              "description": "Whether adequate medical attention was available if needed.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "tarmac_delay_event.tarmac_delay_airport_code",
+              "name": "Tarmac Delay Airport Code",
+              "dataType": "string",
+              "description": "U.S. airport at which the delay occurred.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "tarmac_delay_event.tarmac_delay_domestic",
+              "name": "Tarmac Delay Domestic",
+              "dataType": "boolean",
+              "description": "Whether the affected flight is domestic for the applicable deplaning threshold.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "tarmac_delay_event.tarmac_delay_minutes",
+              "name": "Tarmac Delay Minutes",
+              "dataType": "integer",
+              "description": "Elapsed tarmac-delay duration.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "tarmac_delay_event.tarmac_delay_start_at",
+              "name": "Tarmac Delay Start At",
+              "dataType": "string",
+              "description": "Timestamp at which the tarmac delay began.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "tarmac_delay_event.delay_notification_at",
+              "name": "Delay Notification At",
+              "dataType": "string",
+              "description": "Timestamp of the passenger delay-status notification.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "tarmac_delay_event.deplane_exception_authority",
+              "name": "Deplane Exception Authority",
+              "dataType": "string",
+              "description": "Pilot-in-command or air-traffic-control record supporting the exception.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "tarmac_delay_event.deplane_exception_type",
+              "name": "Deplane Exception Type",
+              "dataType": "string",
+              "description": "Safety, security, or air-traffic-control exception relied upon.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "tarmac_delay_event.deplane_opportunity_at",
+              "name": "Deplane Opportunity At",
+              "dataType": "string",
+              "description": "Timestamp when passengers were offered an opportunity to deplane.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "tarmac_delay_event.food_water_provided_at",
+              "name": "Food Water Provided At",
+              "dataType": "string",
+              "description": "Timestamp when adequate food and potable water were provided.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "tarmac_delay_event.tarmac_delay_end_at",
+              "name": "Tarmac Delay End At",
+              "dataType": "string",
+              "description": "Timestamp at which the delay ended.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "dangerous_goods_shipment",
+          "label": "Dangerous Goods Shipment",
+          "description": "A cargo or dangerous-goods consignment with classification, acceptance, handling, screening, and loading controls.",
+          "group": "Cargo and Security",
+          "icon": "package",
+          "properties": [
+            {
+              "id": "dangerous_goods_shipment.acceptance_check_completed",
+              "name": "Acceptance Check Completed",
+              "dataType": "boolean",
+              "description": "Whether the operator dangerous-goods acceptance check was completed.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.air_waybill_number",
+              "name": "Air Waybill Number",
+              "dataType": "string",
+              "description": "Air waybill associated with the consignment.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "dangerous_goods_shipment.cargo_aircraft_only",
+              "name": "Cargo Aircraft Only",
+              "dataType": "boolean",
+              "description": "Whether transport is restricted to cargo aircraft.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.dangerous_goods_shipment_id",
+              "name": "Dangerous Goods Shipment Id",
+              "dataType": "string",
+              "description": "Carrier-controlled shipment identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "dangerous_goods_shipment.emergency_response_information",
+              "name": "Emergency Response Information",
+              "dataType": "string",
+              "description": "Emergency response or handling information available to the operator.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.known_shipper_status",
+              "name": "Known Shipper Status",
+              "dataType": "string",
+              "description": "Applicable known-shipper or cargo-security acceptance status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.package_count",
+              "name": "Package Count",
+              "dataType": "integer",
+              "description": "Number of packages in the consignment.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.packing_instruction",
+              "name": "Packing Instruction",
+              "dataType": "string",
+              "description": "Applicable packing instruction.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.pilot_notification_reference",
+              "name": "Pilot Notification Reference",
+              "dataType": "string",
+              "description": "Notification-to-pilot-in-command reference.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "dangerous_goods_shipment.proper_shipping_name",
+              "name": "Proper Shipping Name",
+              "dataType": "string",
+              "description": "Regulated proper shipping name.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.quantity_per_package",
+              "name": "Quantity Per Package",
+              "dataType": "decimal",
+              "description": "Dangerous-goods quantity per package in the stated unit.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.security_screening_completed_at",
+              "name": "Security Screening Completed At",
+              "dataType": "string",
+              "description": "Timestamp when required cargo screening was completed.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.security_screening_method",
+              "name": "Security Screening Method",
+              "dataType": "string",
+              "description": "Approved cargo-screening method or program reference.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.shipper_name",
+              "name": "Shipper Name",
+              "dataType": "string",
+              "description": "Declared shipper organization.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.un_number",
+              "name": "Un Number",
+              "dataType": "string",
+              "description": "United Nations dangerous-goods number.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "dangerous_goods_shipment.loading_position",
+              "name": "Loading Position",
+              "dataType": "string",
+              "description": "Planned aircraft loading position.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "dangerous_goods_shipment.packing_group",
+              "name": "Packing Group",
+              "dataType": "string",
+              "description": "Applicable packing group.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "regulatory_requirement",
+          "label": "Regulatory Requirement",
+          "description": "A versioned FAA, DOT, TSA, NTSB, or other applicable requirement, citation, applicability rule, and reporting deadline.",
+          "group": "Governance",
+          "icon": "landmark",
+          "properties": [
+            {
+              "id": "regulatory_requirement.compliance_status",
+              "name": "Compliance Status",
+              "dataType": "string",
+              "description": "Maintenance control status with unresolved discrepancies identified.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.regulation_citations",
+              "name": "Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable Part 121 maintenance, recordkeeping, reporting, and return-to-service citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.maintenance_manual_compliance",
+              "name": "Maintenance Manual Compliance",
+              "dataType": "boolean",
+              "description": "Certification that work followed the certificate holder's manual.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.regulator_name",
+              "name": "Regulator Name",
+              "dataType": "string",
+              "description": "FAA, NTSB, TSA, DOT, or other reporting recipient when applicable.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.reporting_deadline",
+              "name": "Reporting Deadline",
+              "dataType": "string",
+              "description": "Applicable external reporting deadline.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        }
+      ],
+      "relationshipTypes": [
+        {
+          "id": "operates",
+          "sourceTypeId": "air_carrier",
+          "targetTypeId": "flight",
+          "label": "OPERATES",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Air Carrier operates Flight.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "assigned_aircraft",
+          "sourceTypeId": "flight",
+          "targetTypeId": "aircraft",
+          "label": "ASSIGNED_AIRCRAFT",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Flight assigned aircraft Aircraft.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "departs_from",
+          "sourceTypeId": "flight",
+          "targetTypeId": "airport",
+          "label": "DEPARTS_FROM",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Flight departs from Airport.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "arrives_at",
+          "sourceTypeId": "flight",
+          "targetTypeId": "airport",
+          "label": "ARRIVES_AT",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Flight arrives at Airport.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "authorized_by",
+          "sourceTypeId": "flight",
+          "targetTypeId": "dispatch_release",
+          "label": "AUTHORIZED_BY",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Flight authorized by Dispatch Release.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "staffed_by",
+          "sourceTypeId": "flight",
+          "targetTypeId": "crew_member",
+          "label": "STAFFED_BY",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Flight staffed by Crew Member.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "governed_by_duty_record",
+          "sourceTypeId": "crew_member",
+          "targetTypeId": "crew_duty_record",
+          "label": "GOVERNED_BY_DUTY_RECORD",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Crew Member governed by duty record Crew Duty Record.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "maintained_through",
+          "sourceTypeId": "aircraft",
+          "targetTypeId": "maintenance_record",
+          "label": "MAINTAINED_THROUGH",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Aircraft maintained through Maintenance Record.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "released_by",
+          "sourceTypeId": "aircraft",
+          "targetTypeId": "airworthiness_release",
+          "label": "RELEASED_BY",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Aircraft released by Airworthiness Release.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "produces_safety_event",
+          "sourceTypeId": "flight",
+          "targetTypeId": "safety_event",
+          "label": "PRODUCES_SAFETY_EVENT",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Flight produces safety event Safety Event.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "carries_journey",
+          "sourceTypeId": "flight",
+          "targetTypeId": "passenger_journey",
+          "label": "CARRIES_JOURNEY",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Flight carries journey Passenger Journey.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "creates_remedy",
+          "sourceTypeId": "passenger_journey",
+          "targetTypeId": "consumer_remedy",
+          "label": "CREATES_REMEDY",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Passenger Journey creates remedy Consumer Remedy.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "experiences_tarmac_delay",
+          "sourceTypeId": "flight",
+          "targetTypeId": "tarmac_delay_event",
+          "label": "EXPERIENCES_TARMAC_DELAY",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Flight experiences tarmac delay Tarmac Delay Event.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "transports",
+          "sourceTypeId": "flight",
+          "targetTypeId": "dangerous_goods_shipment",
+          "label": "TRANSPORTS",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Flight transports Dangerous Goods Shipment.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "flight_subject_to",
+          "sourceTypeId": "flight",
+          "targetTypeId": "regulatory_requirement",
+          "label": "FLIGHT_SUBJECT_TO",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Flight flight subject to Regulatory Requirement.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "maintenance_subject_to",
+          "sourceTypeId": "maintenance_record",
+          "targetTypeId": "regulatory_requirement",
+          "label": "MAINTENANCE_SUBJECT_TO",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Maintenance Record maintenance subject to Regulatory Requirement.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "remedy_subject_to",
+          "sourceTypeId": "consumer_remedy",
+          "targetTypeId": "regulatory_requirement",
+          "label": "REMEDY_SUBJECT_TO",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Consumer Remedy remedy subject to Regulatory Requirement.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "delay_subject_to",
+          "sourceTypeId": "tarmac_delay_event",
+          "targetTypeId": "regulatory_requirement",
+          "label": "DELAY_SUBJECT_TO",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Tarmac Delay Event delay subject to Regulatory Requirement.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "shipment_subject_to",
+          "sourceTypeId": "dangerous_goods_shipment",
+          "targetTypeId": "regulatory_requirement",
+          "label": "SHIPMENT_SUBJECT_TO",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Dangerous Goods Shipment shipment subject to Regulatory Requirement.",
+          "impact": "HIGH"
+        }
+      ],
+      "schemaLayout": {
+        "air_carrier": {
+          "x": 70,
+          "y": 50
+        },
+        "aircraft": {
+          "x": 355,
+          "y": 50
+        },
+        "airport": {
+          "x": 640,
+          "y": 50
+        },
+        "flight": {
+          "x": 70,
+          "y": 195
+        },
+        "dispatch_release": {
+          "x": 355,
+          "y": 195
+        },
+        "crew_member": {
+          "x": 640,
+          "y": 195
+        },
+        "crew_duty_record": {
+          "x": 70,
+          "y": 340
+        },
+        "maintenance_record": {
+          "x": 355,
+          "y": 340
+        },
+        "airworthiness_release": {
+          "x": 640,
+          "y": 340
+        },
+        "safety_event": {
+          "x": 70,
+          "y": 485
+        },
+        "passenger_journey": {
+          "x": 355,
+          "y": 485
+        },
+        "consumer_remedy": {
+          "x": 640,
+          "y": 485
+        },
+        "tarmac_delay_event": {
+          "x": 70,
+          "y": 630
+        },
+        "dangerous_goods_shipment": {
+          "x": 355,
+          "y": 630
+        },
+        "regulatory_requirement": {
+          "x": 640,
+          "y": 630
+        }
+      }
+    },
+    "provenance": {
+      "generatorVersion": "1.0.0",
+      "sourceSchemaCatalogVersion": "2026-07-27",
+      "sourceForms": [
+        {
+          "documentType": "aircraft_maintenance_log",
+          "family": "airline_airworthiness",
+          "schemaVersion": "airline_aircraft_maintenance_log_v1",
+          "fieldCount": 21
+        },
+        {
+          "documentType": "airworthiness_release",
+          "family": "airline_airworthiness",
+          "schemaVersion": "airline_airworthiness_release_v1",
+          "fieldCount": 17
+        },
+        {
+          "documentType": "crew_duty_record",
+          "family": "airline_crew_management",
+          "schemaVersion": "airline_crew_duty_record_v1",
+          "fieldCount": 22
+        },
+        {
+          "documentType": "dangerous_goods_declaration",
+          "family": "airline_cargo_security",
+          "schemaVersion": "airline_dangerous_goods_declaration_v1",
+          "fieldCount": 24
+        },
+        {
+          "documentType": "dispatch_release",
+          "family": "airline_operational_control",
+          "schemaVersion": "airline_dispatch_release_v1",
+          "fieldCount": 25
+        },
+        {
+          "documentType": "passenger_refund_case",
+          "family": "airline_passenger_protection",
+          "schemaVersion": "airline_passenger_refund_case_v1",
+          "fieldCount": 27
+        },
+        {
+          "documentType": "safety_event_report",
+          "family": "airline_safety_management",
+          "schemaVersion": "airline_safety_event_report_v1",
+          "fieldCount": 22
+        },
+        {
+          "documentType": "tarmac_delay_report",
+          "family": "airline_passenger_protection",
+          "schemaVersion": "airline_tarmac_delay_report_v1",
+          "fieldCount": 23
+        }
+      ],
+      "entitySources": {
+        "air_carrier": [
+          "aircraft_maintenance_log",
+          "airworthiness_release",
+          "crew_duty_record",
+          "dangerous_goods_declaration",
+          "dispatch_release",
+          "passenger_refund_case",
+          "safety_event_report",
+          "tarmac_delay_report"
+        ],
+        "aircraft": [
+          "aircraft_maintenance_log",
+          "airworthiness_release",
+          "dangerous_goods_declaration",
+          "dispatch_release",
+          "safety_event_report"
+        ],
+        "airport": [
+          "aircraft_maintenance_log",
+          "dispatch_release",
+          "safety_event_report",
+          "tarmac_delay_report"
+        ],
+        "flight": [
+          "crew_duty_record",
+          "dangerous_goods_declaration",
+          "dispatch_release",
+          "passenger_refund_case",
+          "safety_event_report",
+          "tarmac_delay_report"
+        ],
+        "dispatch_release": [
+          "airworthiness_release",
+          "dispatch_release"
+        ],
+        "crew_member": [
+          "airworthiness_release",
+          "crew_duty_record",
+          "dispatch_release"
+        ],
+        "crew_duty_record": [
+          "crew_duty_record"
+        ],
+        "maintenance_record": [
+          "aircraft_maintenance_log",
+          "airworthiness_release",
+          "safety_event_report"
+        ],
+        "airworthiness_release": [
+          "airworthiness_release"
+        ],
+        "safety_event": [
+          "aircraft_maintenance_log",
+          "dangerous_goods_declaration",
+          "safety_event_report",
+          "tarmac_delay_report"
+        ],
+        "passenger_journey": [
+          "passenger_refund_case",
+          "tarmac_delay_report"
+        ],
+        "consumer_remedy": [
+          "passenger_refund_case"
+        ],
+        "tarmac_delay_event": [
+          "tarmac_delay_report"
+        ],
+        "dangerous_goods_shipment": [
+          "dangerous_goods_declaration"
+        ],
+        "regulatory_requirement": [
+          "aircraft_maintenance_log",
+          "airworthiness_release",
+          "crew_duty_record",
+          "dangerous_goods_declaration",
+          "dispatch_release",
+          "passenger_refund_case",
+          "safety_event_report",
+          "tarmac_delay_report"
+        ]
+      },
+      "propertySources": {
+        "air_carrier.air_carrier_name": [
+          "aircraft_maintenance_log",
+          "airworthiness_release",
+          "crew_duty_record",
+          "dangerous_goods_declaration",
+          "dispatch_release",
+          "passenger_refund_case",
+          "safety_event_report",
+          "tarmac_delay_report"
+        ],
+        "air_carrier.certificate_holder_number": [
+          "dispatch_release"
+        ],
+        "air_carrier.marketing_carrier_name": [
+          "tarmac_delay_report"
+        ],
+        "aircraft.aircraft_tail_number": [
+          "aircraft_maintenance_log",
+          "airworthiness_release",
+          "dangerous_goods_declaration",
+          "dispatch_release",
+          "safety_event_report"
+        ],
+        "aircraft.aircraft_type": [
+          "aircraft_maintenance_log",
+          "dispatch_release"
+        ],
+        "aircraft.airframe_total_hours": [
+          "aircraft_maintenance_log"
+        ],
+        "aircraft.engine_cycles": [
+          "aircraft_maintenance_log"
+        ],
+        "aircraft.cargo_aircraft_only": [
+          "dangerous_goods_declaration"
+        ],
+        "airport.maintenance_station": [
+          "aircraft_maintenance_log"
+        ],
+        "airport.origin_airport_code": [
+          "dispatch_release",
+          "tarmac_delay_report"
+        ],
+        "airport.destination_airport_code": [
+          "dispatch_release",
+          "tarmac_delay_report"
+        ],
+        "airport.alternate_airport_code": [
+          "dispatch_release"
+        ],
+        "airport.airport_code": [
+          "safety_event_report"
+        ],
+        "airport.tarmac_delay_airport_code": [
+          "tarmac_delay_report"
+        ],
+        "flight.flight_number": [
+          "crew_duty_record",
+          "dangerous_goods_declaration",
+          "dispatch_release",
+          "passenger_refund_case",
+          "safety_event_report",
+          "tarmac_delay_report"
+        ],
+        "flight.flight_duty_period_minutes": [
+          "crew_duty_record"
+        ],
+        "flight.flight_time_minutes": [
+          "crew_duty_record"
+        ],
+        "flight.cumulative_flight_time_672_hours": [
+          "crew_duty_record"
+        ],
+        "flight.cumulative_flight_time_365_days": [
+          "crew_duty_record"
+        ],
+        "flight.origin_airport_code": [
+          "dispatch_release",
+          "tarmac_delay_report"
+        ],
+        "flight.destination_airport_code": [
+          "dispatch_release",
+          "tarmac_delay_report"
+        ],
+        "flight.alternate_airport_code": [
+          "dispatch_release"
+        ],
+        "flight.scheduled_departure_at": [
+          "dispatch_release",
+          "passenger_refund_case"
+        ],
+        "flight.route": [
+          "dispatch_release"
+        ],
+        "flight.planned_fuel_quantity": [
+          "dispatch_release"
+        ],
+        "flight.reserve_fuel_minutes": [
+          "dispatch_release"
+        ],
+        "flight.takeoff_weight": [
+          "dispatch_release"
+        ],
+        "flight.weather_summary": [
+          "dispatch_release"
+        ],
+        "flight.notam_summary": [
+          "dispatch_release"
+        ],
+        "flight.scheduled_arrival_at": [
+          "passenger_refund_case"
+        ],
+        "flight.changed_departure_at": [
+          "passenger_refund_case"
+        ],
+        "flight.changed_arrival_at": [
+          "passenger_refund_case"
+        ],
+        "flight.flight_cancelled": [
+          "passenger_refund_case"
+        ],
+        "dispatch_release.pilot_in_command_copy_provided": [
+          "airworthiness_release"
+        ],
+        "dispatch_release.dispatch_release_number": [
+          "dispatch_release"
+        ],
+        "dispatch_release.release_status": [
+          "dispatch_release"
+        ],
+        "dispatch_release.release_amendment_number": [
+          "dispatch_release"
+        ],
+        "dispatch_release.dispatcher_name": [
+          "dispatch_release"
+        ],
+        "dispatch_release.dispatcher_certificate_number": [
+          "dispatch_release"
+        ],
+        "dispatch_release.pilot_in_command_name": [
+          "dispatch_release"
+        ],
+        "dispatch_release.dispatch_authorized_at": [
+          "dispatch_release"
+        ],
+        "dispatch_release.operational_control_exception": [
+          "dispatch_release"
+        ],
+        "crew_member.authorized_mechanic_name": [
+          "airworthiness_release"
+        ],
+        "crew_member.authorized_mechanic_certificate_number": [
+          "airworthiness_release"
+        ],
+        "crew_member.crew_member_id": [
+          "crew_duty_record"
+        ],
+        "crew_member.crew_member_name": [
+          "crew_duty_record"
+        ],
+        "crew_member.crew_member_role": [
+          "crew_duty_record"
+        ],
+        "crew_member.dispatcher_certificate_number": [
+          "dispatch_release"
+        ],
+        "crew_duty_record.duty_start_at": [
+          "crew_duty_record"
+        ],
+        "crew_duty_record.duty_end_at": [
+          "crew_duty_record"
+        ],
+        "crew_duty_record.flight_duty_period_minutes": [
+          "crew_duty_record"
+        ],
+        "crew_duty_record.rest_start_at": [
+          "crew_duty_record"
+        ],
+        "crew_duty_record.rest_end_at": [
+          "crew_duty_record"
+        ],
+        "crew_duty_record.rest_minutes": [
+          "crew_duty_record"
+        ],
+        "crew_duty_record.sleep_opportunity_minutes": [
+          "crew_duty_record"
+        ],
+        "crew_duty_record.acclimated_status": [
+          "crew_duty_record"
+        ],
+        "crew_duty_record.fatigue_reported": [
+          "crew_duty_record"
+        ],
+        "crew_duty_record.fit_for_duty_attestation": [
+          "crew_duty_record"
+        ],
+        "crew_duty_record.duty_extension_minutes": [
+          "crew_duty_record"
+        ],
+        "crew_duty_record.extension_authorization": [
+          "crew_duty_record"
+        ],
+        "maintenance_record.maintenance_record_number": [
+          "aircraft_maintenance_log",
+          "airworthiness_release"
+        ],
+        "maintenance_record.maintenance_station": [
+          "aircraft_maintenance_log"
+        ],
+        "maintenance_record.maintenance_program_reference": [
+          "aircraft_maintenance_log"
+        ],
+        "maintenance_record.discrepancy_description": [
+          "aircraft_maintenance_log"
+        ],
+        "maintenance_record.defect_code": [
+          "aircraft_maintenance_log"
+        ],
+        "maintenance_record.mel_item_number": [
+          "aircraft_maintenance_log"
+        ],
+        "maintenance_record.mel_category": [
+          "aircraft_maintenance_log"
+        ],
+        "maintenance_record.mel_expiration_at": [
+          "aircraft_maintenance_log"
+        ],
+        "maintenance_record.corrective_action": [
+          "aircraft_maintenance_log",
+          "safety_event_report"
+        ],
+        "maintenance_record.inspection_required": [
+          "aircraft_maintenance_log"
+        ],
+        "maintenance_record.inspection_completed_by": [
+          "aircraft_maintenance_log"
+        ],
+        "maintenance_record.service_difficulty_reportable": [
+          "aircraft_maintenance_log",
+          "safety_event_report"
+        ],
+        "maintenance_record.service_difficulty_category": [
+          "aircraft_maintenance_log"
+        ],
+        "maintenance_record.maintenance_completed_at": [
+          "aircraft_maintenance_log"
+        ],
+        "maintenance_record.maintenance_manual_compliance": [
+          "airworthiness_release"
+        ],
+        "maintenance_record.corrective_action_owner": [
+          "safety_event_report"
+        ],
+        "maintenance_record.corrective_action_due_date": [
+          "safety_event_report"
+        ],
+        "airworthiness_release.airworthiness_release_number": [
+          "airworthiness_release"
+        ],
+        "airworthiness_release.required_inspections_completed": [
+          "airworthiness_release"
+        ],
+        "airworthiness_release.known_unairworthy_condition": [
+          "airworthiness_release"
+        ],
+        "airworthiness_release.safe_operation_condition": [
+          "airworthiness_release"
+        ],
+        "airworthiness_release.return_to_service_status": [
+          "airworthiness_release"
+        ],
+        "airworthiness_release.authorized_mechanic_name": [
+          "airworthiness_release"
+        ],
+        "airworthiness_release.authorized_mechanic_certificate_number": [
+          "airworthiness_release"
+        ],
+        "airworthiness_release.release_signature": [
+          "airworthiness_release"
+        ],
+        "airworthiness_release.release_signed_at": [
+          "airworthiness_release"
+        ],
+        "airworthiness_release.record_retain_until": [
+          "airworthiness_release"
+        ],
+        "safety_event.corrective_action": [
+          "aircraft_maintenance_log",
+          "safety_event_report"
+        ],
+        "safety_event.hazard_class": [
+          "dangerous_goods_declaration"
+        ],
+        "safety_event.subsidiary_risk": [
+          "dangerous_goods_declaration"
+        ],
+        "safety_event.safety_event_id": [
+          "safety_event_report"
+        ],
+        "safety_event.safety_event_type": [
+          "safety_event_report"
+        ],
+        "safety_event.incident_occurred_at": [
+          "safety_event_report"
+        ],
+        "safety_event.incident_description": [
+          "safety_event_report"
+        ],
+        "safety_event.hazard_description": [
+          "safety_event_report"
+        ],
+        "safety_event.risk_severity": [
+          "safety_event_report"
+        ],
+        "safety_event.risk_likelihood": [
+          "safety_event_report"
+        ],
+        "safety_event.risk_acceptability": [
+          "safety_event_report"
+        ],
+        "safety_event.immediate_action": [
+          "safety_event_report"
+        ],
+        "safety_event.corrective_action_owner": [
+          "safety_event_report"
+        ],
+        "safety_event.corrective_action_due_date": [
+          "safety_event_report"
+        ],
+        "safety_event.sms_assurance_status": [
+          "safety_event_report"
+        ],
+        "safety_event.incident_resolution": [
+          "tarmac_delay_report"
+        ],
+        "passenger_journey.passenger_journey_id": [
+          "passenger_refund_case"
+        ],
+        "passenger_journey.itinerary_type": [
+          "passenger_refund_case"
+        ],
+        "passenger_journey.ticket_number": [
+          "passenger_refund_case"
+        ],
+        "passenger_journey.reservation_number": [
+          "passenger_refund_case"
+        ],
+        "passenger_journey.class_of_service_changed": [
+          "passenger_refund_case"
+        ],
+        "passenger_journey.accessibility_feature_unavailable": [
+          "passenger_refund_case"
+        ],
+        "passenger_journey.checked_bag_fee": [
+          "passenger_refund_case"
+        ],
+        "passenger_journey.checked_bag_delivered_at": [
+          "passenger_refund_case"
+        ],
+        "passenger_journey.ancillary_service_name": [
+          "passenger_refund_case"
+        ],
+        "passenger_journey.ancillary_service_fee": [
+          "passenger_refund_case"
+        ],
+        "passenger_journey.passenger_notification_summary": [
+          "tarmac_delay_report"
+        ],
+        "consumer_remedy.merchant_of_record": [
+          "passenger_refund_case"
+        ],
+        "consumer_remedy.payment_method": [
+          "passenger_refund_case"
+        ],
+        "consumer_remedy.alternative_transportation_accepted": [
+          "passenger_refund_case"
+        ],
+        "consumer_remedy.voucher_or_credit_accepted": [
+          "passenger_refund_case"
+        ],
+        "consumer_remedy.refund_eligibility_reason": [
+          "passenger_refund_case"
+        ],
+        "consumer_remedy.refund_amount": [
+          "passenger_refund_case"
+        ],
+        "consumer_remedy.refund_due_date": [
+          "passenger_refund_case"
+        ],
+        "consumer_remedy.refund_status": [
+          "passenger_refund_case"
+        ],
+        "tarmac_delay_event.tarmac_delay_airport_code": [
+          "tarmac_delay_report"
+        ],
+        "tarmac_delay_event.tarmac_delay_domestic": [
+          "tarmac_delay_report"
+        ],
+        "tarmac_delay_event.tarmac_delay_start_at": [
+          "tarmac_delay_report"
+        ],
+        "tarmac_delay_event.tarmac_delay_end_at": [
+          "tarmac_delay_report"
+        ],
+        "tarmac_delay_event.tarmac_delay_minutes": [
+          "tarmac_delay_report"
+        ],
+        "tarmac_delay_event.deplane_opportunity_at": [
+          "tarmac_delay_report"
+        ],
+        "tarmac_delay_event.deplane_exception_type": [
+          "tarmac_delay_report"
+        ],
+        "tarmac_delay_event.deplane_exception_authority": [
+          "tarmac_delay_report"
+        ],
+        "tarmac_delay_event.food_water_provided_at": [
+          "tarmac_delay_report"
+        ],
+        "tarmac_delay_event.lavatory_operable": [
+          "tarmac_delay_report"
+        ],
+        "tarmac_delay_event.medical_attention_available": [
+          "tarmac_delay_report"
+        ],
+        "tarmac_delay_event.delay_notification_at": [
+          "tarmac_delay_report"
+        ],
+        "dangerous_goods_shipment.dangerous_goods_shipment_id": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.air_waybill_number": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.shipper_name": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.known_shipper_status": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.security_screening_method": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.security_screening_completed_at": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.un_number": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.proper_shipping_name": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.packing_group": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.package_count": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.quantity_per_package": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.packing_instruction": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.cargo_aircraft_only": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.acceptance_check_completed": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.loading_position": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.pilot_notification_reference": [
+          "dangerous_goods_declaration"
+        ],
+        "dangerous_goods_shipment.emergency_response_information": [
+          "dangerous_goods_declaration"
+        ],
+        "regulatory_requirement.regulation_citations": [
+          "aircraft_maintenance_log",
+          "airworthiness_release",
+          "crew_duty_record",
+          "dangerous_goods_declaration",
+          "dispatch_release",
+          "passenger_refund_case",
+          "safety_event_report",
+          "tarmac_delay_report"
+        ],
+        "regulatory_requirement.compliance_status": [
+          "aircraft_maintenance_log",
+          "airworthiness_release",
+          "crew_duty_record",
+          "dangerous_goods_declaration",
+          "dispatch_release",
+          "passenger_refund_case",
+          "safety_event_report",
+          "tarmac_delay_report"
+        ],
+        "regulatory_requirement.maintenance_manual_compliance": [
+          "airworthiness_release"
+        ],
+        "regulatory_requirement.regulator_name": [
+          "safety_event_report",
+          "tarmac_delay_report"
+        ],
+        "regulatory_requirement.reporting_deadline": [
+          "safety_event_report",
+          "tarmac_delay_report"
+        ]
+      },
+      "unmappedFields": [],
+      "coverage": {
+        "formCount": 8,
+        "sourceFieldCount": 181,
+        "mappedFieldCount": 181,
+        "unmappedFieldCount": 0,
+        "mappedPercent": 100
+      }
+    }
+  },
+  {
+    "ontology": {
       "id": "energy-ontology",
       "workspaceId": "workspace-energy",
       "name": "Energy Ontology",

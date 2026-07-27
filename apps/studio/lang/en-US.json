@@ -870,6 +870,8 @@
   "wizard.scope.recommended": "Recommended",
   "wizard.scope.selected": "{selected} of {total} concepts selected",
   "wizard.sharedOntologyDetail": "Use the active industry ontology as this contract’s semantic foundation.",
+  "wizard.starter.airline": "Airline",
+  "wizard.starter.airlineDetail": "Flights, aircraft, dispatch, crew, maintenance, safety, and passenger obligations.",
   "wizard.starter.blank": "Blank canvas",
   "wizard.starter.blankDetail": "Start only with your competency questions.",
   "wizard.starter.counts": "{types, plural, one {# type} other {# types}} · {relations, plural, one {# relation} other {# relations}}",

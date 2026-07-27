@@ -1,5 +1,17 @@
 [
   {
+    "industry": "airline",
+    "ontologyId": "airline-ontology",
+    "entities": 15,
+    "relationships": 19,
+    "formCount": 8,
+    "sourceFieldCount": 181,
+    "mappedFieldCount": 181,
+    "unmappedFieldCount": 0,
+    "mappedPercent": 100,
+    "unmappedFields": []
+  },
+  {
     "industry": "energy",
     "ontologyId": "energy-ontology",
     "entities": 4,

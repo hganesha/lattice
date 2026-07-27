@@ -1,0 +1,30 @@
+{
+  "document_type": "safety_event_report",
+  "vertical": "airline",
+  "family": "airline_safety_management",
+  "schema_version": "airline_safety_event_report_v1",
+  "fields": [
+    { "name": "air_carrier_name", "type": "string", "required": true, "description": "Air carrier responsible for the safety-management process." },
+    { "name": "safety_event_id", "type": "string", "required": true, "description": "Unique carrier safety-event identifier." },
+    { "name": "safety_event_type", "type": "string", "required": true, "description": "Hazard report, incident, accident, service difficulty, audit finding, or other safety-event class." },
+    { "name": "flight_number", "type": "string", "required": false, "description": "Flight number associated with the event." },
+    { "name": "aircraft_tail_number", "type": "string", "required": false, "description": "Aircraft associated with the event." },
+    { "name": "airport_code", "type": "string", "required": false, "description": "Airport or station associated with the event." },
+    { "name": "incident_occurred_at", "type": "string", "required": true, "description": "Timestamp of the occurrence or detection." },
+    { "name": "incident_description", "type": "string", "required": true, "description": "Factual description of the reported event." },
+    { "name": "hazard_description", "type": "string", "required": true, "description": "Identified condition that could cause or contribute to an undesired event." },
+    { "name": "risk_severity", "type": "string", "required": true, "description": "Assessed consequence severity under the approved SMS matrix." },
+    { "name": "risk_likelihood", "type": "string", "required": true, "description": "Assessed likelihood under the approved SMS matrix." },
+    { "name": "risk_acceptability", "type": "string", "required": true, "description": "Acceptable, acceptable with mitigation, or unacceptable risk disposition." },
+    { "name": "immediate_action", "type": "string", "required": false, "description": "Immediate containment or safety action taken." },
+    { "name": "corrective_action", "type": "string", "required": false, "description": "Approved corrective action or risk control." },
+    { "name": "corrective_action_owner", "type": "string", "required": false, "description": "Accountable owner for the corrective action." },
+    { "name": "corrective_action_due_date", "type": "date", "required": false, "description": "Target completion date for the corrective action." },
+    { "name": "sms_assurance_status", "type": "string", "required": true, "description": "Monitoring and effectiveness-verification status." },
+    { "name": "service_difficulty_reportable", "type": "boolean", "required": true, "description": "Whether Part 121 service-difficulty reporting criteria apply." },
+    { "name": "regulator_name", "type": "string", "required": false, "description": "FAA, NTSB, TSA, DOT, or other reporting recipient when applicable." },
+    { "name": "reporting_deadline", "type": "string", "required": false, "description": "Applicable external reporting deadline." },
+    { "name": "regulation_citations", "type": "string", "required": true, "description": "Applicable current Part 5, Part 121, NTSB, or other citations." },
+    { "name": "compliance_status", "type": "string", "required": true, "description": "Reporting and risk-control readiness status with gaps identified." }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "document_type": "tarmac_delay_report",
+  "vertical": "airline",
+  "family": "airline_passenger_protection",
+  "schema_version": "airline_tarmac_delay_report_v1",
+  "fields": [
+    { "name": "air_carrier_name", "type": "string", "required": true, "description": "Operating covered carrier." },
+    { "name": "marketing_carrier_name", "type": "string", "required": false, "description": "Marketing carrier when different from the operating carrier." },
+    { "name": "flight_number", "type": "string", "required": true, "description": "Flight number experiencing the delay." },
+    { "name": "origin_airport_code", "type": "string", "required": true, "description": "Originally scheduled origin airport." },
+    { "name": "destination_airport_code", "type": "string", "required": true, "description": "Originally scheduled destination airport." },
+    { "name": "tarmac_delay_airport_code", "type": "string", "required": true, "description": "U.S. airport at which the delay occurred." },
+    { "name": "tarmac_delay_domestic", "type": "boolean", "required": true, "description": "Whether the affected flight is domestic for the applicable deplaning threshold." },
+    { "name": "tarmac_delay_start_at", "type": "string", "required": true, "description": "Timestamp at which the tarmac delay began." },
+    { "name": "tarmac_delay_end_at", "type": "string", "required": false, "description": "Timestamp at which the delay ended." },
+    { "name": "tarmac_delay_minutes", "type": "integer", "required": true, "description": "Elapsed tarmac-delay duration." },
+    { "name": "deplane_opportunity_at", "type": "string", "required": false, "description": "Timestamp when passengers were offered an opportunity to deplane." },
+    { "name": "deplane_exception_type", "type": "string", "required": false, "description": "Safety, security, or air-traffic-control exception relied upon." },
+    { "name": "deplane_exception_authority", "type": "string", "required": false, "description": "Pilot-in-command or air-traffic-control record supporting the exception." },
+    { "name": "food_water_provided_at", "type": "string", "required": false, "description": "Timestamp when adequate food and potable water were provided." },
+    { "name": "lavatory_operable", "type": "boolean", "required": true, "description": "Whether required lavatory facilities remained operable." },
+    { "name": "medical_attention_available", "type": "boolean", "required": true, "description": "Whether adequate medical attention was available if needed." },
+    { "name": "delay_notification_at", "type": "string", "required": false, "description": "Timestamp of the passenger delay-status notification." },
+    { "name": "passenger_notification_summary", "type": "string", "required": false, "description": "Summary of delay and deplaning notifications given to passengers." },
+    { "name": "incident_resolution", "type": "string", "required": true, "description": "How the tarmac delay was resolved." },
+    { "name": "reporting_deadline", "type": "date", "required": false, "description": "Deadline for the written DOT report when the reporting threshold is exceeded." },
+    { "name": "regulator_name", "type": "string", "required": true, "description": "DOT Office of Aviation Consumer Protection or other recipient." },
+    { "name": "regulation_citations", "type": "string", "required": true, "description": "Applicable citations including 14 CFR 259.4." },
+    { "name": "compliance_status", "type": "string", "required": true, "description": "Time-sensitive care, deplaning, and reporting status with exceptions separated." }
+  ]
+}
