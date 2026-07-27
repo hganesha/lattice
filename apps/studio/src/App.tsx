@@ -87,7 +87,7 @@ export function App() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [welcomeOpen, setWelcomeOpen] = useState(() => localStorage.getItem(WELCOME_DISMISSED_KEY) !== 'true')
-  const [pendingNavigation, setPendingNavigation] = useState<{ kind: 'CONTRACT' | 'WORKSPACE'; id: string }>()
+  const [pendingNavigation, setPendingNavigation] = useState<{ kind: 'CONTRACT' | 'WORKSPACE'; id: string; mode?: StudioMode }>()
   const [shareState, setShareState] = useState<'IDLE' | 'COPIED' | 'FAILED'>('IDLE')
   const [saveState, setSaveState] = useState<'IDLE' | 'SAVING' | 'FAILED'>('IDLE')
   const [apiHealth, setApiHealth] = useState<{ status: 'CHECKING' | 'HEALTHY' | 'OFFLINE'; latencyMs?: number }>({ status: 'CHECKING' })
@@ -151,9 +151,9 @@ export function App() {
     return () => { controller.abort(); window.clearInterval(interval) }
   }, [])
 
-  async function selectContract(contractId: string, skipDirtyCheck = false) {
+  async function selectContract(contractId: string, skipDirtyCheck = false, mode?: StudioMode) {
     if (!skipDirtyCheck && draftDirty) {
-      setPendingNavigation({ kind: 'CONTRACT', id: contractId })
+      setPendingNavigation({ kind: 'CONTRACT', id: contractId, ...(mode ? { mode } : {}) })
       return
     }
     const response = await fetch(`${API_URL}/v1/contracts/${contractId}`, { headers: apiAuthHeaders() })
@@ -163,6 +163,7 @@ export function App() {
     setDraftDirty(false)
     localStorage.setItem(ACTIVE_CONTRACT_KEY, entry.contractId)
     localStorage.setItem('lattice:contract-draft', JSON.stringify(entry.draft))
+    if (mode) setStudioMode(mode)
   }
 
   async function selectWorkspace(workspaceId: string, skipDirtyCheck = false) {
@@ -290,16 +291,15 @@ export function App() {
   }
 
   async function exploreExample(contractId: string) {
-    await selectContract(contractId, true)
+    await selectContract(contractId, true, 'runtime')
     closeWelcome()
-    setStudioMode('runtime')
   }
 
   function confirmNavigation() {
     const pending = pendingNavigation
     setPendingNavigation(undefined)
     if (!pending) return
-    if (pending.kind === 'CONTRACT') void selectContract(pending.id, true)
+    if (pending.kind === 'CONTRACT') void selectContract(pending.id, true, pending.mode)
     else void selectWorkspace(pending.id, true)
   }
 
@@ -353,7 +353,7 @@ export function App() {
         </section>
 
         <Suspense fallback={<StudioLoading label={t(activeNavigation.label)} />}>
-          {studioMode === 'ontology' ? workspace ? <WorkspaceOntologyStudio key={workspace.id} workspace={workspace} seedContract={contract} onWorkspaceDraftChange={setWorkspace} onDirtyChange={setDraftDirty} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'ontology-bindings' ? workspace ? <SourceBindingStudio contract={workspaceBindingContract(workspace, contract)} scope="ONTOLOGY" workspaceId={workspace.id} onChange={(next) => { setWorkspace((current) => current ? { ...current, ontology: { ...current.ontology, bindings: next.bindings } } : current); setDraftDirty(true) }} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'contracts' ? <ContractsStudio contracts={workspaceContracts} activeContractId={contract.id} onSelect={(id) => void selectContract(id)} onCreate={() => setWizardOpen(true)} /> : studioMode === 'runtime-approvals' ? <RuntimeApprovalStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenReviews={() => setStudioMode('reviews')} onOpenAssurance={() => setStudioMode('assurance')} onManageRelease={() => setStudioMode('releases')} /> : studioMode === 'bindings' ? <SourceBindingStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : studioMode === 'assurance' ? <AssuranceStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'policies' ? <PolicyStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'reviews' ? <ReviewQueueStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'evidence' ? <EvidenceRegistryStudio contract={contract} /> : studioMode === 'releases' ? <ReleaseManagementStudio contract={contract} onRegistryChange={(entry) => void handleRegistryChange(entry)} onManageDraft={() => setStudioMode('contracts')} /> : <RuntimeStudio key={contract.id} contract={contract} runtimeStatus={runtimeStatus} onChange={setContract} onDirtyChange={setDraftDirty} onManageRelease={() => setStudioMode('releases')} onOpenAssurance={() => setStudioMode('assurance')} />}
+          {studioMode === 'ontology' ? workspace ? <WorkspaceOntologyStudio key={workspace.id} workspace={workspace} seedContract={contract} onWorkspaceDraftChange={setWorkspace} onDirtyChange={setDraftDirty} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'ontology-bindings' ? workspace ? <SourceBindingStudio contract={workspaceBindingContract(workspace, contract)} scope="ONTOLOGY" workspaceId={workspace.id} onChange={(next) => { setWorkspace((current) => current ? { ...current, ontology: { ...current.ontology, bindings: next.bindings } } : current); setDraftDirty(true) }} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'contracts' ? <ContractsStudio contracts={workspaceContracts} activeContractId={contract.id} onSelect={(id) => void selectContract(id, false, 'runtime')} onCreate={() => setWizardOpen(true)} /> : studioMode === 'runtime-approvals' ? <RuntimeApprovalStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenReviews={() => setStudioMode('reviews')} onOpenAssurance={() => setStudioMode('assurance')} onManageRelease={() => setStudioMode('releases')} /> : studioMode === 'bindings' ? <SourceBindingStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : studioMode === 'assurance' ? <AssuranceStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'policies' ? <PolicyStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'reviews' ? <ReviewQueueStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'evidence' ? <EvidenceRegistryStudio contract={contract} /> : studioMode === 'releases' ? <ReleaseManagementStudio contract={contract} onRegistryChange={(entry) => void handleRegistryChange(entry)} onManageDraft={() => setStudioMode('contracts')} /> : <RuntimeStudio key={contract.id} contract={contract} runtimeStatus={runtimeStatus} onChange={setContract} onDirtyChange={setDraftDirty} onManageRelease={() => setStudioMode('releases')} onOpenAssurance={() => setStudioMode('assurance')} />}
         </Suspense>
       </main>
       <Suspense fallback={null}>
