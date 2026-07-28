@@ -78,12 +78,13 @@ Release Management separates immutable history, the mutable working draft, and r
 
 ## Why this is cross-industry
 
-The core types do not encode finance concepts. `ContextContract`, `OperationDefinition`, `EvidenceRecord`, `GuardrailPolicy`, and `SignedExecutionPlan` are reusable. The registry composes the published Core foundation into eight generated industry workspaces; airline, financial-services, and energy also include published decision examples:
+The core types do not encode finance concepts. `ContextContract`, `OperationDefinition`, `EvidenceRecord`, `GuardrailPolicy`, and `SignedExecutionPlan` are reusable. The registry composes the published Core foundation into nine generated industry workspaces; airline, telecommunications, financial-services, and energy also include published decision examples:
 
 ```text
 core runtime
 ├── Core / Person, Organization, Agent, Document, Event, Location, Asset, Policy
 ├── airline / dispatch release, return-to-service, and passenger protection (published reference contracts)
+├── telecommunications / number porting, outage and 911 reporting, and CPNI protection (published reference contracts)
 ├── financial services / counterparty exposure (implemented example)
 ├── healthcare / generated ontology pack
 ├── energy / grid outage response (published end-to-end example)

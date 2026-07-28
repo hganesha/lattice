@@ -1,0 +1,30 @@
+{
+  "document_type": "number_port_order",
+  "vertical": "telecommunications",
+  "family": "telco_numbering",
+  "schema_version": "telco_number_port_order_v1",
+  "fields": [
+    { "name": "number_port_order_id", "type": "string", "required": true, "description": "Unique port-order identifier." },
+    { "name": "ported_telephone_number", "type": "string", "required": true, "description": "Telephone number requested for porting." },
+    { "name": "number_port_account_number", "type": "string", "required": true, "description": "Customer account number included in the simple port request." },
+    { "name": "number_port_zip_code", "type": "string", "required": true, "description": "ZIP code included in the simple port request." },
+    { "name": "number_port_company_code", "type": "string", "required": true, "description": "Company code included in the simple port request." },
+    { "name": "number_port_new_network_service_provider", "type": "string", "required": true, "description": "New network service provider for the port." },
+    { "name": "number_port_desired_due_date", "type": "string", "required": true, "description": "Requested port completion date." },
+    { "name": "number_port_purchase_order_number", "type": "string", "required": true, "description": "Purchase order number included in the port request." },
+    { "name": "number_port_version", "type": "string", "required": true, "description": "Port-order version." },
+    { "name": "number_port_direction_indicator", "type": "string", "required": true, "description": "Port-in or port-out direction indicator." },
+    { "name": "number_port_customer_carrier_name_abbreviation", "type": "string", "required": true, "description": "Customer carrier-name abbreviation." },
+    { "name": "number_port_requisition_type_status", "type": "string", "required": true, "description": "Requisition type and status." },
+    { "name": "number_port_activity", "type": "string", "required": true, "description": "Port-order activity code." },
+    { "name": "number_port_initiator_telephone_number", "type": "string", "required": true, "description": "Telephone number of the port initiator." },
+    { "name": "number_port_agency_authority_status", "type": "string", "required": true, "description": "Agency-authority status included in the request." },
+    { "name": "number_port_passcode", "type": "string", "required": false, "description": "Optional customer-assigned passcode." },
+    { "name": "number_port_interval_class", "type": "string", "required": true, "description": "Simple, non-simple, waiver, or customer-requested interval class." },
+    { "name": "number_port_lsr_received_at", "type": "string", "required": true, "description": "Timestamp when the complete Local Service Request was received." },
+    { "name": "number_port_foc_at", "type": "string", "required": false, "description": "Firm order commitment timestamp." },
+    { "name": "number_port_completed_at", "type": "string", "required": false, "description": "Actual port completion timestamp." },
+    { "name": "number_port_regulation_citations", "type": "string", "required": true, "description": "Applicable 47 CFR Part 52 citations." },
+    { "name": "number_port_compliance_status", "type": "string", "required": true, "description": "Evidence-backed validation and timeliness status." }
+  ]
+}

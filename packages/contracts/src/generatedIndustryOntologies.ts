@@ -4,6 +4,3364 @@ import type { GeneratedIndustryOntology } from './types.js'
 export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
   {
     "ontology": {
+      "id": "telecommunications-ontology",
+      "workspaceId": "workspace-telecommunications",
+      "name": "Telecommunications / NVO Ontology",
+      "description": "Shared telecommunications and network virtual operator semantics for subscribers, services, host-network access, numbering, service fulfillment, usage and charging, service assurance, emergency communications, privacy, and regulatory compliance.",
+      "domain": "telecommunications",
+      "version": "0.1.0",
+      "digest": "sha256:b6d3b8270f1d737c11a4e5af6d646bc9888323811f4336966e4bac218f791bab",
+      "releaseStatus": "UNPUBLISHED",
+      "entityTypes": [
+        {
+          "id": "communications_provider",
+          "label": "Communications Provider",
+          "description": "A facilities-based carrier, mobile virtual network operator, mobile virtual network enabler, reseller, interconnected VoIP provider, or other communications service provider.",
+          "group": "Provider Ecosystem",
+          "icon": "organization",
+          "properties": [
+            {
+              "id": "communications_provider.service_provider_legal_name",
+              "name": "Service Provider Legal Name",
+              "dataType": "string",
+              "description": "Legal name of the communications service provider.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "communications_provider.number_port_customer_carrier_name_abbreviation",
+              "name": "Number Port Customer Carrier Name Abbreviation",
+              "dataType": "string",
+              "description": "Customer carrier-name abbreviation.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "communications_provider.number_port_new_network_service_provider",
+              "name": "Number Port New Network Service Provider",
+              "dataType": "string",
+              "description": "New network service provider for the port.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "communications_provider.provider_brand_name",
+              "name": "Provider Brand Name",
+              "dataType": "string",
+              "description": "Customer-facing service brand.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "communications_provider.provider_compliance_status",
+              "name": "Provider Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed provider compliance posture.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "communications_provider.provider_emergency_service_role",
+              "name": "Provider Emergency Service Role",
+              "dataType": "string",
+              "description": "Provider responsibility for originating, routing, location, or reseller 911 obligations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "communications_provider.provider_regulation_citations",
+              "name": "Provider Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable federal, state, and industry requirements.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "communications_provider.provider_service_footprint",
+              "name": "Provider Service Footprint",
+              "dataType": "string",
+              "description": "States, territories, rate centers, or coverage areas served.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "communications_provider.provider_type",
+              "name": "Provider Type",
+              "dataType": "string",
+              "description": "Facilities-based carrier, NVO, MVNO, MVNE, reseller, or interconnected VoIP role.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "communications_provider.host_network_provider_name",
+              "name": "Host Network Provider Name",
+              "dataType": "string",
+              "description": "Facilities-based host network supporting the virtual operator.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "communications_provider.provider_fcc_registration_number",
+              "name": "Provider Fcc Registration Number",
+              "dataType": "string",
+              "description": "FCC Registration Number when applicable.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "communications_provider.provider_operating_company_number",
+              "name": "Provider Operating Company Number",
+              "dataType": "string",
+              "description": "Operating Company Number used in industry routing and numbering processes.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "communications_provider.provider_robocall_mitigation_database_id",
+              "name": "Provider Robocall Mitigation Database Id",
+              "dataType": "string",
+              "description": "Robocall Mitigation Database filing identifier.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "communications_provider.stir_shaken_service_provider_code",
+              "name": "Stir Shaken Service Provider Code",
+              "dataType": "string",
+              "description": "Service Provider Code used for caller-ID authentication.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "wholesale_network_agreement",
+          "label": "Wholesale Network Agreement",
+          "description": "The governed commercial and technical agreement under which a virtual operator uses a host provider network, numbering, roaming, interconnection, or support capability.",
+          "group": "Provider Ecosystem",
+          "icon": "handshake",
+          "properties": [
+            {
+              "id": "wholesale_network_agreement.robocall_traceback_response_sla_hours",
+              "name": "Robocall Traceback Response Sla Hours",
+              "dataType": "integer",
+              "description": "Provider response target for traceback requests.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "wholesale_network_agreement.usage_roaming_indicator",
+              "name": "Usage Roaming Indicator",
+              "dataType": "boolean",
+              "description": "Whether the event occurred while roaming.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "wholesale_network_agreement.host_network_provider_name",
+              "name": "Host Network Provider Name",
+              "dataType": "string",
+              "description": "Facilities-based host network supporting the virtual operator.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "wholesale_network_agreement.emergency_host_network_dependency",
+              "name": "Emergency Host Network Dependency",
+              "dataType": "string",
+              "description": "Host-network capability relied on by the reseller.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "wholesale_network_agreement.interconnection_settlement_model",
+              "name": "Interconnection Settlement Model",
+              "dataType": "string",
+              "description": "Commercial settlement model for interconnection and roaming.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "wholesale_network_agreement.wholesale_agreement_effective_date",
+              "name": "Wholesale Agreement Effective Date",
+              "dataType": "string",
+              "description": "Effective date of the wholesale agreement.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "wholesale_network_agreement.wholesale_agreement_id",
+              "name": "Wholesale Agreement Id",
+              "dataType": "string",
+              "description": "Identifier of the controlling wholesale network agreement.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "wholesale_network_agreement.wholesale_sla_profile",
+              "name": "Wholesale Sla Profile",
+              "dataType": "string",
+              "description": "Contractual service-level profile for host-network services.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "subscriber",
+          "label": "Subscriber",
+          "description": "A privacy-minimized person or organization receiving communications service.",
+          "group": "Customer",
+          "icon": "person",
+          "properties": [
+            {
+              "id": "subscriber.customer_account_number",
+              "name": "Customer Account Number",
+              "dataType": "string",
+              "description": "Account to which the authorization applies.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "subscriber.number_port_customer_carrier_name_abbreviation",
+              "name": "Number Port Customer Carrier Name Abbreviation",
+              "dataType": "string",
+              "description": "Customer carrier-name abbreviation.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "subscriber.robocall_customer_due_diligence_status",
+              "name": "Robocall Customer Due Diligence Status",
+              "dataType": "string",
+              "description": "Know-your-customer or upstream-provider diligence status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "subscriber.subscriber_identity_verification_status",
+              "name": "Subscriber Identity Verification Status",
+              "dataType": "string",
+              "description": "Result of the applicable identity-verification process.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "subscriber.subscriber_reference",
+              "name": "Subscriber Reference",
+              "dataType": "string",
+              "description": "Tokenized subscriber reference; direct identity data is excluded from analytical contexts.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "subscriber.subscriber_type",
+              "name": "Subscriber Type",
+              "dataType": "string",
+              "description": "Consumer, small business, enterprise, government, or wholesale subscriber.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "subscriber.privacy_customer_notification_at",
+              "name": "Privacy Customer Notification At",
+              "dataType": "string",
+              "description": "Timestamp of an applicable account-change notification.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "customer_account",
+          "label": "Customer Account",
+          "description": "The governed billing and service relationship for one or more subscriptions.",
+          "group": "Customer",
+          "icon": "account",
+          "properties": [
+            {
+              "id": "customer_account.customer_account_number",
+              "name": "Customer Account Number",
+              "dataType": "string",
+              "description": "Account to which the authorization applies.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "customer_account.account_billing_cycle",
+              "name": "Account Billing Cycle",
+              "dataType": "string",
+              "description": "Billing-cycle assignment.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "customer_account.account_compliance_status",
+              "name": "Account Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed account-governance status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "customer_account.account_created_at",
+              "name": "Account Created At",
+              "dataType": "string",
+              "description": "Timestamp when the governed account was created.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "customer_account.account_regulation_citations",
+              "name": "Account Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable privacy and consumer-protection citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "customer_account.account_status",
+              "name": "Account Status",
+              "dataType": "string",
+              "description": "Pending, active, suspended, delinquent, closed, or migrated account state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "customer_account.number_port_account_number",
+              "name": "Number Port Account Number",
+              "dataType": "string",
+              "description": "Customer account number included in the simple port request.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "customer_account.account_credit_class",
+              "name": "Account Credit Class",
+              "dataType": "string",
+              "description": "Provider-defined credit treatment without source credit-report detail.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "service_subscription",
+          "label": "Service Subscription",
+          "description": "An active or pending voice, messaging, broadband, IoT, or bundled service instance.",
+          "group": "Product and Service",
+          "icon": "network",
+          "properties": [
+            {
+              "id": "service_subscription.service_subscription_id",
+              "name": "Service Subscription Id",
+              "dataType": "string",
+              "description": "Subscription associated with provisioning or test evidence.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "service_subscription.emergency_911_service_type",
+              "name": "Emergency 911 Service Type",
+              "dataType": "string",
+              "description": "Voice 911, text-to-911, real-time text, or equivalent service.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_subscription.plan_service_type",
+              "name": "Plan Service Type",
+              "dataType": "string",
+              "description": "Mobile, fixed, voice, data, messaging, IoT, or bundle.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_subscription.service_status",
+              "name": "Service Status",
+              "dataType": "string",
+              "description": "Pending, active, suspended, terminated, or porting state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_subscription.service_type",
+              "name": "Service Type",
+              "dataType": "string",
+              "description": "Voice, messaging, mobile broadband, fixed broadband, IoT, or bundle.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_subscription.service_activation_at",
+              "name": "Service Activation At",
+              "dataType": "string",
+              "description": "Service activation timestamp.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_subscription.service_termination_at",
+              "name": "Service Termination At",
+              "dataType": "string",
+              "description": "Service termination timestamp.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "service_plan",
+          "label": "Service Plan",
+          "description": "A marketed product offering with price, allowance, performance, network-management, and eligibility terms.",
+          "group": "Product and Service",
+          "icon": "product",
+          "properties": [
+            {
+              "id": "service_plan.service_plan_id",
+              "name": "Service Plan Id",
+              "dataType": "string",
+              "description": "Plan being provisioned or changed.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "service_plan.plan_label_effective_date",
+              "name": "Plan Label Effective Date",
+              "dataType": "string",
+              "description": "Effective date of the consumer-facing disclosure.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.plan_monthly_price",
+              "name": "Plan Monthly Price",
+              "dataType": "decimal",
+              "description": "Recurring monthly price before disclosed taxes and fees.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.plan_network_management_disclosure",
+              "name": "Plan Network Management Disclosure",
+              "dataType": "string",
+              "description": "Reference to applicable network-management practices.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.plan_privacy_policy_reference",
+              "name": "Plan Privacy Policy Reference",
+              "dataType": "string",
+              "description": "Reference to the applicable privacy policy.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "service_plan.plan_regulation_citations",
+              "name": "Plan Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable broadband transparency requirements.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.plan_service_type",
+              "name": "Plan Service Type",
+              "dataType": "string",
+              "description": "Mobile, fixed, voice, data, messaging, IoT, or bundle.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.product_offering_version",
+              "name": "Product Offering Version",
+              "dataType": "string",
+              "description": "Version of the marketed offering.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.service_plan_name",
+              "name": "Service Plan Name",
+              "dataType": "string",
+              "description": "Customer-facing plan name.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.plan_advertised_speed",
+              "name": "Plan Advertised Speed",
+              "dataType": "decimal",
+              "description": "Advertised or typical service speed.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.plan_data_allowance",
+              "name": "Plan Data Allowance",
+              "dataType": "decimal",
+              "description": "Included data allowance in the stated unit.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.plan_introductory_period_months",
+              "name": "Plan Introductory Period Months",
+              "dataType": "integer",
+              "description": "Duration of the introductory price.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.plan_introductory_price",
+              "name": "Plan Introductory Price",
+              "dataType": "decimal",
+              "description": "Introductory price when offered.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.plan_latency",
+              "name": "Plan Latency",
+              "dataType": "decimal",
+              "description": "Typical latency represented for the offering.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.plan_one_time_fees",
+              "name": "Plan One Time Fees",
+              "dataType": "decimal",
+              "description": "Disclosed one-time provider fees.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_plan.plan_overage_charge",
+              "name": "Plan Overage Charge",
+              "dataType": "decimal",
+              "description": "Charge after an allowance is exceeded.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "service_order",
+          "label": "Service Order",
+          "description": "A request to qualify, activate, modify, suspend, resume, or terminate a service.",
+          "group": "Fulfillment",
+          "icon": "workflow",
+          "properties": [
+            {
+              "id": "service_order.emergency_911_provisioning_status",
+              "name": "Emergency 911 Provisioning Status",
+              "dataType": "string",
+              "description": "Provisioned, pending, failed, suspended, or not applicable.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_order.network_resource_provisioning_status",
+              "name": "Network Resource Provisioning Status",
+              "dataType": "string",
+              "description": "Host-network or internal provisioning state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_order.service_order_action",
+              "name": "Service Order Action",
+              "dataType": "string",
+              "description": "Activate, modify, suspend, resume, migrate, or terminate action.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_order.service_order_compliance_status",
+              "name": "Service Order Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-based readiness or completion state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_order.service_order_created_at",
+              "name": "Service Order Created At",
+              "dataType": "string",
+              "description": "Order creation timestamp.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_order.service_order_id",
+              "name": "Service Order Id",
+              "dataType": "string",
+              "description": "Unique service-order identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "service_order.service_order_regulation_citations",
+              "name": "Service Order Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable service, numbering, and public-safety requirements.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_order.service_order_status",
+              "name": "Service Order Status",
+              "dataType": "string",
+              "description": "Acknowledged, in progress, held, completed, failed, or cancelled state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_order.number_port_completed_at",
+              "name": "Number Port Completed At",
+              "dataType": "string",
+              "description": "Actual port completion timestamp.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_order.service_order_completed_at",
+              "name": "Service Order Completed At",
+              "dataType": "string",
+              "description": "Actual completion timestamp.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_order.service_order_exception",
+              "name": "Service Order Exception",
+              "dataType": "string",
+              "description": "Blocking qualification, inventory, host-network, numbering, or policy condition.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_order.service_order_requested_completion_at",
+              "name": "Service Order Requested Completion At",
+              "dataType": "string",
+              "description": "Customer or provider requested completion time.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "network_resource",
+          "label": "Network Resource",
+          "description": "A logical or physical access, core, transport, interconnect, SIM, eSIM, device, network function, circuit, or coverage resource.",
+          "group": "Network and OSS",
+          "icon": "system",
+          "properties": [
+            {
+              "id": "network_resource.network_resource_provisioning_status",
+              "name": "Network Resource Provisioning Status",
+              "dataType": "string",
+              "description": "Host-network or internal provisioning state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "network_resource.network_resource_id",
+              "name": "Network Resource Id",
+              "dataType": "string",
+              "description": "Affected network resource or dependency.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "network_resource.network_resource_apn",
+              "name": "Network Resource Apn",
+              "dataType": "string",
+              "description": "Access point name or equivalent data-service profile.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "network_resource.network_resource_device_imei",
+              "name": "Network Resource Device Imei",
+              "dataType": "string",
+              "description": "Device equipment identity when necessary for service assurance.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "network_resource.network_resource_imsi",
+              "name": "Network Resource Imsi",
+              "dataType": "string",
+              "description": "Subscription identity used by the host mobile network.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "network_resource.network_resource_sim_iccid",
+              "name": "Network Resource Sim Iccid",
+              "dataType": "string",
+              "description": "Physical or eSIM profile identifier.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "service_address",
+          "label": "Service Address",
+          "description": "A service, billing, installation, dispatchable, or emergency-service location represented at the minimum necessary precision.",
+          "group": "Network and OSS",
+          "icon": "location",
+          "properties": [
+            {
+              "id": "service_address.emergency_dispatchable_location_available",
+              "name": "Emergency Dispatchable Location Available",
+              "dataType": "boolean",
+              "description": "Whether dispatchable location can be delivered when technically feasible and applicable.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_address.emergency_location_accuracy_method",
+              "name": "Emergency Location Accuracy Method",
+              "dataType": "string",
+              "description": "Network, device, hybrid, dispatchable, or z-axis location method.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_address.incident_affected_geographic_area",
+              "name": "Incident Affected Geographic Area",
+              "dataType": "string",
+              "description": "States, counties, rate centers, or service areas affected.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_address.number_port_zip_code",
+              "name": "Number Port Zip Code",
+              "dataType": "string",
+              "description": "ZIP code included in the simple port request.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_address.service_address_reference",
+              "name": "Service Address Reference",
+              "dataType": "string",
+              "description": "Service location required for qualification or provisioning.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "service_address.emergency_location_confidence_percent",
+              "name": "Emergency Location Confidence Percent",
+              "dataType": "decimal",
+              "description": "Confidence level provided with location information.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_address.emergency_location_uncertainty_meters",
+              "name": "Emergency Location Uncertainty Meters",
+              "dataType": "decimal",
+              "description": "Uncertainty radius or equivalent measure.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_address.emergency_psap_identifier",
+              "name": "Emergency Psap Identifier",
+              "dataType": "string",
+              "description": "Minimized reference to the responsible PSAP.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_address.incident_psap_impact_summary",
+              "name": "Incident Psap Impact Summary",
+              "dataType": "string",
+              "description": "Minimized summary of affected PSAPs or 911 service areas.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_address.service_rate_center",
+              "name": "Service Rate Center",
+              "dataType": "string",
+              "description": "Numbering rate center associated with service.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "telephone_number",
+          "label": "Telephone Number",
+          "description": "A NANP or other governed telephone-number resource and its routing, assignment, and portability state.",
+          "group": "Numbering",
+          "icon": "identifier",
+          "properties": [
+            {
+              "id": "telephone_number.number_port_initiator_telephone_number",
+              "name": "Number Port Initiator Telephone Number",
+              "dataType": "string",
+              "description": "Telephone number of the port initiator.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "telephone_number.ported_telephone_number",
+              "name": "Ported Telephone Number",
+              "dataType": "string",
+              "description": "Telephone number requested for porting.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "telephone_number.telephone_number",
+              "name": "Telephone Number",
+              "dataType": "string",
+              "description": "Assigned or ported number associated with the order.",
+              "required": false,
+              "identifier": true
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "number_port_order",
+          "label": "Number Port Order",
+          "description": "A port-in or port-out request, its validation data, interval classification, authorization, due date, and completion state.",
+          "group": "Numbering",
+          "icon": "clipboard",
+          "properties": [
+            {
+              "id": "number_port_order.number_port_account_number",
+              "name": "Number Port Account Number",
+              "dataType": "string",
+              "description": "Customer account number included in the simple port request.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "number_port_order.number_port_activity",
+              "name": "Number Port Activity",
+              "dataType": "string",
+              "description": "Port-order activity code.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_agency_authority_status",
+              "name": "Number Port Agency Authority Status",
+              "dataType": "string",
+              "description": "Agency-authority status included in the request.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_company_code",
+              "name": "Number Port Company Code",
+              "dataType": "string",
+              "description": "Company code included in the simple port request.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_compliance_status",
+              "name": "Number Port Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed validation and timeliness status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_customer_carrier_name_abbreviation",
+              "name": "Number Port Customer Carrier Name Abbreviation",
+              "dataType": "string",
+              "description": "Customer carrier-name abbreviation.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_desired_due_date",
+              "name": "Number Port Desired Due Date",
+              "dataType": "string",
+              "description": "Requested port completion date.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_direction_indicator",
+              "name": "Number Port Direction Indicator",
+              "dataType": "string",
+              "description": "Port-in or port-out direction indicator.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_initiator_telephone_number",
+              "name": "Number Port Initiator Telephone Number",
+              "dataType": "string",
+              "description": "Telephone number of the port initiator.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "number_port_order.number_port_interval_class",
+              "name": "Number Port Interval Class",
+              "dataType": "string",
+              "description": "Simple, non-simple, waiver, or customer-requested interval class.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_lsr_received_at",
+              "name": "Number Port Lsr Received At",
+              "dataType": "string",
+              "description": "Timestamp when the complete Local Service Request was received.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_new_network_service_provider",
+              "name": "Number Port New Network Service Provider",
+              "dataType": "string",
+              "description": "New network service provider for the port.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_order_id",
+              "name": "Number Port Order Id",
+              "dataType": "string",
+              "description": "Unique port-order identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "number_port_order.number_port_purchase_order_number",
+              "name": "Number Port Purchase Order Number",
+              "dataType": "string",
+              "description": "Purchase order number included in the port request.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "number_port_order.number_port_regulation_citations",
+              "name": "Number Port Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable 47 CFR Part 52 citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_requisition_type_status",
+              "name": "Number Port Requisition Type Status",
+              "dataType": "string",
+              "description": "Requisition type and status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_version",
+              "name": "Number Port Version",
+              "dataType": "string",
+              "description": "Port-order version.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_zip_code",
+              "name": "Number Port Zip Code",
+              "dataType": "string",
+              "description": "ZIP code included in the simple port request.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_completed_at",
+              "name": "Number Port Completed At",
+              "dataType": "string",
+              "description": "Actual port completion timestamp.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_foc_at",
+              "name": "Number Port Foc At",
+              "dataType": "string",
+              "description": "Firm order commitment timestamp.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "number_port_order.number_port_passcode",
+              "name": "Number Port Passcode",
+              "dataType": "string",
+              "description": "Optional customer-assigned passcode.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "usage_record",
+          "label": "Usage Record",
+          "description": "A privacy-minimized voice, messaging, data, roaming, or event usage record used for assurance and charging.",
+          "group": "Usage and Charging",
+          "icon": "dataset",
+          "properties": [
+            {
+              "id": "usage_record.usage_compliance_status",
+              "name": "Usage Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed mediation and rating status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "usage_record.usage_record_id",
+              "name": "Usage Record Id",
+              "dataType": "string",
+              "description": "Unique privacy-minimized usage-event identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "usage_record.usage_regulation_citations",
+              "name": "Usage Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable charging, retention, and privacy requirements.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "usage_record.usage_roaming_indicator",
+              "name": "Usage Roaming Indicator",
+              "dataType": "boolean",
+              "description": "Whether the event occurred while roaming.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "usage_record.usage_session_started_at",
+              "name": "Usage Session Started At",
+              "dataType": "string",
+              "description": "Usage-session start timestamp.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "usage_record.usage_type",
+              "name": "Usage Type",
+              "dataType": "string",
+              "description": "Voice, message, data, roaming, or other event type.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "usage_record.outage_duration_minutes",
+              "name": "Outage Duration Minutes",
+              "dataType": "integer",
+              "description": "Measured outage duration.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "usage_record.usage_data_volume",
+              "name": "Usage Data Volume",
+              "dataType": "decimal",
+              "description": "Measured data volume in the stated unit.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "usage_record.usage_duration_seconds",
+              "name": "Usage Duration Seconds",
+              "dataType": "integer",
+              "description": "Billable or measured duration.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "usage_record.usage_message_count",
+              "name": "Usage Message Count",
+              "dataType": "integer",
+              "description": "Count of messaging events.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "usage_record.usage_session_ended_at",
+              "name": "Usage Session Ended At",
+              "dataType": "string",
+              "description": "Usage-session end timestamp.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "charge",
+          "label": "Charge",
+          "description": "A rated recurring, one-time, usage, roaming, tax, fee, credit, or adjustment amount.",
+          "group": "Usage and Charging",
+          "icon": "money",
+          "properties": [
+            {
+              "id": "charge.charge_currency",
+              "name": "Charge Currency",
+              "dataType": "string",
+              "description": "Currency of the rated amount.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "charge.charge_id",
+              "name": "Charge Id",
+              "dataType": "string",
+              "description": "Rated-charge identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "charge.charge_rated_amount",
+              "name": "Charge Rated Amount",
+              "dataType": "decimal",
+              "description": "Rated monetary amount.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "charge.account_credit_class",
+              "name": "Account Credit Class",
+              "dataType": "string",
+              "description": "Provider-defined credit treatment without source credit-report detail.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "charge.charge_credit_amount",
+              "name": "Charge Credit Amount",
+              "dataType": "decimal",
+              "description": "Credit or adjustment applied to the usage.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "charge.charge_fee_amount",
+              "name": "Charge Fee Amount",
+              "dataType": "decimal",
+              "description": "Associated provider or regulatory fee.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "charge.charge_tax_amount",
+              "name": "Charge Tax Amount",
+              "dataType": "decimal",
+              "description": "Associated tax amount.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "charge.plan_overage_charge",
+              "name": "Plan Overage Charge",
+              "dataType": "decimal",
+              "description": "Charge after an allowance is exceeded.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "service_quality_measurement",
+          "label": "Service Quality Measurement",
+          "description": "A measured availability, accessibility, retainability, speed, latency, packet-loss, completion, or customer-impact indicator.",
+          "group": "Service Assurance",
+          "icon": "gauge",
+          "properties": [
+            {
+              "id": "service_quality_measurement.service_quality_user_minutes",
+              "name": "Service Quality User Minutes",
+              "dataType": "decimal",
+              "description": "Potentially affected user minutes used for threshold analysis.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "service_quality_measurement.plan_latency",
+              "name": "Plan Latency",
+              "dataType": "decimal",
+              "description": "Typical latency represented for the offering.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_quality_measurement.service_quality_availability",
+              "name": "Service Quality Availability",
+              "dataType": "decimal",
+              "description": "Measured service availability during the incident.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "service_quality_measurement.service_quality_completion_rate",
+              "name": "Service Quality Completion Rate",
+              "dataType": "decimal",
+              "description": "Call or session completion rate.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "network_incident",
+          "label": "Network Incident",
+          "description": "An outage, degradation, alarm, root cause, restoration action, or regulatory reporting event affecting communications services.",
+          "group": "Service Assurance",
+          "icon": "flag",
+          "properties": [
+            {
+              "id": "network_incident.incident_affected_geographic_area",
+              "name": "Incident Affected Geographic Area",
+              "dataType": "string",
+              "description": "States, counties, rate centers, or service areas affected.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_affected_service_types",
+              "name": "Incident Affected Service Types",
+              "dataType": "string",
+              "description": "Voice, messaging, broadband, paging, 911, or other services affected.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_compliance_status",
+              "name": "Incident Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed reportability and filing status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_emergency_911_impact",
+              "name": "Incident Emergency 911 Impact",
+              "dataType": "boolean",
+              "description": "Whether 911 or emergency communications were affected.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_regulation_citations",
+              "name": "Incident Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable 47 CFR Part 4 and Part 9 citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_status",
+              "name": "Incident Status",
+              "dataType": "string",
+              "description": "Detected, investigating, mitigating, restored, or closed state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.network_incident_id",
+              "name": "Network Incident Id",
+              "dataType": "string",
+              "description": "Unique incident identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "network_incident.outage_discovered_at",
+              "name": "Outage Discovered At",
+              "dataType": "string",
+              "description": "Timestamp when the provider discovered the outage.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.outage_onset_at",
+              "name": "Outage Onset At",
+              "dataType": "string",
+              "description": "Best-known outage onset timestamp.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_authorized_filer",
+              "name": "Incident Authorized Filer",
+              "dataType": "string",
+              "description": "Authorized provider representative responsible for filing.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_nors_final_report_due_at",
+              "name": "Incident Nors Final Report Due At",
+              "dataType": "string",
+              "description": "Calculated final-report deadline.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_nors_initial_report_due_at",
+              "name": "Incident Nors Initial Report Due At",
+              "dataType": "string",
+              "description": "Calculated initial-report deadline.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_nors_notification_due_at",
+              "name": "Incident Nors Notification Due At",
+              "dataType": "string",
+              "description": "Calculated FCC outage-notification deadline.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_psap_impact_summary",
+              "name": "Incident Psap Impact Summary",
+              "dataType": "string",
+              "description": "Minimized summary of affected PSAPs or 911 service areas.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_restoration_action",
+              "name": "Incident Restoration Action",
+              "dataType": "string",
+              "description": "Mitigation and restoration actions taken.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.incident_root_cause",
+              "name": "Incident Root Cause",
+              "dataType": "string",
+              "description": "Best-known or final root cause.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.outage_duration_minutes",
+              "name": "Outage Duration Minutes",
+              "dataType": "integer",
+              "description": "Measured outage duration.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "network_incident.outage_restored_at",
+              "name": "Outage Restored At",
+              "dataType": "string",
+              "description": "Service restoration timestamp.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "emergency_service_record",
+          "label": "Emergency Service Record",
+          "description": "A minimized record of 911 or text-to-911 routing, location delivery, service availability, PSAP impact, testing, or certification evidence.",
+          "group": "Public Safety",
+          "icon": "shield",
+          "properties": [
+            {
+              "id": "emergency_service_record.emergency_911_provisioning_status",
+              "name": "Emergency 911 Provisioning Status",
+              "dataType": "string",
+              "description": "Provisioned, pending, failed, suspended, or not applicable.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_911_service_area",
+              "name": "Emergency 911 Service Area",
+              "dataType": "string",
+              "description": "Geographic 911 service area.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_911_service_type",
+              "name": "Emergency 911 Service Type",
+              "dataType": "string",
+              "description": "Voice 911, text-to-911, real-time text, or equivalent service.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_bounce_back_enabled",
+              "name": "Emergency Bounce Back Enabled",
+              "dataType": "boolean",
+              "description": "Whether the required unavailable-service bounce-back is enabled.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_compliance_status",
+              "name": "Emergency Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed emergency-service readiness state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_dispatchable_location_available",
+              "name": "Emergency Dispatchable Location Available",
+              "dataType": "boolean",
+              "description": "Whether dispatchable location can be delivered when technically feasible and applicable.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_location_accuracy_method",
+              "name": "Emergency Location Accuracy Method",
+              "dataType": "string",
+              "description": "Network, device, hybrid, dispatchable, or z-axis location method.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_privacy_use_restriction",
+              "name": "Emergency Privacy Use Restriction",
+              "dataType": "string",
+              "description": "Restriction on non-911 use of dispatchable or vertical location data.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_regulation_citations",
+              "name": "Emergency Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable 47 CFR Part 9 citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_reseller_obligation_status",
+              "name": "Emergency Reseller Obligation Status",
+              "dataType": "string",
+              "description": "NVO or reseller evidence of its independent 911 obligations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_service_record_id",
+              "name": "Emergency Service Record Id",
+              "dataType": "string",
+              "description": "Unique minimized public-safety service record.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "emergency_service_record.emergency_text_to_911_supported",
+              "name": "Emergency Text To 911 Supported",
+              "dataType": "boolean",
+              "description": "Whether text-to-911 is supported in the relevant area.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.incident_emergency_911_impact",
+              "name": "Incident Emergency 911 Impact",
+              "dataType": "boolean",
+              "description": "Whether 911 or emergency communications were affected.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.provider_emergency_service_role",
+              "name": "Provider Emergency Service Role",
+              "dataType": "string",
+              "description": "Provider responsibility for originating, routing, location, or reseller 911 obligations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.service_emergency_911_enabled",
+              "name": "Service Emergency 911 Enabled",
+              "dataType": "boolean",
+              "description": "Whether applicable emergency calling is provisioned.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_911_tested_at",
+              "name": "Emergency 911 Tested At",
+              "dataType": "string",
+              "description": "Timestamp of an approved non-live or coordinated validation.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_host_network_dependency",
+              "name": "Emergency Host Network Dependency",
+              "dataType": "string",
+              "description": "Host-network capability relied on by the reseller.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_location_confidence_percent",
+              "name": "Emergency Location Confidence Percent",
+              "dataType": "decimal",
+              "description": "Confidence level provided with location information.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_location_uncertainty_meters",
+              "name": "Emergency Location Uncertainty Meters",
+              "dataType": "decimal",
+              "description": "Uncertainty radius or equivalent measure.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.emergency_psap_identifier",
+              "name": "Emergency Psap Identifier",
+              "dataType": "string",
+              "description": "Minimized reference to the responsible PSAP.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "emergency_service_record.incident_psap_impact_summary",
+              "name": "Incident Psap Impact Summary",
+              "dataType": "string",
+              "description": "Minimized summary of affected PSAPs or 911 service areas.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "privacy_authorization",
+          "label": "Privacy Authorization",
+          "description": "A customer authorization, authentication, access, disclosure, marketing-use, revocation, or audit record for CPNI and related protected data.",
+          "group": "Privacy and Trust",
+          "icon": "lock",
+          "properties": [
+            {
+              "id": "privacy_authorization.privacy_authentication_method",
+              "name": "Privacy Authentication Method",
+              "dataType": "string",
+              "description": "Approved method used to authenticate the customer.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.emergency_privacy_use_restriction",
+              "name": "Emergency Privacy Use Restriction",
+              "dataType": "string",
+              "description": "Restriction on non-911 use of dispatchable or vertical location data.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.plan_network_management_disclosure",
+              "name": "Plan Network Management Disclosure",
+              "dataType": "string",
+              "description": "Reference to applicable network-management practices.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.plan_privacy_policy_reference",
+              "name": "Plan Privacy Policy Reference",
+              "dataType": "string",
+              "description": "Reference to the applicable privacy policy.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "privacy_authorization.privacy_access_channel",
+              "name": "Privacy Access Channel",
+              "dataType": "string",
+              "description": "Telephone, online, in-store, or approved business-customer channel.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_approval_method",
+              "name": "Privacy Approval Method",
+              "dataType": "string",
+              "description": "Written, oral, or electronic approval method.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_approval_status",
+              "name": "Privacy Approval Status",
+              "dataType": "string",
+              "description": "Opt-in, opt-out, disapproved, revoked, limited, or permitted-without-approval state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_authentication_result",
+              "name": "Privacy Authentication Result",
+              "dataType": "string",
+              "description": "Successful, failed, escalated, or not required outcome.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_authorization_id",
+              "name": "Privacy Authorization Id",
+              "dataType": "string",
+              "description": "Unique authorization or protected-access decision identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "privacy_authorization.privacy_compliance_status",
+              "name": "Privacy Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed authorization and safeguard status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_cpni_action",
+              "name": "Privacy Cpni Action",
+              "dataType": "string",
+              "description": "Use, disclose, permit access, market, revoke, or limit action.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_cpni_approval_status",
+              "name": "Privacy Cpni Approval Status",
+              "dataType": "string",
+              "description": "Current CPNI approval or disapproval state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_cpni_category",
+              "name": "Privacy Cpni Category",
+              "dataType": "string",
+              "description": "Minimized category of CPNI involved.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_record_retain_until",
+              "name": "Privacy Record Retain Until",
+              "dataType": "string",
+              "description": "Minimum retention date for the authorization and related audit evidence.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_regulation_citations",
+              "name": "Privacy Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable 47 CFR Part 64 Subpart U citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_access_log_reference",
+              "name": "Privacy Access Log Reference",
+              "dataType": "string",
+              "description": "Reference to the immutable access or disclosure record.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "privacy_authorization.caller_id_authentication_exception",
+              "name": "Caller Id Authentication Exception",
+              "dataType": "string",
+              "description": "Documented technical or regulatory exception.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_approval_obtained_at",
+              "name": "Privacy Approval Obtained At",
+              "dataType": "string",
+              "description": "Timestamp when customer approval was obtained.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_customer_notification_at",
+              "name": "Privacy Customer Notification At",
+              "dataType": "string",
+              "description": "Timestamp of an applicable account-change notification.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_disclosure_recipient_type",
+              "name": "Privacy Disclosure Recipient Type",
+              "dataType": "string",
+              "description": "Customer, affiliate, agent, third party, or legal recipient category.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_marketing_campaign_id",
+              "name": "Privacy Marketing Campaign Id",
+              "dataType": "string",
+              "description": "Campaign identifier when CPNI is used for marketing.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "privacy_authorization.privacy_revocation_at",
+              "name": "Privacy Revocation At",
+              "dataType": "string",
+              "description": "Timestamp when approval was revoked or limited.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "privacy_authorization.privacy_supervisory_approval_status",
+              "name": "Privacy Supervisory Approval Status",
+              "dataType": "string",
+              "description": "Supervisory-review result for outbound marketing requests.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "robocall_compliance_profile",
+          "label": "Robocall Compliance Profile",
+          "description": "A provider profile for caller-ID authentication, robocall mitigation, traceback response, upstream-provider diligence, and filing evidence.",
+          "group": "Trust and Interconnection",
+          "icon": "security",
+          "properties": [
+            {
+              "id": "robocall_compliance_profile.robocall_analytics_system",
+              "name": "Robocall Analytics System",
+              "dataType": "string",
+              "description": "Analytics used to identify and block illegal traffic.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.robocall_attestation_policy",
+              "name": "Robocall Attestation Policy",
+              "dataType": "string",
+              "description": "Governed policy for assigning caller-ID attestation.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.robocall_compliance_profile_id",
+              "name": "Robocall Compliance Profile Id",
+              "dataType": "string",
+              "description": "Unique provider trust and mitigation profile.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "robocall_compliance_profile.robocall_compliance_status",
+              "name": "Robocall Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed trust and filing posture.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.robocall_customer_due_diligence_status",
+              "name": "Robocall Customer Due Diligence Status",
+              "dataType": "string",
+              "description": "Know-your-customer or upstream-provider diligence status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.robocall_last_certified_at",
+              "name": "Robocall Last Certified At",
+              "dataType": "string",
+              "description": "Timestamp of the latest officer certification.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.robocall_mitigation_database_id",
+              "name": "Robocall Mitigation Database Id",
+              "dataType": "string",
+              "description": "Robocall Mitigation Database filing identifier.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "robocall_compliance_profile.robocall_mitigation_status",
+              "name": "Robocall Mitigation Status",
+              "dataType": "string",
+              "description": "Current mitigation-program and filing status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.robocall_regulation_citations",
+              "name": "Robocall Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable caller-ID authentication and mitigation citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.robocall_traceback_contact",
+              "name": "Robocall Traceback Contact",
+              "dataType": "string",
+              "description": "Role-based contact for traceback requests.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.robocall_traceback_response_sla_hours",
+              "name": "Robocall Traceback Response Sla Hours",
+              "dataType": "integer",
+              "description": "Provider response target for traceback requests.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.stir_shaken_implementation_status",
+              "name": "Stir Shaken Implementation Status",
+              "dataType": "string",
+              "description": "Full, partial, not implemented, exempt, or extended caller-ID authentication state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.caller_id_authentication_exception",
+              "name": "Caller Id Authentication Exception",
+              "dataType": "string",
+              "description": "Documented technical or regulatory exception.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.provider_robocall_mitigation_database_id",
+              "name": "Provider Robocall Mitigation Database Id",
+              "dataType": "string",
+              "description": "Robocall Mitigation Database filing identifier.",
+              "required": false,
+              "identifier": true
+            },
+            {
+              "id": "robocall_compliance_profile.robocall_filing_update_due_at",
+              "name": "Robocall Filing Update Due At",
+              "dataType": "string",
+              "description": "Calculated deadline after a material filing change.",
+              "required": false,
+              "identifier": false
+            },
+            {
+              "id": "robocall_compliance_profile.stir_shaken_service_provider_code",
+              "name": "Stir Shaken Service Provider Code",
+              "dataType": "string",
+              "description": "Service Provider Code used for caller-ID authentication.",
+              "required": false,
+              "identifier": false
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        },
+        {
+          "id": "regulatory_requirement",
+          "label": "Regulatory Requirement",
+          "description": "A versioned FCC, state commission, numbering-administrator, public-safety, privacy, or technical requirement with applicability and deadlines.",
+          "group": "Governance",
+          "icon": "landmark",
+          "properties": [
+            {
+              "id": "regulatory_requirement.account_compliance_status",
+              "name": "Account Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed account-governance status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.account_regulation_citations",
+              "name": "Account Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable privacy and consumer-protection citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.emergency_compliance_status",
+              "name": "Emergency Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed emergency-service readiness state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.emergency_regulation_citations",
+              "name": "Emergency Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable 47 CFR Part 9 citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.incident_compliance_status",
+              "name": "Incident Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed reportability and filing status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.incident_regulation_citations",
+              "name": "Incident Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable 47 CFR Part 4 and Part 9 citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.number_port_compliance_status",
+              "name": "Number Port Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed validation and timeliness status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.number_port_regulation_citations",
+              "name": "Number Port Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable 47 CFR Part 52 citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.plan_regulation_citations",
+              "name": "Plan Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable broadband transparency requirements.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.privacy_compliance_status",
+              "name": "Privacy Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed authorization and safeguard status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.privacy_regulation_citations",
+              "name": "Privacy Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable 47 CFR Part 64 Subpart U citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.provider_compliance_status",
+              "name": "Provider Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed provider compliance posture.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.provider_regulation_citations",
+              "name": "Provider Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable federal, state, and industry requirements.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.robocall_compliance_profile_id",
+              "name": "Robocall Compliance Profile Id",
+              "dataType": "string",
+              "description": "Unique provider trust and mitigation profile.",
+              "required": true,
+              "identifier": true
+            },
+            {
+              "id": "regulatory_requirement.robocall_compliance_status",
+              "name": "Robocall Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed trust and filing posture.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.robocall_regulation_citations",
+              "name": "Robocall Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable caller-ID authentication and mitigation citations.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.service_compliance_status",
+              "name": "Service Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed fulfillment and compliance state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.service_order_compliance_status",
+              "name": "Service Order Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-based readiness or completion state.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.service_order_regulation_citations",
+              "name": "Service Order Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable service, numbering, and public-safety requirements.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.service_regulation_citations",
+              "name": "Service Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable service and public-safety requirements.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.usage_compliance_status",
+              "name": "Usage Compliance Status",
+              "dataType": "string",
+              "description": "Evidence-backed mediation and rating status.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.usage_regulation_citations",
+              "name": "Usage Regulation Citations",
+              "dataType": "string",
+              "description": "Applicable charging, retention, and privacy requirements.",
+              "required": true,
+              "identifier": false
+            },
+            {
+              "id": "regulatory_requirement.provider_fcc_registration_number",
+              "name": "Provider Fcc Registration Number",
+              "dataType": "string",
+              "description": "FCC Registration Number when applicable.",
+              "required": false,
+              "identifier": true
+            }
+          ],
+          "evidenceStatus": "TEMPLATE_DERIVED",
+          "approvalStatus": "DRAFT",
+          "impact": "HIGH"
+        }
+      ],
+      "relationshipTypes": [
+        {
+          "id": "provides",
+          "sourceTypeId": "communications_provider",
+          "targetTypeId": "service_subscription",
+          "label": "PROVIDES",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Communications Provider provides Service Subscription.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "governed_by_wholesale_agreement",
+          "sourceTypeId": "communications_provider",
+          "targetTypeId": "wholesale_network_agreement",
+          "label": "GOVERNED_BY_WHOLESALE_AGREEMENT",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Communications Provider governed by wholesale agreement Wholesale Network Agreement.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "holds",
+          "sourceTypeId": "subscriber",
+          "targetTypeId": "customer_account",
+          "label": "HOLDS",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Subscriber holds Customer Account.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "contains_subscription",
+          "sourceTypeId": "customer_account",
+          "targetTypeId": "service_subscription",
+          "label": "CONTAINS_SUBSCRIPTION",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Customer Account contains subscription Service Subscription.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "uses_plan",
+          "sourceTypeId": "service_subscription",
+          "targetTypeId": "service_plan",
+          "label": "USES_PLAN",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Service Subscription uses plan Service Plan.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "fulfilled_by",
+          "sourceTypeId": "service_subscription",
+          "targetTypeId": "service_order",
+          "label": "FULFILLED_BY",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Service Subscription fulfilled by Service Order.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "uses_resource",
+          "sourceTypeId": "service_subscription",
+          "targetTypeId": "network_resource",
+          "label": "USES_RESOURCE",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Service Subscription uses resource Network Resource.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "served_at",
+          "sourceTypeId": "service_subscription",
+          "targetTypeId": "service_address",
+          "label": "SERVED_AT",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Service Subscription served at Service Address.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "assigned_number",
+          "sourceTypeId": "service_subscription",
+          "targetTypeId": "telephone_number",
+          "label": "ASSIGNED_NUMBER",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Service Subscription assigned number Telephone Number.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "ported_by",
+          "sourceTypeId": "telephone_number",
+          "targetTypeId": "number_port_order",
+          "label": "PORTED_BY",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Telephone Number ported by Number Port Order.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "generates_usage",
+          "sourceTypeId": "service_subscription",
+          "targetTypeId": "usage_record",
+          "label": "GENERATES_USAGE",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Service Subscription generates usage Usage Record.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "rated_as",
+          "sourceTypeId": "usage_record",
+          "targetTypeId": "charge",
+          "label": "RATED_AS",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Usage Record rated as Charge.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "measured_by",
+          "sourceTypeId": "service_subscription",
+          "targetTypeId": "service_quality_measurement",
+          "label": "MEASURED_BY",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Service Subscription measured by Service Quality Measurement.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "affects_resource",
+          "sourceTypeId": "network_incident",
+          "targetTypeId": "network_resource",
+          "label": "AFFECTS_RESOURCE",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Network Incident affects resource Network Resource.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "degrades_service",
+          "sourceTypeId": "network_incident",
+          "targetTypeId": "service_subscription",
+          "label": "DEGRADES_SERVICE",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Network Incident degrades service Service Subscription.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "impacts_emergency_service",
+          "sourceTypeId": "network_incident",
+          "targetTypeId": "emergency_service_record",
+          "label": "IMPACTS_EMERGENCY_SERVICE",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Network Incident impacts emergency service Emergency Service Record.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "emergency_record_for",
+          "sourceTypeId": "emergency_service_record",
+          "targetTypeId": "service_subscription",
+          "label": "EMERGENCY_RECORD_FOR",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Emergency Service Record emergency record for Service Subscription.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "authorizes_account_use",
+          "sourceTypeId": "privacy_authorization",
+          "targetTypeId": "customer_account",
+          "label": "AUTHORIZES_ACCOUNT_USE",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Privacy Authorization authorizes account use Customer Account.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "provider_has_robocall_profile",
+          "sourceTypeId": "communications_provider",
+          "targetTypeId": "robocall_compliance_profile",
+          "label": "PROVIDER_HAS_ROBOCALL_PROFILE",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Communications Provider provider has robocall profile Robocall Compliance Profile.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "provider_subject_to",
+          "sourceTypeId": "communications_provider",
+          "targetTypeId": "regulatory_requirement",
+          "label": "PROVIDER_SUBJECT_TO",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Communications Provider provider subject to Regulatory Requirement.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "port_subject_to",
+          "sourceTypeId": "number_port_order",
+          "targetTypeId": "regulatory_requirement",
+          "label": "PORT_SUBJECT_TO",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Number Port Order port subject to Regulatory Requirement.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "incident_subject_to",
+          "sourceTypeId": "network_incident",
+          "targetTypeId": "regulatory_requirement",
+          "label": "INCIDENT_SUBJECT_TO",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Network Incident incident subject to Regulatory Requirement.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "privacy_subject_to",
+          "sourceTypeId": "privacy_authorization",
+          "targetTypeId": "regulatory_requirement",
+          "label": "PRIVACY_SUBJECT_TO",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Privacy Authorization privacy subject to Regulatory Requirement.",
+          "impact": "HIGH"
+        },
+        {
+          "id": "emergency_service_subject_to",
+          "sourceTypeId": "emergency_service_record",
+          "targetTypeId": "regulatory_requirement",
+          "label": "EMERGENCY_SERVICE_SUBJECT_TO",
+          "cardinality": "MANY_TO_MANY",
+          "description": "Emergency Service Record emergency service subject to Regulatory Requirement.",
+          "impact": "HIGH"
+        }
+      ],
+      "schemaLayout": {
+        "communications_provider": {
+          "x": 70,
+          "y": 50
+        },
+        "wholesale_network_agreement": {
+          "x": 355,
+          "y": 50
+        },
+        "subscriber": {
+          "x": 640,
+          "y": 50
+        },
+        "customer_account": {
+          "x": 70,
+          "y": 195
+        },
+        "service_subscription": {
+          "x": 355,
+          "y": 195
+        },
+        "service_plan": {
+          "x": 640,
+          "y": 195
+        },
+        "service_order": {
+          "x": 70,
+          "y": 340
+        },
+        "network_resource": {
+          "x": 355,
+          "y": 340
+        },
+        "service_address": {
+          "x": 640,
+          "y": 340
+        },
+        "telephone_number": {
+          "x": 70,
+          "y": 485
+        },
+        "number_port_order": {
+          "x": 355,
+          "y": 485
+        },
+        "usage_record": {
+          "x": 640,
+          "y": 485
+        },
+        "charge": {
+          "x": 70,
+          "y": 630
+        },
+        "service_quality_measurement": {
+          "x": 355,
+          "y": 630
+        },
+        "network_incident": {
+          "x": 640,
+          "y": 630
+        },
+        "emergency_service_record": {
+          "x": 70,
+          "y": 775
+        },
+        "privacy_authorization": {
+          "x": 355,
+          "y": 775
+        },
+        "robocall_compliance_profile": {
+          "x": 640,
+          "y": 775
+        },
+        "regulatory_requirement": {
+          "x": 70,
+          "y": 920
+        }
+      }
+    },
+    "provenance": {
+      "generatorVersion": "1.0.0",
+      "sourceSchemaCatalogVersion": "2026-07-27",
+      "sourceForms": [
+        {
+          "documentType": "cpni_authorization",
+          "family": "telco_privacy",
+          "schemaVersion": "telco_cpni_authorization_v1",
+          "fieldCount": 19
+        },
+        {
+          "documentType": "emergency_service_record",
+          "family": "telco_public_safety",
+          "schemaVersion": "telco_emergency_service_record_v1",
+          "fieldCount": 18
+        },
+        {
+          "documentType": "network_incident_report",
+          "family": "telco_service_assurance",
+          "schemaVersion": "telco_network_incident_report_v1",
+          "fieldCount": 22
+        },
+        {
+          "documentType": "number_port_order",
+          "family": "telco_numbering",
+          "schemaVersion": "telco_number_port_order_v1",
+          "fieldCount": 22
+        },
+        {
+          "documentType": "provider_profile",
+          "family": "telco_provider_management",
+          "schemaVersion": "telco_provider_profile_v1",
+          "fieldCount": 15
+        },
+        {
+          "documentType": "robocall_compliance_profile",
+          "family": "telco_trust",
+          "schemaVersion": "telco_robocall_compliance_profile_v1",
+          "fieldCount": 16
+        },
+        {
+          "documentType": "service_order",
+          "family": "telco_fulfillment",
+          "schemaVersion": "telco_service_order_v1",
+          "fieldCount": 17
+        },
+        {
+          "documentType": "service_plan_label",
+          "family": "telco_product_service",
+          "schemaVersion": "telco_service_plan_label_v1",
+          "fieldCount": 16
+        },
+        {
+          "documentType": "service_subscription",
+          "family": "telco_product_service",
+          "schemaVersion": "telco_service_subscription_v1",
+          "fieldCount": 18
+        },
+        {
+          "documentType": "subscriber_account",
+          "family": "telco_customer_management",
+          "schemaVersion": "telco_subscriber_account_v1",
+          "fieldCount": 14
+        },
+        {
+          "documentType": "usage_charging_record",
+          "family": "telco_usage_charging",
+          "schemaVersion": "telco_usage_charging_record_v1",
+          "fieldCount": 19
+        }
+      ],
+      "entitySources": {
+        "communications_provider": [
+          "number_port_order",
+          "provider_profile",
+          "robocall_compliance_profile",
+          "service_subscription",
+          "usage_charging_record"
+        ],
+        "wholesale_network_agreement": [
+          "emergency_service_record",
+          "provider_profile",
+          "robocall_compliance_profile",
+          "service_subscription",
+          "usage_charging_record"
+        ],
+        "subscriber": [
+          "cpni_authorization",
+          "number_port_order",
+          "robocall_compliance_profile",
+          "service_order",
+          "service_subscription",
+          "subscriber_account"
+        ],
+        "customer_account": [
+          "cpni_authorization",
+          "number_port_order",
+          "service_order",
+          "service_subscription",
+          "subscriber_account"
+        ],
+        "service_subscription": [
+          "emergency_service_record",
+          "service_order",
+          "service_plan_label",
+          "service_subscription",
+          "usage_charging_record"
+        ],
+        "service_plan": [
+          "service_order",
+          "service_plan_label",
+          "service_subscription"
+        ],
+        "service_order": [
+          "emergency_service_record",
+          "number_port_order",
+          "service_order"
+        ],
+        "network_resource": [
+          "network_incident_report",
+          "service_order",
+          "service_subscription",
+          "usage_charging_record"
+        ],
+        "service_address": [
+          "emergency_service_record",
+          "network_incident_report",
+          "number_port_order",
+          "service_order",
+          "service_subscription",
+          "subscriber_account"
+        ],
+        "telephone_number": [
+          "number_port_order",
+          "service_order",
+          "service_subscription"
+        ],
+        "number_port_order": [
+          "number_port_order"
+        ],
+        "usage_record": [
+          "network_incident_report",
+          "usage_charging_record"
+        ],
+        "charge": [
+          "service_plan_label",
+          "subscriber_account",
+          "usage_charging_record"
+        ],
+        "service_quality_measurement": [
+          "network_incident_report",
+          "service_plan_label"
+        ],
+        "network_incident": [
+          "network_incident_report"
+        ],
+        "emergency_service_record": [
+          "emergency_service_record",
+          "network_incident_report",
+          "provider_profile",
+          "service_order",
+          "service_subscription"
+        ],
+        "privacy_authorization": [
+          "cpni_authorization",
+          "emergency_service_record",
+          "robocall_compliance_profile",
+          "service_plan_label",
+          "subscriber_account"
+        ],
+        "robocall_compliance_profile": [
+          "provider_profile",
+          "robocall_compliance_profile"
+        ],
+        "regulatory_requirement": [
+          "cpni_authorization",
+          "emergency_service_record",
+          "network_incident_report",
+          "number_port_order",
+          "provider_profile",
+          "robocall_compliance_profile",
+          "service_order",
+          "service_plan_label",
+          "service_subscription",
+          "subscriber_account",
+          "usage_charging_record"
+        ]
+      },
+      "propertySources": {
+        "communications_provider.number_port_new_network_service_provider": [
+          "number_port_order"
+        ],
+        "communications_provider.number_port_customer_carrier_name_abbreviation": [
+          "number_port_order"
+        ],
+        "communications_provider.service_provider_legal_name": [
+          "provider_profile",
+          "robocall_compliance_profile"
+        ],
+        "communications_provider.provider_brand_name": [
+          "provider_profile"
+        ],
+        "communications_provider.provider_type": [
+          "provider_profile"
+        ],
+        "communications_provider.provider_fcc_registration_number": [
+          "provider_profile"
+        ],
+        "communications_provider.provider_operating_company_number": [
+          "provider_profile"
+        ],
+        "communications_provider.provider_service_footprint": [
+          "provider_profile"
+        ],
+        "communications_provider.host_network_provider_name": [
+          "provider_profile",
+          "service_subscription",
+          "usage_charging_record"
+        ],
+        "communications_provider.provider_emergency_service_role": [
+          "provider_profile"
+        ],
+        "communications_provider.provider_robocall_mitigation_database_id": [
+          "provider_profile"
+        ],
+        "communications_provider.provider_regulation_citations": [
+          "provider_profile"
+        ],
+        "communications_provider.provider_compliance_status": [
+          "provider_profile"
+        ],
+        "communications_provider.stir_shaken_service_provider_code": [
+          "robocall_compliance_profile"
+        ],
+        "wholesale_network_agreement.emergency_host_network_dependency": [
+          "emergency_service_record"
+        ],
+        "wholesale_network_agreement.host_network_provider_name": [
+          "provider_profile",
+          "service_subscription",
+          "usage_charging_record"
+        ],
+        "wholesale_network_agreement.wholesale_agreement_id": [
+          "provider_profile"
+        ],
+        "wholesale_network_agreement.wholesale_agreement_effective_date": [
+          "provider_profile"
+        ],
+        "wholesale_network_agreement.wholesale_sla_profile": [
+          "provider_profile"
+        ],
+        "wholesale_network_agreement.interconnection_settlement_model": [
+          "provider_profile"
+        ],
+        "wholesale_network_agreement.robocall_traceback_response_sla_hours": [
+          "robocall_compliance_profile"
+        ],
+        "wholesale_network_agreement.usage_roaming_indicator": [
+          "usage_charging_record"
+        ],
+        "subscriber.customer_account_number": [
+          "cpni_authorization",
+          "service_order",
+          "service_subscription",
+          "subscriber_account"
+        ],
+        "subscriber.privacy_customer_notification_at": [
+          "cpni_authorization"
+        ],
+        "subscriber.number_port_customer_carrier_name_abbreviation": [
+          "number_port_order"
+        ],
+        "subscriber.robocall_customer_due_diligence_status": [
+          "robocall_compliance_profile"
+        ],
+        "subscriber.subscriber_reference": [
+          "subscriber_account"
+        ],
+        "subscriber.subscriber_type": [
+          "subscriber_account"
+        ],
+        "subscriber.subscriber_identity_verification_status": [
+          "subscriber_account"
+        ],
+        "customer_account.customer_account_number": [
+          "cpni_authorization",
+          "service_order",
+          "service_subscription",
+          "subscriber_account"
+        ],
+        "customer_account.number_port_account_number": [
+          "number_port_order"
+        ],
+        "customer_account.account_status": [
+          "subscriber_account"
+        ],
+        "customer_account.account_created_at": [
+          "subscriber_account"
+        ],
+        "customer_account.account_billing_cycle": [
+          "subscriber_account"
+        ],
+        "customer_account.account_credit_class": [
+          "subscriber_account"
+        ],
+        "customer_account.account_regulation_citations": [
+          "subscriber_account"
+        ],
+        "customer_account.account_compliance_status": [
+          "subscriber_account"
+        ],
+        "service_subscription.service_subscription_id": [
+          "emergency_service_record",
+          "service_order",
+          "service_subscription",
+          "usage_charging_record"
+        ],
+        "service_subscription.emergency_911_service_type": [
+          "emergency_service_record"
+        ],
+        "service_subscription.plan_service_type": [
+          "service_plan_label"
+        ],
+        "service_subscription.service_type": [
+          "service_subscription"
+        ],
+        "service_subscription.service_status": [
+          "service_subscription"
+        ],
+        "service_subscription.service_activation_at": [
+          "service_subscription"
+        ],
+        "service_subscription.service_termination_at": [
+          "service_subscription"
+        ],
+        "service_plan.service_plan_id": [
+          "service_order",
+          "service_plan_label",
+          "service_subscription"
+        ],
+        "service_plan.service_plan_name": [
+          "service_plan_label"
+        ],
+        "service_plan.product_offering_version": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_service_type": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_monthly_price": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_introductory_price": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_introductory_period_months": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_one_time_fees": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_data_allowance": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_overage_charge": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_advertised_speed": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_latency": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_network_management_disclosure": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_privacy_policy_reference": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_label_effective_date": [
+          "service_plan_label"
+        ],
+        "service_plan.plan_regulation_citations": [
+          "service_plan_label"
+        ],
+        "service_order.emergency_911_provisioning_status": [
+          "emergency_service_record",
+          "service_order"
+        ],
+        "service_order.number_port_completed_at": [
+          "number_port_order"
+        ],
+        "service_order.service_order_id": [
+          "service_order"
+        ],
+        "service_order.service_order_action": [
+          "service_order"
+        ],
+        "service_order.service_order_status": [
+          "service_order"
+        ],
+        "service_order.service_order_created_at": [
+          "service_order"
+        ],
+        "service_order.service_order_requested_completion_at": [
+          "service_order"
+        ],
+        "service_order.service_order_completed_at": [
+          "service_order"
+        ],
+        "service_order.network_resource_provisioning_status": [
+          "service_order"
+        ],
+        "service_order.service_order_exception": [
+          "service_order"
+        ],
+        "service_order.service_order_regulation_citations": [
+          "service_order"
+        ],
+        "service_order.service_order_compliance_status": [
+          "service_order"
+        ],
+        "network_resource.network_resource_id": [
+          "network_incident_report",
+          "service_order",
+          "usage_charging_record"
+        ],
+        "network_resource.network_resource_provisioning_status": [
+          "service_order"
+        ],
+        "network_resource.network_resource_sim_iccid": [
+          "service_subscription"
+        ],
+        "network_resource.network_resource_imsi": [
+          "service_subscription"
+        ],
+        "network_resource.network_resource_device_imei": [
+          "service_subscription"
+        ],
+        "network_resource.network_resource_apn": [
+          "service_subscription"
+        ],
+        "service_address.emergency_psap_identifier": [
+          "emergency_service_record"
+        ],
+        "service_address.emergency_dispatchable_location_available": [
+          "emergency_service_record"
+        ],
+        "service_address.emergency_location_accuracy_method": [
+          "emergency_service_record"
+        ],
+        "service_address.emergency_location_confidence_percent": [
+          "emergency_service_record"
+        ],
+        "service_address.emergency_location_uncertainty_meters": [
+          "emergency_service_record"
+        ],
+        "service_address.incident_affected_geographic_area": [
+          "network_incident_report"
+        ],
+        "service_address.incident_psap_impact_summary": [
+          "network_incident_report"
+        ],
+        "service_address.number_port_zip_code": [
+          "number_port_order"
+        ],
+        "service_address.service_address_reference": [
+          "service_order",
+          "service_subscription",
+          "subscriber_account"
+        ],
+        "service_address.service_rate_center": [
+          "service_subscription"
+        ],
+        "telephone_number.ported_telephone_number": [
+          "number_port_order"
+        ],
+        "telephone_number.number_port_initiator_telephone_number": [
+          "number_port_order"
+        ],
+        "telephone_number.telephone_number": [
+          "service_order",
+          "service_subscription"
+        ],
+        "number_port_order.number_port_order_id": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_account_number": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_zip_code": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_company_code": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_new_network_service_provider": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_desired_due_date": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_purchase_order_number": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_version": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_direction_indicator": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_customer_carrier_name_abbreviation": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_requisition_type_status": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_activity": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_initiator_telephone_number": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_agency_authority_status": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_passcode": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_interval_class": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_lsr_received_at": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_foc_at": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_completed_at": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_regulation_citations": [
+          "number_port_order"
+        ],
+        "number_port_order.number_port_compliance_status": [
+          "number_port_order"
+        ],
+        "usage_record.outage_duration_minutes": [
+          "network_incident_report"
+        ],
+        "usage_record.usage_record_id": [
+          "usage_charging_record"
+        ],
+        "usage_record.usage_type": [
+          "usage_charging_record"
+        ],
+        "usage_record.usage_session_started_at": [
+          "usage_charging_record"
+        ],
+        "usage_record.usage_session_ended_at": [
+          "usage_charging_record"
+        ],
+        "usage_record.usage_duration_seconds": [
+          "usage_charging_record"
+        ],
+        "usage_record.usage_data_volume": [
+          "usage_charging_record"
+        ],
+        "usage_record.usage_message_count": [
+          "usage_charging_record"
+        ],
+        "usage_record.usage_roaming_indicator": [
+          "usage_charging_record"
+        ],
+        "usage_record.usage_regulation_citations": [
+          "usage_charging_record"
+        ],
+        "usage_record.usage_compliance_status": [
+          "usage_charging_record"
+        ],
+        "charge.plan_overage_charge": [
+          "service_plan_label"
+        ],
+        "charge.account_credit_class": [
+          "subscriber_account"
+        ],
+        "charge.charge_id": [
+          "usage_charging_record"
+        ],
+        "charge.charge_rated_amount": [
+          "usage_charging_record"
+        ],
+        "charge.charge_currency": [
+          "usage_charging_record"
+        ],
+        "charge.charge_tax_amount": [
+          "usage_charging_record"
+        ],
+        "charge.charge_fee_amount": [
+          "usage_charging_record"
+        ],
+        "charge.charge_credit_amount": [
+          "usage_charging_record"
+        ],
+        "service_quality_measurement.service_quality_user_minutes": [
+          "network_incident_report"
+        ],
+        "service_quality_measurement.service_quality_availability": [
+          "network_incident_report"
+        ],
+        "service_quality_measurement.service_quality_completion_rate": [
+          "network_incident_report"
+        ],
+        "service_quality_measurement.plan_latency": [
+          "service_plan_label"
+        ],
+        "network_incident.network_incident_id": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_status": [
+          "network_incident_report"
+        ],
+        "network_incident.outage_discovered_at": [
+          "network_incident_report"
+        ],
+        "network_incident.outage_onset_at": [
+          "network_incident_report"
+        ],
+        "network_incident.outage_restored_at": [
+          "network_incident_report"
+        ],
+        "network_incident.outage_duration_minutes": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_affected_service_types": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_affected_geographic_area": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_emergency_911_impact": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_psap_impact_summary": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_root_cause": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_restoration_action": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_nors_notification_due_at": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_nors_initial_report_due_at": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_nors_final_report_due_at": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_authorized_filer": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_regulation_citations": [
+          "network_incident_report"
+        ],
+        "network_incident.incident_compliance_status": [
+          "network_incident_report"
+        ],
+        "emergency_service_record.emergency_service_record_id": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_911_service_type": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_911_provisioning_status": [
+          "emergency_service_record",
+          "service_order"
+        ],
+        "emergency_service_record.emergency_911_tested_at": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_psap_identifier": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_911_service_area": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_dispatchable_location_available": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_location_accuracy_method": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_location_confidence_percent": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_location_uncertainty_meters": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_text_to_911_supported": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_bounce_back_enabled": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_reseller_obligation_status": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_host_network_dependency": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_privacy_use_restriction": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_regulation_citations": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.emergency_compliance_status": [
+          "emergency_service_record"
+        ],
+        "emergency_service_record.incident_emergency_911_impact": [
+          "network_incident_report"
+        ],
+        "emergency_service_record.incident_psap_impact_summary": [
+          "network_incident_report"
+        ],
+        "emergency_service_record.provider_emergency_service_role": [
+          "provider_profile"
+        ],
+        "emergency_service_record.service_emergency_911_enabled": [
+          "service_subscription"
+        ],
+        "privacy_authorization.privacy_authorization_id": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_cpni_action": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_cpni_category": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_approval_method": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_approval_status": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_approval_obtained_at": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_revocation_at": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_authentication_method": [
+          "cpni_authorization",
+          "subscriber_account"
+        ],
+        "privacy_authorization.privacy_authentication_result": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_access_channel": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_disclosure_recipient_type": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_marketing_campaign_id": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_supervisory_approval_status": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_customer_notification_at": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_access_log_reference": [
+          "cpni_authorization",
+          "subscriber_account"
+        ],
+        "privacy_authorization.privacy_record_retain_until": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_regulation_citations": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.privacy_compliance_status": [
+          "cpni_authorization"
+        ],
+        "privacy_authorization.emergency_privacy_use_restriction": [
+          "emergency_service_record"
+        ],
+        "privacy_authorization.caller_id_authentication_exception": [
+          "robocall_compliance_profile"
+        ],
+        "privacy_authorization.plan_network_management_disclosure": [
+          "service_plan_label"
+        ],
+        "privacy_authorization.plan_privacy_policy_reference": [
+          "service_plan_label"
+        ],
+        "privacy_authorization.privacy_cpni_approval_status": [
+          "subscriber_account"
+        ],
+        "robocall_compliance_profile.provider_robocall_mitigation_database_id": [
+          "provider_profile"
+        ],
+        "robocall_compliance_profile.robocall_compliance_profile_id": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.robocall_mitigation_database_id": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.robocall_mitigation_status": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.stir_shaken_implementation_status": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.stir_shaken_service_provider_code": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.robocall_attestation_policy": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.robocall_analytics_system": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.robocall_customer_due_diligence_status": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.robocall_traceback_contact": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.robocall_traceback_response_sla_hours": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.robocall_last_certified_at": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.robocall_filing_update_due_at": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.caller_id_authentication_exception": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.robocall_regulation_citations": [
+          "robocall_compliance_profile"
+        ],
+        "robocall_compliance_profile.robocall_compliance_status": [
+          "robocall_compliance_profile"
+        ],
+        "regulatory_requirement.privacy_regulation_citations": [
+          "cpni_authorization"
+        ],
+        "regulatory_requirement.privacy_compliance_status": [
+          "cpni_authorization"
+        ],
+        "regulatory_requirement.emergency_regulation_citations": [
+          "emergency_service_record"
+        ],
+        "regulatory_requirement.emergency_compliance_status": [
+          "emergency_service_record"
+        ],
+        "regulatory_requirement.incident_regulation_citations": [
+          "network_incident_report"
+        ],
+        "regulatory_requirement.incident_compliance_status": [
+          "network_incident_report"
+        ],
+        "regulatory_requirement.number_port_regulation_citations": [
+          "number_port_order"
+        ],
+        "regulatory_requirement.number_port_compliance_status": [
+          "number_port_order"
+        ],
+        "regulatory_requirement.provider_fcc_registration_number": [
+          "provider_profile"
+        ],
+        "regulatory_requirement.provider_regulation_citations": [
+          "provider_profile"
+        ],
+        "regulatory_requirement.provider_compliance_status": [
+          "provider_profile"
+        ],
+        "regulatory_requirement.robocall_compliance_profile_id": [
+          "robocall_compliance_profile"
+        ],
+        "regulatory_requirement.robocall_regulation_citations": [
+          "robocall_compliance_profile"
+        ],
+        "regulatory_requirement.robocall_compliance_status": [
+          "robocall_compliance_profile"
+        ],
+        "regulatory_requirement.service_order_regulation_citations": [
+          "service_order"
+        ],
+        "regulatory_requirement.service_order_compliance_status": [
+          "service_order"
+        ],
+        "regulatory_requirement.plan_regulation_citations": [
+          "service_plan_label"
+        ],
+        "regulatory_requirement.service_regulation_citations": [
+          "service_subscription"
+        ],
+        "regulatory_requirement.service_compliance_status": [
+          "service_subscription"
+        ],
+        "regulatory_requirement.account_regulation_citations": [
+          "subscriber_account"
+        ],
+        "regulatory_requirement.account_compliance_status": [
+          "subscriber_account"
+        ],
+        "regulatory_requirement.usage_regulation_citations": [
+          "usage_charging_record"
+        ],
+        "regulatory_requirement.usage_compliance_status": [
+          "usage_charging_record"
+        ]
+      },
+      "unmappedFields": [],
+      "coverage": {
+        "formCount": 11,
+        "sourceFieldCount": 196,
+        "mappedFieldCount": 196,
+        "unmappedFieldCount": 0,
+        "mappedPercent": 100
+      }
+    }
+  },
+  {
+    "ontology": {
       "id": "airline-ontology",
       "workspaceId": "workspace-airline",
       "name": "Airline Ontology",

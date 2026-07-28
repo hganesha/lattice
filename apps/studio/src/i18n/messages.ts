@@ -350,6 +350,8 @@ export const messages = defineMessages({
   wizardStarterBlankDetail: { id: 'wizard.starter.blankDetail', defaultMessage: 'Start only with your competency questions.' },
   wizardStarterAirline: { id: 'wizard.starter.airline', defaultMessage: 'Airline' },
   wizardStarterAirlineDetail: { id: 'wizard.starter.airlineDetail', defaultMessage: 'Flights, aircraft, dispatch, crew, maintenance, safety, and passenger obligations.' },
+  wizardStarterTelecommunications: { id: 'wizard.starter.telecommunications', defaultMessage: 'Telecommunications / NVO' },
+  wizardStarterTelecommunicationsDetail: { id: 'wizard.starter.telecommunicationsDetail', defaultMessage: 'Subscribers, services, host networks, numbering, assurance, charging, public safety, and privacy.' },
   wizardStarterFinancialServices: { id: 'wizard.starter.financialServices', defaultMessage: 'Financial services' },
   wizardStarterFinancialServicesDetail: { id: 'wizard.starter.financialServicesDetail', defaultMessage: 'Parties, facilities, collateral, accounts, and compliance.' },
   wizardStarterHealthcare: { id: 'wizard.starter.healthcare', defaultMessage: 'Healthcare' },

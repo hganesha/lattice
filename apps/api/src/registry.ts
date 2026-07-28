@@ -16,6 +16,7 @@ import {
   type ReleaseControlEvent,
 } from '@lattice/contracts'
 import { airlineExampleContracts } from '@lattice/contracts/airline-contracts'
+import { telecommunicationsExampleContracts } from '@lattice/contracts/telecommunications-contracts'
 
 interface RegistryDocument {
   schemaVersion: '1.0' | '1.1'
@@ -304,13 +305,13 @@ export class ContractRegistry {
 }
 
 function seedReferenceContracts(entries: Record<string, ContractRegistryEntry>): void {
-  for (const contract of airlineExampleContracts) {
+  for (const contract of [...airlineExampleContracts, ...telecommunicationsExampleContracts]) {
     if (entries[contract.id]) continue
     const release: ContractRelease = {
       version: contract.version,
       digest: contract.digest,
       publishedAt: '2026-07-27T20:00:00.000Z',
-      notes: 'Initial airline regulatory decision-support reference.',
+      notes: `Initial ${contract.domain} regulatory decision-support reference.`,
       contract: structuredClone(contract),
     }
     entries[contract.id] = {

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { counterpartyRiskContract, type ContractStarter } from '@lattice/contracts'
 import { airlineExampleContracts } from '@lattice/contracts/airline-contracts'
+import { telecommunicationsExampleContracts } from '@lattice/contracts/telecommunications-contracts'
 import { ContractRegistry, ContractValidationError, validateContract } from './registry.js'
 
 test('persists drafts and publishes immutable versioned releases', async () => {
@@ -107,7 +108,7 @@ test('creates contracts on top of the generated industry ontology', async () => 
 test('creates property-bearing starters for every shipped industry pack', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-starters-'))
   const registry = await ContractRegistry.open(join(directory, 'registry.json'), counterpartyRiskContract)
-  const starters: Exclude<ContractStarter, 'blank'>[] = ['airline', 'financial-services', 'energy', 'healthcare', 'manufacturing', 'legal', 'insurance', 'real-estate']
+  const starters: Exclude<ContractStarter, 'blank'>[] = ['airline', 'telecommunications', 'financial-services', 'energy', 'healthcare', 'manufacturing', 'legal', 'insurance', 'real-estate']
 
   for (const starter of starters) {
     const entry = await registry.create({
@@ -131,9 +132,9 @@ test('seeds a provenance-backed ontology workspace for every implemented schema 
   const registry = await ContractRegistry.open(join(directory, 'registry.json'), counterpartyRiskContract)
   const generated = registry.listWorkspaces().filter((workspace) => workspace.ontologyGeneration)
 
-  assert.deepEqual(generated.map((workspace) => workspace.id).sort(), ['workspace-airline', 'workspace-energy', 'workspace-financial-services', 'workspace-healthcare', 'workspace-insurance', 'workspace-legal', 'workspace-manufacturing', 'workspace-real-estate'])
+  assert.deepEqual(generated.map((workspace) => workspace.id).sort(), ['workspace-airline', 'workspace-energy', 'workspace-financial-services', 'workspace-healthcare', 'workspace-insurance', 'workspace-legal', 'workspace-manufacturing', 'workspace-real-estate', 'workspace-telecommunications'])
   assert.ok(generated.every((workspace) => workspace.ontology.entityTypes.length >= 4))
-  assert.equal(generated.reduce((sum, workspace) => sum + (workspace.ontologyGeneration?.sourceFormCount ?? 0), 0), 63)
+  assert.equal(generated.reduce((sum, workspace) => sum + (workspace.ontologyGeneration?.sourceFormCount ?? 0), 0), 74)
   assert.equal(registry.getWorkspace('workspace-core')?.ontology.releaseStatus, 'PUBLISHED')
   assert.ok(generated.every((workspace) => workspace.ontology.composedFrom?.some((pack) => pack.role === 'FOUNDATION')))
   const financialServices = registry.getWorkspace('workspace-financial-services')!
@@ -155,6 +156,24 @@ test('seeds valid airline regulatory reference contracts into the airline worksp
   assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'consumer_remedy'))
   assert.deepEqual(workspace.contractIds.sort(), airlineExampleContracts.map((contract) => contract.id).sort())
   for (const contract of airlineExampleContracts) {
+    const seeded = registry.get(contract.id)
+    assert.equal(seeded?.runtimeStatus, 'ACTIVE')
+    assert.equal(seeded?.releases.length, 1)
+    assert.deepEqual(validateContract(seeded!.draft), [])
+  }
+})
+
+test('seeds valid telecommunications regulatory reference contracts into the telecommunications workspace', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-telecommunications-'))
+  const registry = await ContractRegistry.open(join(directory, 'registry.json'), counterpartyRiskContract)
+  const workspace = registry.getWorkspace('workspace-telecommunications')!
+
+  assert.equal(workspace.ontologyGeneration?.sourceFormCount, 11)
+  assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'number_port_order'))
+  assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'network_incident'))
+  assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'privacy_authorization'))
+  assert.deepEqual(workspace.contractIds.sort(), telecommunicationsExampleContracts.map((contract) => contract.id).sort())
+  for (const contract of telecommunicationsExampleContracts) {
     const seeded = registry.get(contract.id)
     assert.equal(seeded?.runtimeStatus, 'ACTIVE')
     assert.equal(seeded?.releases.length, 1)

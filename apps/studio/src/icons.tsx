@@ -181,6 +181,17 @@ export const IconPlane = (p: IconProps) => (
   </Icon>
 )
 
+export const IconRadioTower = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.9 19.1a10 10 0 0 1 0-14.2" />
+    <path d="M7.8 16.2a6 6 0 0 1 0-8.4" />
+    <circle cx="12" cy="12" r="2" />
+    <path d="M16.2 7.8a6 6 0 0 1 0 8.4" />
+    <path d="M19.1 4.9a10 10 0 0 1 0 14.2" />
+    <path d="m12 14 3 8H9l3-8Z" />
+  </Icon>
+)
+
 export const IconFactory = (p: IconProps) => (
   <Icon {...p}>
     <path d="M12 16h.01" />

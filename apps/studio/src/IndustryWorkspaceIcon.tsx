@@ -6,6 +6,7 @@ import {
   IconLandmark,
   IconNetwork,
   IconPlane,
+  IconRadioTower,
   IconScale,
   IconUmbrella,
   IconZap,
@@ -17,6 +18,7 @@ interface IndustryWorkspaceIconProps {
 
 const industryIcons: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   airline: IconPlane,
+  telecommunications: IconRadioTower,
   core: IconNetwork,
   energy: IconZap,
   financial_services: IconLandmark,

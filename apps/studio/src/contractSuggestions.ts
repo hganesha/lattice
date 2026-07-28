@@ -10,6 +10,10 @@ const suggestions: Record<string, ContractSuggestions> = {
     ['dispatch_release', 'crew_legality', 'airworthiness_release', 'safety_event_reporting', 'passenger_disruption'],
     ['System Operations Control', 'Crew Scheduling', 'Maintenance Control', 'Safety and Regulatory Compliance', 'Customer Care'],
   ),
+  telecommunications: catalog(
+    ['number_port_and_activation', 'service_fulfillment', 'network_outage_reporting', 'cpni_access_and_use', 'wholesale_service_assurance'],
+    ['Subscriber Operations', 'Network Operations Center', 'Regulatory Compliance', 'Privacy and Customer Trust', 'Wholesale Partnerships'],
+  ),
   healthcare: catalog(
     ['care_authorization', 'clinical_eligibility', 'claims_review', 'patient_flow'],
     ['Clinical Policy', 'Care Management', 'Revenue Cycle', 'Clinical Operations'],
@@ -56,7 +60,9 @@ function catalog(workflows: string[], owners: string[]): ContractSuggestions {
 }
 
 function normalize(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+  const normalized = value.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+  if (['telco', 'nvo', 'mvno', 'mobile_virtual_network_operator'].includes(normalized)) return 'telecommunications'
+  return normalized
 }
 
 function humanize(value: string): string {

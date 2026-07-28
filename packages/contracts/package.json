@@ -13,6 +13,10 @@
     "./airline-contracts": {
       "types": "./dist/airlineContracts.d.ts",
       "import": "./dist/airlineContracts.js"
+    },
+    "./telecommunications-contracts": {
+      "types": "./dist/telecommunicationsContracts.d.ts",
+      "import": "./dist/telecommunicationsContracts.js"
     }
   },
   "scripts": {

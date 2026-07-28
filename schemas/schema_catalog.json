@@ -1,6 +1,6 @@
 {
   "schema_catalog_version": "2026-07-27",
-  "rollout_notes": "Repository-owned airline source schemas used to generate the airline shared ontology and its provenance report.",
+  "rollout_notes": "Repository-owned airline and telecommunications/NVO source schemas used to generate shared ontologies and provenance reports.",
   "document_types": [
     { "vertical": "airline", "family": "airline_operational_control", "doc_type": "dispatch_release", "availability": "available", "regulatory_alignment": "14 CFR Part 121 subparts T and U" },
     { "vertical": "airline", "family": "airline_crew_management", "doc_type": "crew_duty_record", "availability": "available", "regulatory_alignment": "14 CFR Part 117" },
@@ -9,6 +9,17 @@
     { "vertical": "airline", "family": "airline_safety_management", "doc_type": "safety_event_report", "availability": "available", "regulatory_alignment": "14 CFR Part 5 and 14 CFR 121.703" },
     { "vertical": "airline", "family": "airline_passenger_protection", "doc_type": "tarmac_delay_report", "availability": "available", "regulatory_alignment": "14 CFR 259.4" },
     { "vertical": "airline", "family": "airline_passenger_protection", "doc_type": "passenger_refund_case", "availability": "available", "regulatory_alignment": "14 CFR Part 260" },
-    { "vertical": "airline", "family": "airline_cargo_security", "doc_type": "dangerous_goods_declaration", "availability": "available", "regulatory_alignment": "14 CFR Part 121, 49 CFR Parts 100-185, 49 CFR Part 1544, and ICAO Technical Instructions" }
+    { "vertical": "airline", "family": "airline_cargo_security", "doc_type": "dangerous_goods_declaration", "availability": "available", "regulatory_alignment": "14 CFR Part 121, 49 CFR Parts 100-185, 49 CFR Part 1544, and ICAO Technical Instructions" },
+    { "vertical": "telecommunications", "family": "telco_provider_management", "doc_type": "provider_profile", "availability": "available", "regulatory_alignment": "FCC provider registrations, wholesale operating model, and TM Forum SID" },
+    { "vertical": "telecommunications", "family": "telco_customer_management", "doc_type": "subscriber_account", "availability": "available", "regulatory_alignment": "47 U.S.C. 222 and 47 CFR Part 64 Subpart U" },
+    { "vertical": "telecommunications", "family": "telco_product_service", "doc_type": "service_subscription", "availability": "available", "regulatory_alignment": "TM Forum SID, TMF637, TMF638, and 3GPP subscription identifiers" },
+    { "vertical": "telecommunications", "family": "telco_product_service", "doc_type": "service_plan_label", "availability": "available", "regulatory_alignment": "47 CFR 8.1 broadband transparency and consumer-label requirements" },
+    { "vertical": "telecommunications", "family": "telco_fulfillment", "doc_type": "service_order", "availability": "available", "regulatory_alignment": "TM Forum TMF641 Service Ordering Management" },
+    { "vertical": "telecommunications", "family": "telco_numbering", "doc_type": "number_port_order", "availability": "available", "regulatory_alignment": "47 CFR 52.34-52.36" },
+    { "vertical": "telecommunications", "family": "telco_usage_charging", "doc_type": "usage_charging_record", "availability": "available", "regulatory_alignment": "3GPP TS 32.240 charging architecture and TMF635/TMF677" },
+    { "vertical": "telecommunications", "family": "telco_service_assurance", "doc_type": "network_incident_report", "availability": "available", "regulatory_alignment": "47 CFR Part 4 communications outage reporting" },
+    { "vertical": "telecommunications", "family": "telco_public_safety", "doc_type": "emergency_service_record", "availability": "available", "regulatory_alignment": "47 CFR Part 9, including CMRS reseller 911 obligations" },
+    { "vertical": "telecommunications", "family": "telco_privacy", "doc_type": "cpni_authorization", "availability": "available", "regulatory_alignment": "47 CFR 64.2007, 64.2009, and 64.2010" },
+    { "vertical": "telecommunications", "family": "telco_trust", "doc_type": "robocall_compliance_profile", "availability": "available", "regulatory_alignment": "47 CFR 64.6301 and 64.6305 caller-ID authentication and mitigation" }
   ]
 }

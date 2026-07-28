@@ -1,5 +1,17 @@
 [
   {
+    "industry": "telecommunications",
+    "ontologyId": "telecommunications-ontology",
+    "entities": 19,
+    "relationships": 24,
+    "formCount": 11,
+    "sourceFieldCount": 196,
+    "mappedFieldCount": 196,
+    "unmappedFieldCount": 0,
+    "mappedPercent": 100,
+    "unmappedFields": []
+  },
+  {
     "industry": "airline",
     "ontologyId": "airline-ontology",
     "entities": 15,

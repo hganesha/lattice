@@ -1,0 +1,26 @@
+{
+  "document_type": "service_subscription",
+  "vertical": "telecommunications",
+  "family": "telco_product_service",
+  "schema_version": "telco_service_subscription_v1",
+  "fields": [
+    { "name": "service_subscription_id", "type": "string", "required": true, "description": "Unique service-subscription identifier." },
+    { "name": "customer_account_number", "type": "string", "required": true, "description": "Owning customer account." },
+    { "name": "service_plan_id", "type": "string", "required": true, "description": "Governed product-offering or plan identifier." },
+    { "name": "service_type", "type": "string", "required": true, "description": "Voice, messaging, mobile broadband, fixed broadband, IoT, or bundle." },
+    { "name": "service_status", "type": "string", "required": true, "description": "Pending, active, suspended, terminated, or porting state." },
+    { "name": "service_activation_at", "type": "string", "required": false, "description": "Service activation timestamp." },
+    { "name": "service_termination_at", "type": "string", "required": false, "description": "Service termination timestamp." },
+    { "name": "telephone_number", "type": "string", "required": false, "description": "Assigned telephone number when applicable." },
+    { "name": "network_resource_sim_iccid", "type": "string", "required": false, "description": "Physical or eSIM profile identifier." },
+    { "name": "network_resource_imsi", "type": "string", "required": false, "description": "Subscription identity used by the host mobile network." },
+    { "name": "network_resource_device_imei", "type": "string", "required": false, "description": "Device equipment identity when necessary for service assurance." },
+    { "name": "network_resource_apn", "type": "string", "required": false, "description": "Access point name or equivalent data-service profile." },
+    { "name": "host_network_provider_name", "type": "string", "required": false, "description": "Host network provider serving the subscription." },
+    { "name": "service_address_reference", "type": "string", "required": false, "description": "Reference to the service or installation location." },
+    { "name": "service_rate_center", "type": "string", "required": false, "description": "Numbering rate center associated with service." },
+    { "name": "service_emergency_911_enabled", "type": "boolean", "required": true, "description": "Whether applicable emergency calling is provisioned." },
+    { "name": "service_regulation_citations", "type": "string", "required": true, "description": "Applicable service and public-safety requirements." },
+    { "name": "service_compliance_status", "type": "string", "required": true, "description": "Evidence-backed fulfillment and compliance state." }
+  ]
+}

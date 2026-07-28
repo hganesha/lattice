@@ -891,6 +891,8 @@
   "wizard.starter.ownership": "Every option remains yours.",
   "wizard.starter.realEstate": "Real estate",
   "wizard.starter.realEstateDetail": "Property, leases, title, closings, and management.",
+  "wizard.starter.telecommunications": "Telecommunications / NVO",
+  "wizard.starter.telecommunicationsDetail": "Subscribers, services, host networks, numbering, assurance, charging, public safety, and privacy.",
   "wizard.starterSelected": "{name} selected",
   "wizard.startingDescription": "Begin clean or accelerate with a small, editable industry foundation.",
   "wizard.step.brief": "Contract brief",

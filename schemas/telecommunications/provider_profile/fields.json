@@ -1,0 +1,23 @@
+{
+  "document_type": "provider_profile",
+  "vertical": "telecommunications",
+  "family": "telco_provider_management",
+  "schema_version": "telco_provider_profile_v1",
+  "fields": [
+    { "name": "service_provider_legal_name", "type": "string", "required": true, "description": "Legal name of the communications service provider." },
+    { "name": "provider_brand_name", "type": "string", "required": true, "description": "Customer-facing service brand." },
+    { "name": "provider_type", "type": "string", "required": true, "description": "Facilities-based carrier, NVO, MVNO, MVNE, reseller, or interconnected VoIP role." },
+    { "name": "provider_fcc_registration_number", "type": "string", "required": false, "description": "FCC Registration Number when applicable." },
+    { "name": "provider_operating_company_number", "type": "string", "required": false, "description": "Operating Company Number used in industry routing and numbering processes." },
+    { "name": "provider_service_footprint", "type": "string", "required": true, "description": "States, territories, rate centers, or coverage areas served." },
+    { "name": "host_network_provider_name", "type": "string", "required": false, "description": "Facilities-based host network supporting the virtual operator." },
+    { "name": "wholesale_agreement_id", "type": "string", "required": false, "description": "Identifier of the controlling wholesale network agreement." },
+    { "name": "wholesale_agreement_effective_date", "type": "string", "required": false, "description": "Effective date of the wholesale agreement." },
+    { "name": "wholesale_sla_profile", "type": "string", "required": false, "description": "Contractual service-level profile for host-network services." },
+    { "name": "interconnection_settlement_model", "type": "string", "required": false, "description": "Commercial settlement model for interconnection and roaming." },
+    { "name": "provider_emergency_service_role", "type": "string", "required": true, "description": "Provider responsibility for originating, routing, location, or reseller 911 obligations." },
+    { "name": "provider_robocall_mitigation_database_id", "type": "string", "required": false, "description": "Robocall Mitigation Database filing identifier." },
+    { "name": "provider_regulation_citations", "type": "string", "required": true, "description": "Applicable federal, state, and industry requirements." },
+    { "name": "provider_compliance_status", "type": "string", "required": true, "description": "Evidence-backed provider compliance posture." }
+  ]
+}

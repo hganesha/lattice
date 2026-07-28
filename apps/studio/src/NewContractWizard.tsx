@@ -24,6 +24,7 @@ export function NewContractWizard({ onClose, onCreated, workspace }: NewContract
   const starters: Array<{ id: ContractStarter; icon: string; name: string; detail: string; objects: string }> = [
     { id: 'blank', icon: '◇', name: t('wizardStarterBlank'), detail: t('wizardStarterBlankDetail'), objects: t('wizardStarterCounts', { types: 0, relations: 0 }) },
     { id: 'airline', icon: '✈', name: t('wizardStarterAirline'), detail: t('wizardStarterAirlineDetail'), objects: t('wizardStarterCounts', { types: 15, relations: 19 }) },
+    { id: 'telecommunications', icon: '⌁', name: t('wizardStarterTelecommunications'), detail: t('wizardStarterTelecommunicationsDetail'), objects: t('wizardStarterCounts', { types: 19, relations: 24 }) },
     { id: 'financial-services', icon: 'FS', name: t('wizardStarterFinancialServices'), detail: t('wizardStarterFinancialServicesDetail'), objects: t('wizardStarterCounts', { types: 15, relations: 14 }) },
     { id: 'energy', icon: 'EN', name: t('wizardStarterEnergy'), detail: t('wizardStarterEnergyDetail'), objects: t('wizardStarterCounts', { types: 4, relations: 3 }) },
     { id: 'healthcare', icon: 'HC', name: t('wizardStarterHealthcare'), detail: t('wizardStarterHealthcareDetail'), objects: t('wizardStarterCounts', { types: 7, relations: 6 }) },
