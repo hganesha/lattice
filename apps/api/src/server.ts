@@ -42,11 +42,12 @@ import { buildReleaseDiffArtifact } from './releaseDiff.js'
 import { authenticatorFromEnvironment, type RequestIdentity } from './auth.js'
 import { applyTenantMembership, tenantMembershipResolverFromEnvironment } from './tenancy.js'
 import { hasOrganizationRole, requiredOrganizationRoles } from './authorization.js'
+import { SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
 
 const port = Number(process.env.PORT ?? 8787)
 const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
 const dataDirectory = process.env.LATTICE_DATA_DIR ?? (process.env.VERCEL ? join(tmpdir(), 'lattice-api-data') : join(process.cwd(), 'data'))
-const registry = await ContractRegistry.open(join(dataDirectory, 'contract-registry.json'), counterpartyRiskContract)
+const fileRegistry = await ContractRegistry.open(join(dataDirectory, 'contract-registry.json'), counterpartyRiskContract)
 const assuranceStore = await AssuranceStore.open(join(dataDirectory, 'assurance-runs.json'))
 const reviewStore = await ReviewStore.open(join(dataDirectory, 'review-artifacts.json'))
 const runtimeApprovalStore = await RuntimeApprovalStore.open(join(dataDirectory, 'runtime-approvals.json'))
@@ -54,6 +55,7 @@ const executionStore = await ExecutionStore.open(join(dataDirectory, 'execution-
 const connectorHealthStore = await ConnectorHealthStore.open(join(dataDirectory, 'connector-health.json'))
 const authenticator = authenticatorFromEnvironment()
 const tenantMembershipResolver = tenantMembershipResolverFromEnvironment()
+const supabaseRegistryConfig = supabaseRegistryConfigFromEnvironment()
 const requestIdentityCache = new WeakMap<IncomingMessage, Promise<RequestIdentity | undefined>>()
 const clarifications = new Map<string, { request: CompileRequest; typeId: string }>()
 const plans = new Map<string, SignedExecutionPlan>()
@@ -70,6 +72,7 @@ const server = createServer(async (request, response) => {
 
   try {
     const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`)
+    let requestIdentity: RequestIdentity | undefined
 
     if (request.method === 'GET' && url.pathname === '/health') {
       send(response, 200, { status: 'ok', service: 'lattice-context-api' })
@@ -77,17 +80,30 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname.startsWith('/v1/') && url.pathname !== '/v1/keys/current') {
-      const identity = await authenticate(request)
-      if (!identity) {
+      requestIdentity = await authenticate(request)
+      if (!requestIdentity) {
         send(response, 401, { error: 'UNAUTHENTICATED_OR_UNAUTHORIZED', message: 'A valid user session and organization membership are required.' })
         return
       }
       const requiredRoles = requiredOrganizationRoles(request.method, url.pathname)
-      if (requiredRoles && !hasOrganizationRole(identity, requiredRoles)) {
+      if (requiredRoles && !hasOrganizationRole(requestIdentity, requiredRoles)) {
         send(response, 403, { error: 'ORGANIZATION_ROLE_REQUIRED', requiredRoles })
         return
       }
     }
+
+    const registry = requestIdentity && supabaseRegistryConfig
+      ? await ContractRegistry.openStorage(
+          new SupabaseRegistryStorage(
+            supabaseRegistryConfig,
+            requiredTenantId(requestIdentity),
+            requestIdentity.principalId,
+            request.headers.authorization ?? '',
+          ),
+          counterpartyRiskContract,
+          { persistOnOpen: false },
+        )
+      : fileRegistry
 
     if (request.method === 'GET' && url.pathname === '/v1/connectors') {
       if (!await authenticate(request)) {
@@ -915,6 +931,11 @@ async function authenticate(request: IncomingMessage): Promise<RequestIdentity |
   const resolution = resolveRequestIdentity(request)
   requestIdentityCache.set(request, resolution)
   return resolution
+}
+
+function requiredTenantId(identity: RequestIdentity): string {
+  if (!identity.tenantId) throw new Error('SUPABASE_REGISTRY_TENANT_REQUIRED')
+  return identity.tenantId
 }
 
 async function resolveRequestIdentity(request: IncomingMessage): Promise<RequestIdentity | undefined> {

@@ -18,10 +18,15 @@ import {
 import { airlineExampleContracts } from '@lattice/contracts/airline-contracts'
 import { telecommunicationsExampleContracts } from '@lattice/contracts/telecommunications-contracts'
 
-interface RegistryDocument {
+export interface RegistryDocument {
   schemaVersion: '1.0' | '1.1'
   entries: Record<string, ContractRegistryEntry>
   workspaces?: Record<string, IndustryWorkspace>
+}
+
+export interface RegistryStorage {
+  read(): Promise<RegistryDocument | undefined>
+  write(document: RegistryDocument): Promise<void>
 }
 
 export interface PublishRequest {
@@ -34,62 +39,32 @@ export class ContractRegistry {
   private document: RegistryDocument
   private writeQueue: Promise<void> = Promise.resolve()
 
-  private constructor(private readonly filePath: string, document: RegistryDocument) {
+  private constructor(private readonly storage: RegistryStorage, document: RegistryDocument) {
     this.document = document
   }
 
   static async open(filePath: string, seed: ContextContract): Promise<ContractRegistry> {
-    try {
-      const document = JSON.parse(await readFile(filePath, 'utf8')) as RegistryDocument
-      for (const entry of Object.values(document.entries)) {
-        entry.draft = hydratePolicyMetadata(entry.draft)
-        entry.releases = entry.releases.map((release) => ({ ...release, contract: hydratePolicyMetadata(release.contract) }))
-        entry.runtimeStatus = entry.runtimeStatus ?? (entry.releases.length > 0 ? 'ACTIVE' : 'NO_RELEASE')
-        const latestDigest = entry.releases.at(-1)?.digest
-        if (!entry.activeReleaseDigest && latestDigest) entry.activeReleaseDigest = latestDigest
-      }
-      seedReferenceContracts(document.entries)
-      document.workspaces = hydrateWorkspaces(document.entries, document.workspaces)
-      document.workspaces = seedGeneratedOntologies(document.workspaces)
-      repairGeneratedContractScopes(document.entries, document.workspaces)
-      document.schemaVersion = '1.1'
-      attachOntologyReferences(document.entries, document.workspaces)
-      const registry = new ContractRegistry(filePath, document)
-      await registry.persist()
-      return registry
-    } catch (error) {
-      const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      if (!missing) throw error
-      const initialRelease: ContractRelease = {
-        version: seed.version,
-        digest: seed.digest,
-        publishedAt: '2026-07-18T23:30:00.000Z',
-        notes: 'Initial financial-services example.',
-        contract: structuredClone(seed),
-      }
-      const document: RegistryDocument = {
-        schemaVersion: '1.1',
-        entries: {
-          [seed.id]: {
-            contractId: seed.id,
-            draft: structuredClone(seed),
-            updatedAt: new Date().toISOString(),
-            releases: [initialRelease],
-            runtimeStatus: 'ACTIVE',
-            activeReleaseDigest: initialRelease.digest,
-          },
-        },
-        workspaces: {},
-      }
-      seedReferenceContracts(document.entries)
-      document.workspaces = hydrateWorkspaces(document.entries, document.workspaces)
-      document.workspaces = seedGeneratedOntologies(document.workspaces)
-      repairGeneratedContractScopes(document.entries, document.workspaces)
-      attachOntologyReferences(document.entries, document.workspaces)
-      const registry = new ContractRegistry(filePath, document)
-      await registry.persist()
-      return registry
+    return ContractRegistry.openStorage(new JsonFileRegistryStorage(filePath), seed)
+  }
+
+  static async openStorage(storage: RegistryStorage, seed: ContextContract, options: { persistOnOpen?: boolean } = {}): Promise<ContractRegistry> {
+    const document = (await storage.read()) ?? initialRegistryDocument(seed)
+    for (const entry of Object.values(document.entries)) {
+      entry.draft = hydratePolicyMetadata(entry.draft)
+      entry.releases = entry.releases.map((release) => ({ ...release, contract: hydratePolicyMetadata(release.contract) }))
+      entry.runtimeStatus = entry.runtimeStatus ?? (entry.releases.length > 0 ? 'ACTIVE' : 'NO_RELEASE')
+      const latestDigest = entry.releases.at(-1)?.digest
+      if (!entry.activeReleaseDigest && latestDigest) entry.activeReleaseDigest = latestDigest
     }
+    seedReferenceContracts(document.entries)
+    document.workspaces = hydrateWorkspaces(document.entries, document.workspaces)
+    document.workspaces = seedGeneratedOntologies(document.workspaces)
+    repairGeneratedContractScopes(document.entries, document.workspaces)
+    document.schemaVersion = '1.1'
+    attachOntologyReferences(document.entries, document.workspaces)
+    const registry = new ContractRegistry(storage, document)
+    if (options.persistOnOpen !== false) await registry.persist()
+    return registry
   }
 
   list(): ContractRegistryEntry[] {
@@ -295,18 +270,58 @@ export class ContractRegistry {
 
   private async persist(): Promise<void> {
     this.writeQueue = this.writeQueue.then(async () => {
-      await mkdir(dirname(this.filePath), { recursive: true })
-      const temporaryPath = `${this.filePath}.tmp`
-      await writeFile(temporaryPath, `${JSON.stringify(this.document, null, 2)}\n`, 'utf8')
-      await rename(temporaryPath, this.filePath)
+      await this.storage.write(structuredClone(this.document))
     })
     await this.writeQueue
   }
 }
 
+class JsonFileRegistryStorage implements RegistryStorage {
+  constructor(private readonly filePath: string) {}
+
+  async read(): Promise<RegistryDocument | undefined> {
+    try {
+      return JSON.parse(await readFile(this.filePath, 'utf8')) as RegistryDocument
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
+      throw error
+    }
+  }
+
+  async write(document: RegistryDocument): Promise<void> {
+    await mkdir(dirname(this.filePath), { recursive: true })
+    const temporaryPath = `${this.filePath}.tmp`
+    await writeFile(temporaryPath, `${JSON.stringify(document, null, 2)}\n`, 'utf8')
+    await rename(temporaryPath, this.filePath)
+  }
+}
+
+function initialRegistryDocument(seed: ContextContract): RegistryDocument {
+  const release: ContractRelease = {
+    version: seed.version,
+    digest: seed.digest,
+    publishedAt: '2026-07-18T23:30:00.000Z',
+    notes: 'Initial financial-services example.',
+    contract: structuredClone(seed),
+  }
+  return {
+    schemaVersion: '1.1',
+    entries: {
+      [seed.id]: {
+        contractId: seed.id,
+        draft: structuredClone(seed),
+        updatedAt: new Date().toISOString(),
+        releases: [release],
+        runtimeStatus: 'ACTIVE',
+        activeReleaseDigest: release.digest,
+      },
+    },
+    workspaces: {},
+  }
+}
+
 function seedReferenceContracts(entries: Record<string, ContractRegistryEntry>): void {
   for (const contract of [...airlineExampleContracts, ...telecommunicationsExampleContracts]) {
-    if (entries[contract.id]) continue
     const release: ContractRelease = {
       version: contract.version,
       digest: contract.digest,
@@ -314,14 +329,26 @@ function seedReferenceContracts(entries: Record<string, ContractRegistryEntry>):
       notes: `Initial ${contract.domain} regulatory decision-support reference.`,
       contract: structuredClone(contract),
     }
-    entries[contract.id] = {
-      contractId: contract.id,
-      draft: structuredClone(contract),
-      updatedAt: release.publishedAt,
-      releases: [release],
-      runtimeStatus: 'ACTIVE',
-      activeReleaseDigest: release.digest,
+    const existing = entries[contract.id]
+    if (!existing) {
+      entries[contract.id] = {
+        contractId: contract.id,
+        draft: structuredClone(contract),
+        updatedAt: release.publishedAt,
+        releases: [release],
+        runtimeStatus: 'ACTIVE',
+        activeReleaseDigest: release.digest,
+      }
+      continue
     }
+
+    const canonicalReleases = existing.releases.filter((candidate) => candidate.notes.startsWith('Initial ') && candidate.notes.endsWith(' regulatory decision-support reference.'))
+    const draftTracksCanonicalRelease = existing.draft.releaseStatus === 'PUBLISHED' && canonicalReleases.some((candidate) => candidate.digest === existing.draft.digest)
+    const activeTracksCanonicalRelease = canonicalReleases.some((candidate) => candidate.digest === existing.activeReleaseDigest)
+    if (!existing.releases.some((candidate) => candidate.digest === release.digest)) existing.releases.push(release)
+    if (draftTracksCanonicalRelease) existing.draft = structuredClone(contract)
+    if (activeTracksCanonicalRelease) existing.activeReleaseDigest = release.digest
+    existing.runtimeStatus ??= 'ACTIVE'
   }
 }
 
@@ -471,6 +498,7 @@ function starterSchema(starter: CreateContractRequest['starter']): {
 
 function hydrateWorkspaces(entries: Record<string, ContractRegistryEntry>, stored?: Record<string, IndustryWorkspace>): Record<string, IndustryWorkspace> {
   const workspaces = structuredClone(stored ?? {})
+  const storedWorkspaceIds = new Set(Object.keys(workspaces))
   for (const workspace of Object.values(workspaces)) {
     workspace.ontology.bindings = (workspace.ontology.bindings ?? []).map((binding) => ({
       ...binding,
@@ -478,11 +506,10 @@ function hydrateWorkspaces(entries: Record<string, ContractRegistryEntry>, store
       ontologyId: workspace.ontology.id,
     }))
   }
-  const migratingLegacyRegistry = !stored || Object.keys(stored).length === 0
   for (const entry of Object.values(entries)) {
     const workspaceId = entry.draft.ontologyRef?.workspaceId ?? `workspace-${slugify(entry.draft.domain)}`
     const existing = workspaces[workspaceId]
-    const workspace = existing && migratingLegacyRegistry ? mergeContractIntoWorkspace(existing, entry.draft) : existing ?? workspaceFromContract(entry.draft)
+    const workspace = existing && !storedWorkspaceIds.has(workspaceId) ? mergeContractIntoWorkspace(existing, entry.draft) : existing ?? workspaceFromContract(entry.draft)
     workspaces[workspaceId] = { ...workspace, contractIds: [...new Set([...workspace.contractIds, entry.contractId])] }
   }
   return workspaces
