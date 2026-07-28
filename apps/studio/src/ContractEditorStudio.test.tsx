@@ -49,4 +49,30 @@ describe('ContractEditorStudio', () => {
     expect(screen.getByText('1 governed question')).toBeVisible()
     expect(screen.getByLabelText('Mapped operation')).not.toHaveValue('')
   })
+
+  it('reviews and applies a question file to the unpublished draft', async () => {
+    const user = userEvent.setup()
+    const onDirtyChange = vi.fn()
+    const contract = structuredClone(counterpartyRiskContract)
+    const operation = contract.operations[0]!
+
+    function Harness() {
+      const [draft, setDraft] = useState<ContextContract>(contract)
+      return <ContractEditorStudio contract={draft} onChange={setDraft} onDirtyChange={onDirtyChange} onBack={() => undefined} />
+    }
+
+    render(<LatticeI18nProvider><Harness /></LatticeI18nProvider>)
+    await user.click(screen.getByRole('button', { name: '⇧ Import questions' }))
+    const file = new File([
+      `question,expectedAnswerShape,owner,impact,operationId\n"Which exposures require escalation?","Exposure[]","Credit Risk","HIGH","${operation.id}"`,
+    ], 'questions.csv', { type: 'text/csv' })
+    await user.upload(screen.getByLabelText(/Choose a question file/), file)
+
+    expect(await screen.findByDisplayValue('Which exposures require escalation?')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Apply 1 to draft →' }))
+
+    expect(await screen.findByText('Imported 1 question and 0 operation proposals into the unpublished draft.')).toBeVisible()
+    expect(screen.getByDisplayValue('Which exposures require escalation?')).toBeVisible()
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true)
+  })
 })

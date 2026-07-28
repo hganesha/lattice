@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { CompetencyQuestion, ContextContract, ImpactLevel, OperationDefinition, RiskTier } from '@lattice/contracts'
 import { useMessages, type MessageKey } from './i18n/messages'
+import { QuestionImportDialog } from './QuestionImportDialog'
 
 interface ContractEditorStudioProps {
   contract: ContextContract
@@ -14,6 +16,8 @@ const riskTiers: RiskTier[] = ['INFORMATIONAL', 'ANALYTICAL', 'PLANNING_DECISION
 export function ContractEditorStudio({ contract, onChange, onDirtyChange, onBack }: ContractEditorStudioProps) {
   const { t } = useMessages()
   const issues = definitionIssues(contract).map((key) => t(key))
+  const [questionImportOpen, setQuestionImportOpen] = useState(false)
+  const [questionImportSummary, setQuestionImportSummary] = useState('')
 
   function stage(next: ContextContract) {
     onChange({ ...next, releaseStatus: 'UNPUBLISHED' })
@@ -104,7 +108,8 @@ export function ContractEditorStudio({ contract, onChange, onDirtyChange, onBack
         </section>
 
         <section className="contract-editor-section">
-          <header><div><span className="panel-kicker">{t('contractEditorQuestions').toLocaleUpperCase()}</span><h3>{t('contractEditorQuestionCount', { count: contract.competencyQuestions.length })}</h3></div><button className="ghost" type="button" onClick={addQuestion}>{t('contractEditorAddQuestion')}</button></header>
+          <header><div><span className="panel-kicker">{t('contractEditorQuestions').toLocaleUpperCase()}</span><h3>{t('contractEditorQuestionCount', { count: contract.competencyQuestions.length })}</h3></div><div className="contract-editor-header-actions"><button className="ghost" type="button" onClick={() => setQuestionImportOpen(true)}>{t('contractEditorImportQuestions')}</button><button className="ghost" type="button" onClick={addQuestion}>{t('contractEditorAddQuestion')}</button></div></header>
+          {questionImportSummary && <div className="contract-question-import-notice" role="status"><span>✓</span>{questionImportSummary}<button type="button" aria-label={t('commonClose')} onClick={() => setQuestionImportSummary('')}>×</button></div>}
           <div className="contract-definition-list">
             {contract.competencyQuestions.map((question, index) => <article className="contract-question-card" key={question.id}>
               <div className="contract-definition-card-heading"><span>{t('wizardQuestionNumber', { number: String(index + 1).padStart(2, '0') }).toLocaleUpperCase()}</span><code>{question.id}</code><button type="button" onClick={() => removeQuestion(question.id)}>{t('commonRemove')}</button></div>
@@ -151,6 +156,7 @@ export function ContractEditorStudio({ contract, onChange, onDirtyChange, onBack
         <div><b>{t('contractEditorImmutableIds')}</b><p>{t('contractEditorImmutableIdsDescription')}</p></div>
       </aside>
     </div>
+    {questionImportOpen && <QuestionImportDialog contract={contract} onClose={() => setQuestionImportOpen(false)} onApply={(next, summary) => { stage(next); setQuestionImportSummary(summary); setQuestionImportOpen(false) }} />}
   </section>
 }
 
