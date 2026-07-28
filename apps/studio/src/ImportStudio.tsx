@@ -8,6 +8,7 @@ import type {
   RelationshipTypeDefinition,
 } from '@lattice/contracts'
 import { API_URL, apiAuthHeaders } from './api'
+import { EntityIcon } from './entityIcons'
 import { useMessages } from './i18n/messages'
 type CollisionResolution = 'MERGE' | 'CREATE' | 'SKIP'
 
@@ -186,7 +187,7 @@ interface EntityProposalRowProps {
 function EntityProposalRow({ item, selected, resolution, edit, onSelected, onResolution, onEdit }: EntityProposalRowProps) {
   const { t } = useMessages()
   return <article className={`entity-proposal ${selected ? 'selected' : ''}`}>
-    <label className="proposal-check"><input type="checkbox" checked={selected} onChange={(event) => onSelected(event.target.checked)} /><span>{item.type.icon}</span></label>
+    <label className="proposal-check"><input type="checkbox" checked={selected} onChange={(event) => onSelected(event.target.checked)} /><span><EntityIcon icon={item.type.icon} /></span></label>
     <div className="proposal-content">
       <div className="proposal-title"><div><input aria-label={`Label for ${item.sourceId}`} value={edit.label} onChange={(event) => onEdit({ ...edit, label: event.target.value })} /><code>{item.type.id}</code></div><span>{t('importPropertiesCount', { count: item.type.properties.length })}</span></div>
       <p>{item.type.description}</p>

@@ -204,6 +204,15 @@ h3 { font-size: 15px; }
 .schema-canvas.flow-mode { height: clamp(620px,calc(100vh - 360px),900px); min-height: 620px; background-color: var(--canvas) !important; background-image: radial-gradient(var(--canvas-grid) .8px,transparent .8px) !important; }
 .flow-mode .react-flow,.runtime-graph { background: var(--canvas) !important; }
 .ontology-flow-node,.runtime-flow-node { width: 220px !important; color: var(--text) !important; background: var(--surface-raised) !important; border-color: var(--border-strong) !important; font-size: 12px !important; line-height: 1.4 !important; }
+.large-icon,.starter-icon { border: 1px solid color-mix(in srgb,var(--accent) 28%,var(--border)); color: var(--accent-strong); background: var(--accent-soft); }
+.starter-icon svg { width: 18px; height: 18px; }
+.runtime-node-content { display: flex; align-items: center; gap: 10px; min-width: 0; text-align: left; }
+.runtime-node-content>span { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border: 1px solid color-mix(in srgb,var(--accent) 28%,var(--border)); border-radius: 7px; color: var(--accent-strong); background: var(--accent-soft); }
+.runtime-node-content>span svg { width: 17px; height: 17px; }
+.runtime-node-content>div { min-width: 0; }
+.runtime-node-content b,.runtime-node-content small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-node-content b { color: var(--text); font: 600 var(--ui-font-min) Inter,sans-serif; }
+.runtime-node-content small { margin-top: 4px; color: var(--text-muted); font: var(--ui-meta-size) "DM Mono",monospace; }
 .ontology-lane-node { pointer-events: none !important; padding: 0 !important; border: 1px dashed var(--border-strong) !important; border-radius: 12px !important; color: var(--text-secondary) !important; background: color-mix(in srgb,var(--surface) 72%,transparent) !important; box-shadow: none !important; }
 .ontology-lane-content { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 13px; border-bottom: 1px solid var(--border); font: 600 var(--ui-meta-size) "DM Mono",monospace; letter-spacing: .8px; text-transform: uppercase; }
 .ontology-lane-content em { display: grid; place-items: center; min-width: 21px; height: 21px; padding-inline: 5px; border-radius: 999px; color: var(--accent); background: var(--accent-soft); font-style: normal; }

@@ -32,16 +32,16 @@ const ICON_KEYS = {
   real_property: 'organization', real_estate_party: 'people', lease: 'document', property_transaction: 'handshake',
   title_record: 'clipboard', closing: 'key', property_management: 'briefcase', rent_roll: 'chart',
   // airline
-  air_carrier: 'organization', aircraft: 'asset', airport: 'location', flight: 'event',
-  dispatch_release: 'clipboard', crew_member: 'people', crew_duty_record: 'clock', maintenance_record: 'workflow',
-  airworthiness_release: 'shield', safety_event: 'flag', passenger_journey: 'document', consumer_remedy: 'money',
-  tarmac_delay_event: 'clock', dangerous_goods_shipment: 'package', regulatory_requirement: 'landmark',
+  air_carrier: 'organization', aircraft: 'plane', airport: 'airport', flight: 'route',
+  dispatch_release: 'clipboard', crew_member: 'pilot', crew_duty_record: 'clock', maintenance_record: 'wrench',
+  airworthiness_release: 'badgeCheck', safety_event: 'alert', passenger_journey: 'ticket', consumer_remedy: 'receipt',
+  tarmac_delay_event: 'timer', dangerous_goods_shipment: 'package', regulatory_requirement: 'policy',
   // telecommunications / network virtual operator
-  communications_provider: 'organization', wholesale_network_agreement: 'handshake', subscriber: 'person',
-  customer_account: 'account', service_subscription: 'network', service_plan: 'product', service_order: 'workflow',
-  network_resource: 'system', service_address: 'location', telephone_number: 'identifier', number_port_order: 'clipboard',
-  usage_record: 'dataset', charge: 'money', service_quality_measurement: 'gauge', network_incident: 'flag',
-  emergency_service_record: 'shield', privacy_authorization: 'lock', robocall_compliance_profile: 'security',
+  communications_provider: 'radioTower', wholesale_network_agreement: 'handshake', subscriber: 'person',
+  customer_account: 'card', service_subscription: 'simCard', service_plan: 'tag', service_order: 'workflow',
+  network_resource: 'router', service_address: 'location', telephone_number: 'smartphone', number_port_order: 'phoneForwarded',
+  usage_record: 'activity', charge: 'receipt', service_quality_measurement: 'signal', network_incident: 'alert',
+  emergency_service_record: 'siren', privacy_authorization: 'lock', robocall_compliance_profile: 'phoneCall',
 }
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))

@@ -10,7 +10,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
       "description": "Shared telecommunications and network virtual operator semantics for subscribers, services, host-network access, numbering, service fulfillment, usage and charging, service assurance, emergency communications, privacy, and regulatory compliance.",
       "domain": "telecommunications",
       "version": "0.1.0",
-      "digest": "sha256:b6d3b8270f1d737c11a4e5af6d646bc9888323811f4336966e4bac218f791bab",
+      "digest": "sha256:abaecf21e9f3b767fb0df5029fae46a6ebee20a5a5e0b5e6b1598f117d022eb9",
       "releaseStatus": "UNPUBLISHED",
       "entityTypes": [
         {
@@ -18,7 +18,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Communications Provider",
           "description": "A facilities-based carrier, mobile virtual network operator, mobile virtual network enabler, reseller, interconnected VoIP provider, or other communications service provider.",
           "group": "Provider Ecosystem",
-          "icon": "organization",
+          "icon": "radioTower",
           "properties": [
             {
               "id": "communications_provider.service_provider_legal_name",
@@ -286,7 +286,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Customer Account",
           "description": "The governed billing and service relationship for one or more subscriptions.",
           "group": "Customer",
-          "icon": "account",
+          "icon": "card",
           "properties": [
             {
               "id": "customer_account.customer_account_number",
@@ -362,7 +362,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Service Subscription",
           "description": "An active or pending voice, messaging, broadband, IoT, or bundled service instance.",
           "group": "Product and Service",
-          "icon": "network",
+          "icon": "simCard",
           "properties": [
             {
               "id": "service_subscription.service_subscription_id",
@@ -430,7 +430,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Service Plan",
           "description": "A marketed product offering with price, allowance, performance, network-management, and eligibility terms.",
           "group": "Product and Service",
-          "icon": "product",
+          "icon": "tag",
           "properties": [
             {
               "id": "service_plan.service_plan_id",
@@ -678,7 +678,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Network Resource",
           "description": "A logical or physical access, core, transport, interconnect, SIM, eSIM, device, network function, circuit, or coverage resource.",
           "group": "Network and OSS",
-          "icon": "system",
+          "icon": "router",
           "properties": [
             {
               "id": "network_resource.network_resource_provisioning_status",
@@ -830,7 +830,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Telephone Number",
           "description": "A NANP or other governed telephone-number resource and its routing, assignment, and portability state.",
           "group": "Numbering",
-          "icon": "identifier",
+          "icon": "smartphone",
           "properties": [
             {
               "id": "telephone_number.number_port_initiator_telephone_number",
@@ -866,7 +866,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Number Port Order",
           "description": "A port-in or port-out request, its validation data, interval classification, authorization, due date, and completion state.",
           "group": "Numbering",
-          "icon": "clipboard",
+          "icon": "phoneForwarded",
           "properties": [
             {
               "id": "number_port_order.number_port_account_number",
@@ -1046,7 +1046,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Usage Record",
           "description": "A privacy-minimized voice, messaging, data, roaming, or event usage record used for assurance and charging.",
           "group": "Usage and Charging",
-          "icon": "dataset",
+          "icon": "activity",
           "properties": [
             {
               "id": "usage_record.usage_compliance_status",
@@ -1146,7 +1146,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Charge",
           "description": "A rated recurring, one-time, usage, roaming, tax, fee, credit, or adjustment amount.",
           "group": "Usage and Charging",
-          "icon": "money",
+          "icon": "receipt",
           "properties": [
             {
               "id": "charge.charge_currency",
@@ -1222,7 +1222,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Service Quality Measurement",
           "description": "A measured availability, accessibility, retainability, speed, latency, packet-loss, completion, or customer-impact indicator.",
           "group": "Service Assurance",
-          "icon": "gauge",
+          "icon": "signal",
           "properties": [
             {
               "id": "service_quality_measurement.service_quality_user_minutes",
@@ -1266,7 +1266,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Network Incident",
           "description": "An outage, degradation, alarm, root cause, restoration action, or regulatory reporting event affecting communications services.",
           "group": "Service Assurance",
-          "icon": "flag",
+          "icon": "alert",
           "properties": [
             {
               "id": "network_incident.incident_affected_geographic_area",
@@ -1422,7 +1422,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Emergency Service Record",
           "description": "A minimized record of 911 or text-to-911 routing, location delivery, service availability, PSAP impact, testing, or certification evidence.",
           "group": "Public Safety",
-          "icon": "shield",
+          "icon": "siren",
           "properties": [
             {
               "id": "emergency_service_record.emergency_911_provisioning_status",
@@ -1798,7 +1798,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Robocall Compliance Profile",
           "description": "A provider profile for caller-ID authentication, robocall mitigation, traceback response, upstream-provider diligence, and filing evidence.",
           "group": "Trust and Interconnection",
-          "icon": "security",
+          "icon": "phoneCall",
           "properties": [
             {
               "id": "robocall_compliance_profile.robocall_analytics_system",
@@ -1938,7 +1938,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Regulatory Requirement",
           "description": "A versioned FCC, state commission, numbering-administrator, public-safety, privacy, or technical requirement with applicability and deadlines.",
           "group": "Governance",
-          "icon": "landmark",
+          "icon": "policy",
           "properties": [
             {
               "id": "regulatory_requirement.account_compliance_status",
@@ -3368,7 +3368,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
       "description": "Shared Part 121 airline operations, aircraft, airport, dispatch, crew, maintenance, safety, passenger-protection, security, and dangerous-goods semantics.",
       "domain": "airline",
       "version": "0.1.0",
-      "digest": "sha256:dc5c6a655af570f3fe5f232b98b226cbe243dfdcceea481f335ca284e9993c7e",
+      "digest": "sha256:1032c3e2eb1ecb703ec3fdfd4affec82563f6e56fe9e2c16e823188de694317d",
       "releaseStatus": "UNPUBLISHED",
       "entityTypes": [
         {
@@ -3412,7 +3412,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Aircraft",
           "description": "A governed transport aircraft, its identity, configuration, operating status, and technical condition.",
           "group": "Fleet",
-          "icon": "asset",
+          "icon": "plane",
           "properties": [
             {
               "id": "aircraft.aircraft_type",
@@ -3464,7 +3464,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Airport",
           "description": "An origin, destination, alternate, diversion, or delay airport and its operational conditions.",
           "group": "Network",
-          "icon": "location",
+          "icon": "airport",
           "properties": [
             {
               "id": "airport.destination_airport_code",
@@ -3524,7 +3524,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Flight",
           "description": "A scheduled or operated flight leg with route, timing, weather, fuel, weight, and operating context.",
           "group": "Operations",
-          "icon": "event",
+          "icon": "route",
           "properties": [
             {
               "id": "flight.destination_airport_code",
@@ -3772,7 +3772,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Crew Member",
           "description": "A pilot, flight attendant, dispatcher, mechanic, or other certificated or assigned operational person.",
           "group": "People",
-          "icon": "people",
+          "icon": "pilot",
           "properties": [
             {
               "id": "crew_member.authorized_mechanic_certificate_number",
@@ -3940,7 +3940,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Maintenance Record",
           "description": "A discrepancy, inspection, maintenance action, alteration, deferral, or service-difficulty record for an aircraft.",
           "group": "Airworthiness",
-          "icon": "workflow",
+          "icon": "wrench",
           "properties": [
             {
               "id": "maintenance_record.maintenance_record_number",
@@ -4088,7 +4088,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Airworthiness Release",
           "description": "A signed airworthiness release or aircraft-log entry supporting return to service after maintenance.",
           "group": "Airworthiness",
-          "icon": "shield",
+          "icon": "badgeCheck",
           "properties": [
             {
               "id": "airworthiness_release.airworthiness_release_number",
@@ -4180,7 +4180,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Safety Event",
           "description": "A reported hazard, incident, malfunction, risk assessment, or corrective action within the carrier safety management system.",
           "group": "Safety Management",
-          "icon": "flag",
+          "icon": "alert",
           "properties": [
             {
               "id": "safety_event.hazard_class",
@@ -4320,7 +4320,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Passenger Journey",
           "description": "A governed itinerary, ticket, reservation, checked bag, class of service, and delivered ancillary service.",
           "group": "Passenger Service",
-          "icon": "document",
+          "icon": "ticket",
           "properties": [
             {
               "id": "passenger_journey.class_of_service_changed",
@@ -4420,7 +4420,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Consumer Remedy",
           "description": "A refund, rebooking, voucher, credit, notification, or other passenger remedy and its disposition.",
           "group": "Passenger Service",
-          "icon": "money",
+          "icon": "receipt",
           "properties": [
             {
               "id": "consumer_remedy.alternative_transportation_accepted",
@@ -4496,7 +4496,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Tarmac Delay Event",
           "description": "A ground delay with deplaning, care, notification, exception, and reporting evidence.",
           "group": "Passenger Service",
-          "icon": "clock",
+          "icon": "timer",
           "properties": [
             {
               "id": "tarmac_delay_event.lavatory_operable",
@@ -4752,7 +4752,7 @@ export const generatedIndustryOntologyCatalog: GeneratedIndustryOntology[] = [
           "label": "Regulatory Requirement",
           "description": "A versioned FAA, DOT, TSA, NTSB, or other applicable requirement, citation, applicability rule, and reporting deadline.",
           "group": "Governance",
-          "icon": "landmark",
+          "icon": "policy",
           "properties": [
             {
               "id": "regulatory_requirement.compliance_status",

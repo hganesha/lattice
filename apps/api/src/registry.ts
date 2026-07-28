@@ -578,7 +578,13 @@ function repairGeneratedContractScopes(entries: Record<string, ContractRegistryE
 }
 
 function mergeOntologyDefinitions(existing: IndustryOntology, generated: IndustryOntology): IndustryOntology {
-  const entityTypes = [...existing.entityTypes]
+  const generatedTypes = new Map(generated.entityTypes.map((type) => [type.id, type]))
+  const entityTypes = existing.entityTypes.map((type) => {
+    const generatedType = generatedTypes.get(type.id)
+    const legacyIcon = legacyGeneratedIcons[type.id]
+    if (generatedType && (type.icon.length <= 2 || legacyIcon === type.icon)) return { ...type, icon: generatedType.icon }
+    return type
+  })
   for (const type of generated.entityTypes) if (!entityTypes.some((candidate) => candidate.id === type.id)) entityTypes.push(structuredClone(type))
   const relationshipTypes = [...existing.relationshipTypes]
   for (const relationship of generated.relationshipTypes) if (!relationshipTypes.some((candidate) => candidate.id === relationship.id)) relationshipTypes.push(structuredClone(relationship))
@@ -591,6 +597,33 @@ function mergeOntologyDefinitions(existing: IndustryOntology, generated: Industr
     relationshipTypes,
     schemaLayout: { ...generated.schemaLayout, ...existing.schemaLayout },
   }
+}
+
+const legacyGeneratedIcons: Record<string, string> = {
+  aircraft: 'asset',
+  airport: 'location',
+  flight: 'event',
+  crew_member: 'people',
+  maintenance_record: 'workflow',
+  airworthiness_release: 'shield',
+  safety_event: 'flag',
+  passenger_journey: 'document',
+  consumer_remedy: 'money',
+  tarmac_delay_event: 'clock',
+  regulatory_requirement: 'landmark',
+  communications_provider: 'organization',
+  customer_account: 'account',
+  service_subscription: 'network',
+  service_plan: 'product',
+  network_resource: 'system',
+  telephone_number: 'identifier',
+  number_port_order: 'clipboard',
+  usage_record: 'dataset',
+  charge: 'money',
+  service_quality_measurement: 'gauge',
+  network_incident: 'flag',
+  emergency_service_record: 'shield',
+  robocall_compliance_profile: 'security',
 }
 
 function validateOntologyDefinition(ontology: IndustryOntology): string[] {

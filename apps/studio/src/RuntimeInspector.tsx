@@ -1,4 +1,5 @@
 import type { ContextContract, EntityRecord } from '@lattice/contracts'
+import { EntityIcon } from './entityIcons'
 import { useMessages } from './i18n/messages'
 
 interface RuntimeInspectorProps {
@@ -12,7 +13,7 @@ export function RuntimeInspector({ entity, contract }: RuntimeInspectorProps) {
   const type = contract.entityTypes.find((candidate) => candidate.id === entity.typeId)
   const relationshipCount = contract.relationships.filter((relationship) => relationship.sourceEntityId === entity.id || relationship.targetEntityId === entity.id).length
   return <div className="inspector-body">
-    <div className="entity-title"><span className="large-icon">{type?.icon}</span><div><span>{type?.label}</span><h3>{entity.label}</h3><code>{entity.id}</code></div></div>
+    <div className="entity-title"><span className="large-icon"><EntityIcon icon={type?.icon ?? 'box'} /></span><div><span>{type?.label}</span><h3>{entity.label}</h3><code>{entity.id}</code></div></div>
     <div className="badges"><span className="badge approved">{t('runtimeGoverned')}</span><span className="badge critical">{t('runtimeImpact', { impact: type?.impact ?? 'MEDIUM' })}</span></div>
     <p>{type?.description}</p>
     <dl>
