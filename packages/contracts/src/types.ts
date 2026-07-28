@@ -690,11 +690,68 @@ export interface ClarificationCandidate {
   rationale: string
 }
 
-export interface ClarificationContract {
+export interface EntityClarificationContract {
+  kind: 'ENTITY'
   id: string
   prompt: string
   entityTypeId: string
   candidates: ClarificationCandidate[]
+}
+
+export interface OperationClarificationCandidate {
+  operationId: string
+  label: string
+  description: string
+  riskTier: RiskTier
+  expectedAnswerShape: string
+  score: number
+  rationale: string[]
+}
+
+export interface OperationClarificationContract {
+  kind: 'OPERATION'
+  id: string
+  prompt: string
+  candidates: OperationClarificationCandidate[]
+}
+
+export type ClarificationContract = EntityClarificationContract | OperationClarificationContract
+
+export interface IntentCandidate {
+  operationId: string
+  matchedQuestionIds: string[]
+  lexicalScore: number
+  semanticScore?: number
+  aggregateScore: number
+  rationale: string[]
+}
+
+export interface IntentResolution {
+  resolverVersion: string
+  method: 'LEXICAL' | 'HYBRID'
+  indexDigest: string
+  modelVersion?: string
+  degradedReason?: string
+  candidates: IntentCandidate[]
+}
+
+export interface IntentDecisionEvidence {
+  resolverVersion: string
+  method: IntentResolution['method']
+  indexDigest: string
+  modelVersion?: string
+  operationId: string
+  matchedQuestionIds: string[]
+  lexicalScore: number
+  semanticScore?: number
+  aggregateScore: number
+  acceptance: 'AUTOMATIC' | 'USER_CONFIRMED'
+  candidateMargin: number
+  thresholds: {
+    minimumSupportedScore: number
+    automaticAcceptanceScore: number
+    minimumCandidateMargin: number
+  }
 }
 
 export interface UnsignedExecutionPlan {
@@ -704,6 +761,7 @@ export interface UnsignedExecutionPlan {
   decision: 'RESOLVED'
   riskTier: RiskTier
   operation: string
+  intent: IntentDecisionEvidence
   arguments: Record<string, { entityId: string } | string | number | boolean>
   metrics: Array<{ id: string; version: string }>
   sourceBindings: string[]
@@ -728,6 +786,7 @@ export interface CompileResponse {
   reasonCodes: string[]
   explanation: string[]
   versions: VersionPin
+  intentResolution?: IntentResolution
   clarification?: ClarificationContract
   plan?: SignedExecutionPlan | UnsignedExecutionPlan
   pendingPlan?: UnsignedExecutionPlan

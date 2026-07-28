@@ -22,14 +22,17 @@ test('compiles a specific counterparty question into a pinned plan', () => {
   assert.deepEqual(result.plan?.arguments.counterparty, { entityId: 'CP-0103' })
   assert.deepEqual(result.plan?.metrics.map((metric) => metric.id), ['net_current_exposure', 'limit_utilization'])
   assert.equal(result.plan?.versions.contract, 'counterparty-risk@1.0.0')
+  assert.equal(result.plan?.intent.operationId, 'risk.counterparty_exposure_assessment')
+  assert.equal(result.plan?.intent.method, 'LEXICAL')
 })
 
 test('emits a clarification contract for an ambiguous name', () => {
   const result = compiler().compile({ question: 'Show the counterparty exposure for Arcadia.' })
 
   assert.equal(result.decision, 'CLARIFICATION_REQUIRED')
+  assert.equal(result.clarification?.kind, 'ENTITY')
   assert.deepEqual(
-    result.clarification?.candidates.map((candidate) => candidate.entityId),
+    result.clarification?.kind === 'ENTITY' ? result.clarification.candidates.map((candidate) => candidate.entityId) : [],
     ['CP-0103', 'CP-0188'],
   )
 })

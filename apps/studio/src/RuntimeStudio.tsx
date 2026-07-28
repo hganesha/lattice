@@ -61,17 +61,18 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     }
   }
 
-  async function resolveClarification(entityId: string) {
+  async function resolveClarification(candidateId: string) {
     if (!result?.clarification) return
+    const clarificationKind = result.clarification.kind
     setLoading(true)
     try {
       const response = await fetch(`${API_URL}/v1/clarifications/${result.clarification.id}`, {
         method: 'POST',
         headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entityId }),
+        body: JSON.stringify(clarificationKind === 'ENTITY' ? { entityId: candidateId } : { operationId: candidateId }),
       })
       setResult(await response.json() as CompileResponse)
-      setSelectedId(entityId)
+      if (clarificationKind === 'ENTITY') setSelectedId(candidateId)
     } finally {
       setLoading(false)
     }

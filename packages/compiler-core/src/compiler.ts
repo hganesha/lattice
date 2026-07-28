@@ -5,9 +5,12 @@ import type {
   ContextContract,
   EntityRecord,
   EvidenceStrength,
+  IntentResolution,
   OperationDefinition,
+  RiskTier,
   UnsignedExecutionPlan,
 } from '@lattice/contracts'
+import { resolveLexicalIntent } from './intentResolver.js'
 
 const evidenceRank: Record<EvidenceStrength, number> = {
   INSUFFICIENT: 0,
@@ -21,6 +24,19 @@ export interface CompilerOptions {
   now?: () => Date
   id?: () => string
   planTtlMinutes?: number
+  intentPolicy?: Partial<Record<RiskTier, Partial<IntentGate>>>
+}
+
+export interface CompileContext {
+  intentResolution?: IntentResolution
+  selectedOperationId?: string
+}
+
+export interface IntentGate {
+  minimumSupportedScore: number
+  automaticAcceptanceScore: number
+  minimumCandidateMargin: number
+  confirmSemanticOnly: boolean
 }
 
 export class ContextCompiler {
@@ -28,38 +44,114 @@ export class ContextCompiler {
   private readonly now: () => Date
   private readonly id: () => string
   private readonly planTtlMinutes: number
+  private readonly intentPolicy: Record<RiskTier, IntentGate>
 
   constructor(contract: ContextContract, options: CompilerOptions = {}) {
     this.contract = contract
     this.now = options.now ?? (() => new Date())
     this.id = options.id ?? randomUUID
     this.planTtlMinutes = options.planTtlMinutes ?? 10
+    this.intentPolicy = mergeIntentPolicy(options.intentPolicy)
   }
 
-  compile(request: CompileRequest): CompileResponse {
+  compile(request: CompileRequest, context: CompileContext = {}): CompileResponse {
     const resolutionId = `res_${this.id()}`
-    const operation = this.selectOperation(request.question)
+    const intentResolution = context.intentResolution ?? resolveLexicalIntent(request, this.contract)
+    const respond = (decision: CompileResponse['decision'], reasonCodes: string[], explanation: string[]) =>
+      this.response(resolutionId, decision, reasonCodes, explanation, intentResolution)
 
-    if (!operation) {
-      return this.response(resolutionId, 'UNSUPPORTED', ['NO_SUPPORTED_OPERATION'], [
+    if (request.contractVersion && request.contractVersion !== this.contract.version) {
+      return respond('DENIED', ['CONTRACT_VERSION_MISMATCH'], [
+        `Requested contract ${request.contractVersion}; active contract is ${this.contract.version}.`,
+      ])
+    }
+
+    const selectedOperation = context.selectedOperationId
+      ? this.contract.operations.find((operation) => operation.id === context.selectedOperationId)
+      : undefined
+    const selectedCandidate = context.selectedOperationId
+      ? intentResolution.candidates.find((candidate) => candidate.operationId === context.selectedOperationId)
+      : undefined
+    if (context.selectedOperationId && (!selectedOperation || !selectedCandidate)) {
+      return respond('DENIED', ['INVALID_OPERATION_SELECTION'], [
+        `${context.selectedOperationId} is not a proposed operation in the active contract resolution.`,
+      ])
+    }
+
+    const candidateOperations = intentResolution.candidates.flatMap((candidate) => {
+      const operation = this.contract.operations.find((item) => item.id === candidate.operationId)
+      return operation ? [{ candidate, operation }] : []
+    })
+    const strongest = candidateOperations[0]
+    if (!selectedOperation && !strongest) {
+      return respond('UNSUPPORTED', ['NO_SUPPORTED_OPERATION'], [
         'The question does not map to an operation published by this context contract.',
       ])
     }
 
-    if (request.contractVersion && request.contractVersion !== this.contract.version) {
-      return this.response(resolutionId, 'DENIED', ['CONTRACT_VERSION_MISMATCH'], [
-        `Requested contract ${request.contractVersion}; active contract is ${this.contract.version}.`,
+    if (!selectedOperation && strongest) {
+      const gate = this.intentPolicy[strongest.operation.riskTier]
+      const runnerUp = candidateOperations[1]
+      const margin = strongest.candidate.aggregateScore - (runnerUp?.candidate.aggregateScore ?? 0)
+      if (strongest.candidate.aggregateScore < gate.minimumSupportedScore) {
+        return respond('UNSUPPORTED', ['NO_SUPPORTED_OPERATION'], [
+          `The closest operation was ${strongest.operation.label} at ${strongest.candidate.aggregateScore.toFixed(3)}, below the supported-intent threshold ${gate.minimumSupportedScore.toFixed(3)}.`,
+        ])
+      }
+
+      const semanticOnlyConfirmation = gate.confirmSemanticOnly
+        && strongest.candidate.lexicalScore === 0
+        && (strongest.candidate.semanticScore ?? 0) > 0
+      const belowAcceptance = strongest.candidate.aggregateScore < gate.automaticAcceptanceScore
+      const ambiguous = Boolean(runnerUp) && margin < gate.minimumCandidateMargin
+      if (semanticOnlyConfirmation || belowAcceptance || ambiguous) {
+        const candidates = candidateOperations
+          .filter(({ candidate }) => candidate.aggregateScore >= gate.minimumSupportedScore)
+          .slice(0, 3)
+          .map(({ candidate, operation }) => ({
+            operationId: operation.id,
+            label: operation.label,
+            description: operation.description,
+            riskTier: operation.riskTier,
+            expectedAnswerShape: this.contract.competencyQuestions.find((question) => question.operationId === operation.id)?.expectedAnswerShape ?? operation.expectedResultSchema,
+            score: candidate.aggregateScore,
+            rationale: candidate.rationale,
+          }))
+        return {
+          ...respond('CLARIFICATION_REQUIRED', [
+            semanticOnlyConfirmation ? 'SEMANTIC_OPERATION_CONFIRMATION_REQUIRED' : ambiguous ? 'AMBIGUOUS_OPERATION' : 'LOW_INTENT_CONFIDENCE',
+          ], [
+            semanticOnlyConfirmation
+              ? `${strongest.operation.label} was proposed only by semantic similarity and requires explicit confirmation at ${strongest.operation.riskTier.toLocaleLowerCase().replaceAll('_', ' ')} risk.`
+              : ambiguous
+                ? `Multiple governed operations are plausible; the leading margin ${margin.toFixed(3)} is below ${gate.minimumCandidateMargin.toFixed(3)}.`
+                : `${strongest.operation.label} is plausible, but its score ${strongest.candidate.aggregateScore.toFixed(3)} is below the automatic threshold ${gate.automaticAcceptanceScore.toFixed(3)}.`,
+          ]),
+          clarification: {
+            kind: 'OPERATION',
+            id: `clar_${this.id()}`,
+            prompt: 'Which governed operation best matches what you want to do?',
+            candidates,
+          },
+        }
+      }
+    }
+
+    const operation = selectedOperation ?? strongest?.operation
+    if (!operation) {
+      return respond('UNSUPPORTED', ['NO_SUPPORTED_OPERATION'], [
+        'The question does not map to an operation published by this context contract.',
       ])
     }
 
     const policy = this.contract.policies.find((candidate) => candidate.riskTier === operation.riskTier)
     if (!policy) {
-      return this.response(resolutionId, 'DENIED', ['POLICY_PROFILE_MISSING'], [
+      return respond('DENIED', ['POLICY_PROFILE_MISSING'], [
         `${operation.label} has no approved runtime policy for ${operation.riskTier.toLocaleLowerCase().replaceAll('_', ' ')} risk.`,
       ])
     }
     if (!['APPROVED', 'APPROVED_WITH_EXCEPTION'].includes(policy.approvalStatus)) {
-      return this.response(resolutionId, 'DENIED', ['POLICY_NOT_APPROVED'], [
+      return respond('DENIED', ['POLICY_NOT_APPROVED'], [
         `${policy.label} must be approved before it can govern runtime compilation.`,
       ])
     }
@@ -73,7 +165,7 @@ export class ContextCompiler {
         : undefined
 
       if (selectedId && !selected) {
-        return this.response(resolutionId, 'DENIED', ['INVALID_ENTITY_SELECTION'], [
+        return respond('DENIED', ['INVALID_ENTITY_SELECTION'], [
           `${selectedId} is not a valid ${typeId} in the active contract.`,
         ])
       }
@@ -82,7 +174,7 @@ export class ContextCompiler {
       const candidates = lexicalCandidates.length > 0 ? lexicalCandidates : this.resolveRelatedEntities(argumentsByType, typeId)
 
       if (candidates.length === 0) {
-        return this.response(resolutionId, 'INSUFFICIENT_EVIDENCE', ['REQUIRED_ENTITY_UNRESOLVED'], [
+        return respond('INSUFFICIENT_EVIDENCE', ['REQUIRED_ENTITY_UNRESOLVED'], [
           `No evidenced ${typeId} could be resolved from the question.`,
         ])
       }
@@ -90,10 +182,11 @@ export class ContextCompiler {
       if (candidates.length > 1) {
         const clarificationId = `clar_${this.id()}`
         return {
-          ...this.response(resolutionId, 'CLARIFICATION_REQUIRED', ['AMBIGUOUS_ENTITY'], [
+          ...respond('CLARIFICATION_REQUIRED', ['AMBIGUOUS_ENTITY'], [
             `Multiple ${typeId} records match the language in the question.`,
           ]),
           clarification: {
+            kind: 'ENTITY',
             id: clarificationId,
             prompt: `Which ${typeId.replaceAll('_', ' ')} did you mean?`,
             entityTypeId: typeId,
@@ -111,7 +204,7 @@ export class ContextCompiler {
       const entity = candidates[0]
       if (!entity) continue
       if (evidenceRank[entity.evidenceStrength] < evidenceRank[policy.minimumEvidenceStrength]) {
-        return this.response(resolutionId, 'INSUFFICIENT_EVIDENCE', ['EVIDENCE_BELOW_POLICY_THRESHOLD'], [
+        return respond('INSUFFICIENT_EVIDENCE', ['EVIDENCE_BELOW_POLICY_THRESHOLD'], [
           `${entity.label} has ${entity.evidenceStrength.toLowerCase()} evidence; ${policy.minimumEvidenceStrength.toLowerCase()} is required.`,
         ])
       }
@@ -125,7 +218,7 @@ export class ContextCompiler {
       .filter((evidence) => evidence && evidence.validUntil && new Date(evidence.validUntil) < this.asOf(request))
 
     if (invalidEvidence.length > 0) {
-      return this.response(resolutionId, 'STALE_CONTEXT', ['EVIDENCE_OUTSIDE_VALIDITY_WINDOW'], [
+      return respond('STALE_CONTEXT', ['EVIDENCE_OUTSIDE_VALIDITY_WINDOW'], [
         'One or more required evidence records are outside their declared validity window.',
       ])
     }
@@ -137,23 +230,23 @@ export class ContextCompiler {
       .filter((evidence) => evidence && asOf.getTime() - new Date(evidence.observedAt).getTime() > policy.maximumEvidenceAgeMinutes * 60_000)
 
     if (staleEvidence.length > 0) {
-      return this.response(resolutionId, 'STALE_CONTEXT', ['EVIDENCE_EXCEEDS_POLICY_FRESHNESS'], [
+      return respond('STALE_CONTEXT', ['EVIDENCE_EXCEEDS_POLICY_FRESHNESS'], [
         `${staleEvidence.length} evidence record${staleEvidence.length === 1 ? '' : 's'} exceed the ${policy.maximumEvidenceAgeMinutes}-minute freshness window in ${policy.label}.`,
       ])
     }
 
     if (policy.approvalRequired) {
       return {
-        ...this.response(resolutionId, 'APPROVAL_REQUIRED', ['RUNTIME_APPROVAL_REQUIRED'], [
+        ...respond('APPROVAL_REQUIRED', ['RUNTIME_APPROVAL_REQUIRED'], [
           `${policy.label} requires a human approval before ${operation.label} can execute.`,
         ]),
-        pendingPlan: this.buildPlan(resolutionId, operation, argumentsByType),
+        pendingPlan: this.buildPlan(resolutionId, operation, argumentsByType, intentResolution, Boolean(selectedOperation)),
       }
     }
 
-    const plan = this.buildPlan(resolutionId, operation, argumentsByType)
+    const plan = this.buildPlan(resolutionId, operation, argumentsByType, intentResolution, Boolean(selectedOperation))
     return {
-      ...this.response(resolutionId, 'RESOLVED', ['CONTEXT_COMPILED'], [
+      ...respond('RESOLVED', ['CONTEXT_COMPILED'], [
         `Resolved ${operation.label} against ${this.contract.name}.`,
         'Semantic, policy, source-binding, and evidence versions are pinned in the plan.',
       ]),
@@ -166,24 +259,9 @@ export class ContextCompiler {
     decision: CompileResponse['decision'],
     reasonCodes: string[],
     explanation: string[],
+    intentResolution?: IntentResolution,
   ): CompileResponse {
-    return { resolutionId, decision, reasonCodes, explanation, versions: this.contract.versions }
-  }
-
-  private selectOperation(question: string): OperationDefinition | undefined {
-    const normalizedQuestion = normalize(question)
-    const scored = this.contract.operations
-      .map((operation) => ({
-        operation,
-        score: operation.keywords.reduce(
-          (score, keyword) => score + (normalizedQuestion.includes(normalize(keyword)) ? keyword.split(/\s+/).length : 0),
-          0,
-        ),
-      }))
-      .filter(({ score }) => score > 0)
-      .sort((left, right) => right.score - left.score || left.operation.id.localeCompare(right.operation.id))
-
-    return scored[0]?.operation
+    return { resolutionId, decision, reasonCodes, explanation, versions: this.contract.versions, ...(intentResolution ? { intentResolution } : {}) }
   }
 
   private resolveEntities(question: string, typeId: string): EntityRecord[] {
@@ -228,6 +306,8 @@ export class ContextCompiler {
     resolutionId: string,
     operation: OperationDefinition,
     argumentsByType: Record<string, EntityRecord>,
+    intentResolution: IntentResolution,
+    operationConfirmed: boolean,
   ): UnsignedExecutionPlan {
     const now = this.now()
     const evidenceRefs = new Set(Object.values(argumentsByType).flatMap((entity) => entity.evidenceRefs))
@@ -246,6 +326,7 @@ export class ContextCompiler {
       decision: 'RESOLVED',
       riskTier: operation.riskTier,
       operation: operation.id,
+      intent: intentDecisionEvidence(intentResolution, operation.id, this.intentPolicy[operation.riskTier], operationConfirmed),
       arguments: Object.fromEntries(
         Object.entries(argumentsByType).map(([typeId, entity]) => [typeId, { entityId: entity.id }]),
       ),
@@ -275,4 +356,66 @@ function normalize(value: string): string {
     .normalize('NFKD')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
+}
+
+const defaultIntentPolicy: Record<RiskTier, IntentGate> = {
+  INFORMATIONAL: {
+    minimumSupportedScore: 0.52,
+    automaticAcceptanceScore: 0.76,
+    minimumCandidateMargin: 0.05,
+    confirmSemanticOnly: false,
+  },
+  ANALYTICAL: {
+    minimumSupportedScore: 0.56,
+    automaticAcceptanceScore: 0.82,
+    minimumCandidateMargin: 0.08,
+    confirmSemanticOnly: false,
+  },
+  PLANNING_DECISION: {
+    minimumSupportedScore: 0.62,
+    automaticAcceptanceScore: 0.88,
+    minimumCandidateMargin: 0.12,
+    confirmSemanticOnly: true,
+  },
+  OPERATIONAL_ACTION: {
+    minimumSupportedScore: 0.68,
+    automaticAcceptanceScore: 0.93,
+    minimumCandidateMargin: 0.16,
+    confirmSemanticOnly: true,
+  },
+}
+
+function mergeIntentPolicy(overrides: CompilerOptions['intentPolicy']): Record<RiskTier, IntentGate> {
+  return Object.fromEntries(Object.entries(defaultIntentPolicy).map(([riskTier, policy]) => [
+    riskTier,
+    { ...policy, ...(overrides?.[riskTier as RiskTier] ?? {}) },
+  ])) as Record<RiskTier, IntentGate>
+}
+
+function intentDecisionEvidence(
+  intentResolution: IntentResolution,
+  operationId: string,
+  gate: IntentGate,
+  operationConfirmed: boolean,
+): UnsignedExecutionPlan['intent'] {
+  const candidate = intentResolution.candidates.find((item) => item.operationId === operationId)
+  const strongestOther = intentResolution.candidates.find((item) => item.operationId !== operationId)
+  return {
+    resolverVersion: intentResolution.resolverVersion,
+    method: intentResolution.method,
+    indexDigest: intentResolution.indexDigest,
+    ...(intentResolution.modelVersion ? { modelVersion: intentResolution.modelVersion } : {}),
+    operationId,
+    matchedQuestionIds: candidate?.matchedQuestionIds ?? [],
+    lexicalScore: candidate?.lexicalScore ?? 0,
+    ...(candidate?.semanticScore !== undefined ? { semanticScore: candidate.semanticScore } : {}),
+    aggregateScore: candidate?.aggregateScore ?? 0,
+    acceptance: operationConfirmed ? 'USER_CONFIRMED' : 'AUTOMATIC',
+    candidateMargin: (candidate?.aggregateScore ?? 0) - (strongestOther?.aggregateScore ?? 0),
+    thresholds: {
+      minimumSupportedScore: gate.minimumSupportedScore,
+      automaticAcceptanceScore: gate.automaticAcceptanceScore,
+      minimumCandidateMargin: gate.minimumCandidateMargin,
+    },
+  }
 }

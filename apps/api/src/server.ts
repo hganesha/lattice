@@ -25,6 +25,7 @@ import {
   type ExecutePlanRequest,
   type ImportPreviewRequest,
   type IndustryOntology,
+  type IntentResolution,
   type SignedExecutionPlan,
   type UnsignedExecutionPlan,
   type WorkspaceSummary,
@@ -43,6 +44,7 @@ import { authenticatorFromEnvironment, type RequestIdentity } from './auth.js'
 import { applyTenantMembership, tenantMembershipResolverFromEnvironment } from './tenancy.js'
 import { hasOrganizationRole, requiredOrganizationRoles } from './authorization.js'
 import { SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
+import { intentResolverFromEnvironment } from './embeddingProvider.js'
 
 const port = Number(process.env.PORT ?? 8787)
 const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
@@ -57,7 +59,11 @@ const authenticator = authenticatorFromEnvironment()
 const tenantMembershipResolver = tenantMembershipResolverFromEnvironment()
 const supabaseRegistryConfig = supabaseRegistryConfigFromEnvironment()
 const requestIdentityCache = new WeakMap<IncomingMessage, Promise<RequestIdentity | undefined>>()
-const clarifications = new Map<string, { request: CompileRequest; typeId: string }>()
+type PendingClarification =
+  | { kind: 'ENTITY'; request: CompileRequest; typeId: string; operationId: string; intentResolution: IntentResolution }
+  | { kind: 'OPERATION'; request: CompileRequest; candidateOperationIds: string[]; intentResolution: IntentResolution }
+const clarifications = new Map<string, PendingClarification>()
+const intentResolver = intentResolverFromEnvironment()
 const plans = new Map<string, SignedExecutionPlan>()
 const planContractIds = new Map<string, string>()
 const keyId = 'lattice-dev-ed25519-1'
@@ -677,13 +683,13 @@ const server = createServer(async (request, response) => {
         return
       }
       const runtimeContract = materializeSimulatedContext(selectedContract)
-      const result = await prepareCompile(new ContextCompiler(runtimeContract).compile(body), runtimeContract, principal.principalId)
-      if (result.clarification) {
-        clarifications.set(result.clarification.id, {
-          request: body,
-          typeId: result.clarification.entityTypeId,
-        })
-      }
+      const intentResolution = await intentResolver.resolve(body, runtimeContract)
+      const result = await prepareCompile(
+        new ContextCompiler(runtimeContract).compile(body, { intentResolution }),
+        runtimeContract,
+        principal.principalId,
+      )
+      rememberClarification(result, body, intentResolution)
       send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...result, principal })
       return
     }
@@ -700,24 +706,35 @@ const server = createServer(async (request, response) => {
         send(response, 404, { error: 'CLARIFICATION_NOT_FOUND' })
         return
       }
-      const body = await readJson<{ entityId?: string }>(request)
-      if (!body.entityId) {
-        send(response, 400, { error: 'ENTITY_ID_REQUIRED' })
-        return
-      }
+      const body = await readJson<{ entityId?: string; operationId?: string }>(request)
       const selectedContract = registry.latestPublished(pending.request.contractId ?? counterpartyRiskContract.id)
       if (!selectedContract) {
         send(response, 409, { error: 'CONTRACT_NOT_PUBLISHED' })
         return
       }
       const runtimeContract = materializeSimulatedContext(selectedContract)
+      if (pending.kind === 'ENTITY' && !body.entityId) {
+        send(response, 400, { error: 'ENTITY_ID_REQUIRED' })
+        return
+      }
+      if (pending.kind === 'OPERATION' && (!body.operationId || !pending.candidateOperationIds.includes(body.operationId))) {
+        send(response, 400, { error: 'INVALID_OPERATION_SELECTION', candidates: pending.candidateOperationIds })
+        return
+      }
+      const selectedOperationId = pending.kind === 'ENTITY' ? pending.operationId : body.operationId!
       const result = await prepareCompile(
         new ContextCompiler(runtimeContract).compile({
           ...pending.request,
-          selections: { ...pending.request.selections, [pending.typeId]: body.entityId },
+          ...(pending.kind === 'ENTITY' ? {
+            selections: { ...pending.request.selections, [pending.typeId]: body.entityId! },
+          } : {}),
+        }, {
+          intentResolution: pending.intentResolution,
+          selectedOperationId,
         }), runtimeContract, principal.principalId,
       )
-      if (result.decision === 'RESOLVED') clarifications.delete(clarificationMatch[1])
+      clarifications.delete(clarificationMatch[1])
+      rememberClarification(result, pending.request, pending.intentResolution, selectedOperationId)
       send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...result, principal })
       return
     }
@@ -899,6 +916,33 @@ async function prepareCompile(result: CompileResponse, contract: ContextContract
     return { ...result, approval }
   }
   return finalize(result, contract.id)
+}
+
+function rememberClarification(
+  result: CompileResponse,
+  request: CompileRequest,
+  intentResolution: IntentResolution,
+  selectedOperationId?: string,
+): void {
+  if (!result.clarification) return
+  if (result.clarification.kind === 'OPERATION') {
+    clarifications.set(result.clarification.id, {
+      kind: 'OPERATION',
+      request,
+      candidateOperationIds: result.clarification.candidates.map((candidate) => candidate.operationId),
+      intentResolution,
+    })
+    return
+  }
+  const operationId = selectedOperationId ?? intentResolution.candidates[0]?.operationId
+  if (!operationId) return
+  clarifications.set(result.clarification.id, {
+    kind: 'ENTITY',
+    request,
+    typeId: result.clarification.entityTypeId,
+    operationId,
+    intentResolution,
+  })
 }
 
 function finalize(result: CompileResponse, contractId: string): CompileResponse {

@@ -373,6 +373,7 @@ export const messages = defineMessages({
   runtimeGovernedLinks: { id: 'runtime.inspector.governedLinks', defaultMessage: '{count, plural, one {# governed link} other {# governed links}}' },
   runtimeExpires: { id: 'runtime.result.expires', defaultMessage: '{operation} · expires {time}' },
   runtimeUnsignedIntent: { id: 'runtime.result.unsignedIntent', defaultMessage: '{id} · unsigned intent persisted for independent review' },
+  runtimeIntentCandidateMeta: { id: 'runtime.result.intentCandidateMeta', defaultMessage: '{risk} · score {score}' },
   runtimeSignedPlan: { id: 'runtime.result.signedPlan', defaultMessage: '⌁ Signed plan' },
   runtimeApprovalPending: { id: 'runtime.result.approvalPending', defaultMessage: '◴ Approval pending' },
   wizardNewContract: { id: 'wizard.newContract', defaultMessage: 'New context contract' },

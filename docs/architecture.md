@@ -40,6 +40,10 @@ flowchart LR
 
 The compiler is pure: it produces an unsigned plan or a non-execution decision. The API is the trust boundary that verifies OIDC access tokens against a configured remote JWKS, derives tenant and principal identity from trusted claims, signs plans, stores continuation state, and exposes verification keys.
 
+Intent resolution is split across that boundary. The API asks an injected resolver for ranked operation candidates. The default resolver is lexical; an optional embedding provider adds semantic similarity over release-scoped operation descriptions and linked competency questions. Candidate records include lexical, semantic, and aggregate scores, matched governed question IDs, resolver/model versions, and an index digest. The pure compiler then applies deterministic risk-tier-specific support, automatic-acceptance, and top-candidate-margin thresholds. Low-confidence or close candidates return an operation clarification; unsupported candidates abstain. Semantic-only planning and operational actions require explicit operation confirmation. Once an operation is accepted, the existing entity, evidence, freshness, policy, permission, and approval gates remain unchanged.
+
+Embedding failures fail soft to the lexical resolver and are recorded as a degradation reason. Embedding endpoints are server-only HTTPS or loopback services, indexes are isolated to one contract release, and embedding output can propose only operation IDs already present in that published release. The caller cannot submit trusted candidate scores through the public compile request.
+
 ## Governed schema ingestion
 
 Import Studio treats external schemas as evidence-backed proposals, not authoritative ontology updates. The API parses OpenAPI or JSON Schema, computes a SHA-256 source checksum, converts object schemas and references into draft type proposals, and detects identifier or label collisions against the target contract. The author selects concepts and relationships, edits labels and groups, and resolves each collision as merge, separate type, or skip. Applying a proposal only changes the in-memory unpublished draft and attaches a provenance record; normal draft persistence and release validation remain separate explicit actions.
@@ -101,7 +105,7 @@ Industry packs should contribute semantics, evidence adapters, policy profiles, 
 - `tenantId` and `principalId` are derived from authentication context. Request bodies cannot assert identity.
 - The compiler cannot execute source operations.
 - Source bindings name permissions and expected result schemas; credentials never enter a contract.
-- Plans pin contract, semantic, policy, binding, API, and metric versions.
+- Plans pin contract, semantic, policy, binding, API, metric, and intent-resolver evidence, including the model/index digest, selected candidate scores, thresholds, margin, matched governed questions, and whether the operation was user-confirmed.
 - Plans are short-lived and signed with Ed25519.
 - Executors must reject invalid signatures, expired plans, unexpected contracts, missing permissions, or reused nonces.
 

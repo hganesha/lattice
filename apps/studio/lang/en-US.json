@@ -814,6 +814,7 @@
   "runtime.relationshipCount": "{count, plural, one {# relationship} other {# relationships}}",
   "runtime.result.approvalPending": "◴ Approval pending",
   "runtime.result.expires": "{operation} · expires {time}",
+  "runtime.result.intentCandidateMeta": "{risk} · score {score}",
   "runtime.result.signedPlan": "⌁ Signed plan",
   "runtime.result.unsignedIntent": "{id} · unsigned intent persisted for independent review",
   "runtime.supportedEvidence": "Supported evidence",

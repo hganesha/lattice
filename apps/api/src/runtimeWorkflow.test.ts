@@ -12,6 +12,7 @@ function plan(): SignedExecutionPlan {
   return {
     schemaVersion: '1.0', planId: 'plan-runtime-test', resolutionId: 'resolution-test', decision: 'RESOLVED',
     riskTier: 'PLANNING_DECISION', operation: 'grid.get_outage_context', arguments: {}, metrics: [],
+    intent: { resolverVersion: 'test-resolver', method: 'LEXICAL', indexDigest: 'sha256:test-index', operationId: 'grid.get_outage_context', matchedQuestionIds: [], lexicalScore: 1, aggregateScore: 1, acceptance: 'AUTOMATIC', candidateMargin: 1, thresholds: { minimumSupportedScore: 0.5, automaticAcceptanceScore: 0.75, minimumCandidateMargin: 0.05 } },
     sourceBindings: ['binding_grid_operations_api_grid_get_outage_context'], requiredPermissions: ['grid.outage.read'],
     expectedResultSchema: 'grid_get_outage_context_response', evidenceRefs: ['evidence-1'], versions: counterpartyRiskContract.versions,
     contractDigest: 'sha256:test', expiresAt: '2026-07-20T00:00:00.000Z', nonce: 'nonce-test',

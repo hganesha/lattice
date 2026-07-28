@@ -14,7 +14,7 @@ The workspace includes published **counterparty exposure assurance**, **grid out
 ## What is implemented
 
 - `@lattice/contracts`: typed industry workspace, shared ontology, ontology reference, concept scope, and Context Contract schemas.
-- `@lattice/compiler-core`: deterministic operation/entity resolution, policy-driven evidence and freshness enforcement, runtime approval escalation, clarification contracts, abstention, and version-pinned plans.
+- `@lattice/compiler-core`: hybrid lexical/vector intent candidate resolution, deterministic risk-aware operation and entity gates, policy-driven evidence and freshness enforcement, runtime approval escalation, clarification contracts, abstention, and version-pinned plans.
 - `@lattice/importer-core`: deterministic OpenAPI, JSON Schema, RDF/XML, Turtle, and CSV translation into checksum-stamped ontology proposals, operation discovery, response-field flattening, type inference, and collision analysis.
 - `@lattice/exporter-core`: deterministic OWL ontology serialization to RDF/XML and Turtle with stable IRIs, XML escaping, datatype ranges, and Lattice governance annotations.
 - `@lattice/api`: dependency-light HTTP API with OIDC/JWKS-verified identity, a persistent contract registry, immutable assurance and review artifacts, versioned releases, digest-backed release diffs, audited active-pointer rollback, safe draft restoration, runtime suspension, Ed25519 plan signing, plan verification, and clarification continuation.
@@ -49,6 +49,18 @@ export LATTICE_OIDC_DEFAULT_TENANT_ID=tenant-example
 ```
 
 The API verifies the asymmetric signature, key ID, issuer, audience, token lifetime, maximum token age, and configured algorithm before trusting identity claims. Remote issuer and JWKS URLs require HTTPS; loopback HTTP is accepted only for local identity-provider testing. Studio reads its production access token from session storage through `setApiAccessToken`; built-in role-specific demo identities are emitted only by development builds. `LATTICE_DEV_AUTH=true` is rejected when `NODE_ENV=production`.
+
+### Optional semantic intent resolution
+
+The Context API always has a deterministic lexical resolver. To add vector-backed paraphrase resolution, configure an HTTPS embedding endpoint that accepts `{ model, input, encoding_format }` and returns indexed float vectors under `data`. Loopback HTTP is allowed for local models:
+
+```bash
+export LATTICE_EMBEDDING_URL=https://embeddings.example.com/v1/embeddings
+export LATTICE_EMBEDDING_MODEL=governed-intent-embedding-v1
+export LATTICE_EMBEDDING_API_KEY=server-only-token # optional for local endpoints
+```
+
+At runtime, the API embeds published operation descriptions and linked competency questions into a contract-release-scoped in-memory index. The index is cached by contract digest and model version. Semantic candidates never bypass the compiler: risk-tier-specific score, margin, and confirmation gates decide whether to continue, ask the user to choose an operation, or return `UNSUPPORTED`. Planning and operational actions require confirmation when selected only by semantic similarity. If the embedding endpoint is unavailable, resolution degrades to lexical candidates and records the sanitized degradation reason in `intentResolution`; questions and API keys are not logged.
 
 ### Supabase production identity and tenancy
 

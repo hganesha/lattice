@@ -1,6 +1,7 @@
 import type { MessageKey } from './messages'
 
 export const spanishMessages = {
+  runtimeIntentCandidateMeta: '{risk} · puntuación {score}',
   appearance: 'Apariencia', appearanceSettings: 'Configuración de apariencia', theme: 'Tema', themeAuto: 'Automático', themeLight: 'Claro', themeDark: 'Oscuro', textSize: 'Tamaño del texto', textDefault: 'Normal', textLarge: 'Grande', language: 'Idioma', languageEnglish: 'Inglés', languageSpanish: 'Español', languagePseudo: 'Seudolocalización', localizationReady: 'La preferencia de idioma se guarda en este navegador.',
   welcomeEnterpriseKicker: 'Patrones empresariales',
   welcomeEnterpriseTitle: 'Dónde encaja Lattice en la empresa',
