@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { counterpartyRiskContract, loadGridOutageExample } from '@lattice/contracts'
+import { counterpartyRiskContract, loadGridOutageExample, materializeSimulatedContext } from '@lattice/contracts'
+import { airlineExampleContracts } from '@lattice/contracts/airline-contracts'
+import { telecommunicationsExampleContracts } from '@lattice/contracts/telecommunications-contracts'
 import { ContextCompiler } from './compiler.js'
 
 function compiler() {
@@ -37,6 +39,25 @@ test('abstains when no governed entity can be resolved', () => {
 
   assert.equal(result.decision, 'INSUFFICIENT_EVIDENCE')
   assert.deepEqual(result.reasonCodes, ['REQUIRED_ENTITY_UNRESOLVED'])
+})
+
+test('compiles every seeded airline and telecommunications reference contract from its simulated binding', () => {
+  const now = new Date('2026-07-28T12:00:00.000Z')
+  for (const contract of [...airlineExampleContracts, ...telecommunicationsExampleContracts]) {
+    const runtimeContract = materializeSimulatedContext(contract, now)
+    const requiredTypes = new Set(runtimeContract.operations.flatMap((operation) => operation.requiredEntityTypes))
+    assert.ok([...requiredTypes].every((typeId) => runtimeContract.entities.some((entity) => entity.typeId === typeId)), `${contract.id} should materialize every required entity type`)
+
+    let id = 0
+    const result = new ContextCompiler(runtimeContract, {
+      now: () => now,
+      id: () => `${contract.id}-${++id}`,
+    }).compile({ question: contract.competencyQuestions[0]!.question })
+
+    assert.equal(result.decision, 'APPROVAL_REQUIRED', `${contract.id} should compile to its human approval gate`)
+    assert.ok(result.pendingPlan)
+    assert.equal(result.reasonCodes.includes('REQUIRED_ENTITY_UNRESOLVED'), false)
+  }
 })
 
 test('rejects a mismatched contract version', () => {

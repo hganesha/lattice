@@ -5,10 +5,11 @@ interface ContractsStudioProps {
   contracts: ContractSummary[]
   activeContractId: string
   onSelect: (contractId: string) => void
+  onEdit: (contractId: string) => void
   onCreate: () => void
 }
 
-export function ContractsStudio({ contracts, activeContractId, onSelect, onCreate }: ContractsStudioProps) {
+export function ContractsStudio({ contracts, activeContractId, onSelect, onEdit, onCreate }: ContractsStudioProps) {
   const { t, formatDate } = useMessages()
   const activeContract = contracts.find((contract) => contract.contractId === activeContractId)
   return <section className="contracts-studio-page">
@@ -23,7 +24,10 @@ export function ContractsStudio({ contracts, activeContractId, onSelect, onCreat
           </select>
           <small>{activeContract ? `${activeContract.workflow.replaceAll('_', ' ')} · v${activeContract.draftVersion}` : t('contractsCreateFirst')}</small>
         </label>
-        <button className="release" onClick={onCreate}>{t('contractsNew')}</button>
+        <div className="contracts-primary-actions">
+          {activeContract && <button className="ghost" onClick={() => onEdit(activeContract.contractId)}>{t('contractsEdit')}</button>}
+          <button className="release" onClick={onCreate}>{t('contractsNew')}</button>
+        </div>
       </div>
     </div>
     <div className="contracts-grid">{contracts.map((contract) => <button className={`contract-tile ${contract.contractId === activeContractId ? 'active' : ''}`} onClick={() => onSelect(contract.contractId)} key={contract.contractId}>

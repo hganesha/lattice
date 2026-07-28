@@ -13,6 +13,7 @@ import './policy-studio.css'
 import './runtime-studio.css'
 import './evidence-registry.css'
 import './release-management.css'
+import './contract-editor.css'
 import './appearance.css'
 import './auth.css'
 

@@ -8,6 +8,7 @@ import { previewBindingSource, previewImport } from '@lattice/importer-core'
 import {
   connectorCatalog,
   counterpartyRiskContract,
+  materializeSimulatedContext,
   type AssuranceRunRequest,
   type CompileRequest,
   type CompileResponse,
@@ -659,7 +660,8 @@ const server = createServer(async (request, response) => {
         send(response, 409, { error: 'CONTRACT_NOT_PUBLISHED', message: 'Publish this contract before compiling runtime questions.' })
         return
       }
-      const result = await prepareCompile(new ContextCompiler(selectedContract).compile(body), selectedContract, principal.principalId)
+      const runtimeContract = materializeSimulatedContext(selectedContract)
+      const result = await prepareCompile(new ContextCompiler(runtimeContract).compile(body), runtimeContract, principal.principalId)
       if (result.clarification) {
         clarifications.set(result.clarification.id, {
           request: body,
@@ -692,11 +694,12 @@ const server = createServer(async (request, response) => {
         send(response, 409, { error: 'CONTRACT_NOT_PUBLISHED' })
         return
       }
+      const runtimeContract = materializeSimulatedContext(selectedContract)
       const result = await prepareCompile(
-        new ContextCompiler(selectedContract).compile({
+        new ContextCompiler(runtimeContract).compile({
           ...pending.request,
           selections: { ...pending.request.selections, [pending.typeId]: body.entityId },
-        }), selectedContract, principal.principalId,
+        }), runtimeContract, principal.principalId,
       )
       if (result.decision === 'RESOLVED') clarifications.delete(clarificationMatch[1])
       send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...result, principal })
