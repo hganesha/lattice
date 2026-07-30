@@ -33,7 +33,7 @@ revoke all on schema lattice_private from public;
 revoke all on schema lattice_private from anon;
 revoke all on schema lattice_private from authenticated;
 
-create table public.contract_intent_indexes (
+create table if not exists public.contract_intent_indexes (
   organization_id uuid not null,
   contract_id text not null,
   release_digest text not null check (release_digest like 'sha256:%'),
@@ -67,7 +67,7 @@ create table public.contract_intent_indexes (
   )
 );
 
-create index contract_intent_indexes_status_idx
+create index if not exists contract_intent_indexes_status_idx
   on public.contract_intent_indexes (
     organization_id,
     contract_id,
@@ -75,7 +75,7 @@ create index contract_intent_indexes_status_idx
     status
   );
 
-create table public.contract_intent_documents (
+create table if not exists public.contract_intent_documents (
   organization_id uuid not null,
   id uuid not null default gen_random_uuid(),
   contract_id text not null,
@@ -129,7 +129,7 @@ create table public.contract_intent_documents (
 -- governed document set. A B-tree filter plus exact cosine scan avoids the
 -- filtered-result caveat of approximate HNSW indexes. Add HNSW only after
 -- production volume demonstrates that an approximate global index is needed.
-create index contract_intent_documents_release_idx
+create index if not exists contract_intent_documents_release_idx
   on public.contract_intent_documents (
     organization_id,
     contract_id,
@@ -137,7 +137,7 @@ create index contract_intent_documents_release_idx
     embedding_status
   );
 
-create function lattice_private.prepare_contract_intent_document()
+create or replace function lattice_private.prepare_contract_intent_document()
 returns trigger
 language plpgsql
 security invoker
@@ -163,15 +163,28 @@ revoke all on function lattice_private.prepare_contract_intent_document()
 revoke all on function lattice_private.prepare_contract_intent_document()
   from authenticated;
 
+drop trigger if exists prepare_contract_intent_document
+  on public.contract_intent_documents;
+
 create trigger prepare_contract_intent_document
 before insert or update of content
 on public.contract_intent_documents
 for each row
 execute function lattice_private.prepare_contract_intent_document();
 
-select pgmq.create('contract_intent_embedding_jobs');
+do $queue_setup$
+begin
+  if not exists (
+    select 1
+    from pgmq.list_queues() queue
+    where queue.queue_name = 'contract_intent_embedding_jobs'
+  ) then
+    perform pgmq.create('contract_intent_embedding_jobs');
+  end if;
+end;
+$queue_setup$;
 
-create function lattice_private.enqueue_contract_intent_embedding()
+create or replace function lattice_private.enqueue_contract_intent_embedding()
 returns trigger
 language plpgsql
 security definer
@@ -199,13 +212,16 @@ revoke all on function lattice_private.enqueue_contract_intent_embedding()
 revoke all on function lattice_private.enqueue_contract_intent_embedding()
   from authenticated;
 
+drop trigger if exists enqueue_contract_intent_embedding
+  on public.contract_intent_documents;
+
 create trigger enqueue_contract_intent_embedding
 after insert or update of content
 on public.contract_intent_documents
 for each row
 execute function lattice_private.enqueue_contract_intent_embedding();
 
-create function lattice_private.refresh_contract_intent_index(
+create or replace function lattice_private.refresh_contract_intent_index(
   target_organization_id uuid,
   target_contract_id text,
   target_release_digest text
@@ -332,7 +348,7 @@ revoke all on function lattice_private.refresh_contract_intent_index(
   text
 ) from authenticated;
 
-create function lattice_private.refresh_contract_intent_index_from_document()
+create or replace function lattice_private.refresh_contract_intent_index_from_document()
 returns trigger
 language plpgsql
 security definer
@@ -364,13 +380,16 @@ revoke all on function lattice_private.refresh_contract_intent_index_from_docume
 revoke all on function lattice_private.refresh_contract_intent_index_from_document()
   from authenticated;
 
+drop trigger if exists refresh_contract_intent_index_from_document
+  on public.contract_intent_documents;
+
 create trigger refresh_contract_intent_index_from_document
 after insert or delete or update of embedding, embedding_status
 on public.contract_intent_documents
 for each row
 execute function lattice_private.refresh_contract_intent_index_from_document();
 
-create function lattice_private.process_contract_intent_embeddings(
+create or replace function lattice_private.process_contract_intent_embeddings(
   batch_size integer default 20,
   visibility_timeout_seconds integer default 300,
   timeout_milliseconds integer default 280000
@@ -464,21 +483,37 @@ revoke all on function lattice_private.process_contract_intent_embeddings(
   integer
 ) from authenticated;
 
-select cron.schedule(
-  'lattice-process-contract-intent-embeddings',
-  '10 seconds',
-  $cron$
-    select lattice_private.process_contract_intent_embeddings();
-  $cron$
-);
+do $cron_setup$
+begin
+  if not exists (
+    select 1
+    from cron.job
+    where jobname = 'lattice-process-contract-intent-embeddings'
+  ) then
+    perform cron.schedule(
+      'lattice-process-contract-intent-embeddings',
+      '10 seconds',
+      $cron_job$
+        select lattice_private.process_contract_intent_embeddings();
+      $cron_job$
+    );
+  end if;
+end;
+$cron_setup$;
 
 alter table public.contract_intent_indexes enable row level security;
 alter table public.contract_intent_documents enable row level security;
+
+drop policy if exists "members can read contract intent indexes"
+  on public.contract_intent_indexes;
 
 create policy "members can read contract intent indexes"
 on public.contract_intent_indexes for select
 to authenticated
 using ((select public.is_organization_member(organization_id)));
+
+drop policy if exists "authors can create contract intent indexes"
+  on public.contract_intent_indexes;
 
 create policy "authors can create contract intent indexes"
 on public.contract_intent_indexes for insert
@@ -496,10 +531,16 @@ with check (
   ))
 );
 
+drop policy if exists "members can read contract intent documents"
+  on public.contract_intent_documents;
+
 create policy "members can read contract intent documents"
 on public.contract_intent_documents for select
 to authenticated
 using ((select public.is_organization_member(organization_id)));
+
+drop policy if exists "authors can create contract intent documents"
+  on public.contract_intent_documents;
 
 create policy "authors can create contract intent documents"
 on public.contract_intent_documents for insert
@@ -522,7 +563,7 @@ revoke all on table public.contract_intent_documents from anon;
 grant select, insert on table public.contract_intent_indexes to authenticated;
 grant select, insert on table public.contract_intent_documents to authenticated;
 
-create function public.match_contract_intents(
+create or replace function public.match_contract_intents(
   target_organization_id uuid,
   target_contract_id text,
   target_release_digest text,
