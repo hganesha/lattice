@@ -176,7 +176,7 @@ The consequence for the newest feature is direct: intent resolution is now model
 - **No observability.** Zero OpenTelemetry, zero metrics, three `console.info` calls in the entire API. No request ids, no trace propagation into connector calls, no latency/error/cost telemetry for the compile path.
 - **No rate limiting or request quotas** on any route, including the embedding-backed compile path that costs money per call.
 - **No shared HTTP client in the Studio** — 41 raw `fetch` call sites across 15 components, each with its own error handling, no 401→re-auth, no cancellation, no retry, no correlation id.
-- **`packages/contracts` has no tests**, despite owning the type system, the connector catalog, `simulatedContext`, `releaseDiff`, and 16k lines of generated ontology.
+- **`packages/contracts` has no tests**, despite owning the type system, the connector catalog, `simulatedContext`, `releaseDiff`, and 16k lines of generated ontology. **Partly fixed** — its `test` script never compiled, so it silently ran nothing; it now builds and runs, with the agent tool projection covered. The rest of the package is still untested.
 - Access tokens live in `sessionStorage` (`apps/studio/src/api.ts:7`) — XSS-exfiltratable; enterprises will ask for httpOnly cookies or a BFF.
 
 ---
@@ -215,7 +215,7 @@ Enterprises have dbt semantic models, Databricks Metric Views, Snowflake semanti
 
 Lattice should bind metrics to the platform's semantic layer by reference (dbt Semantic Layer / MetricFlow, Databricks metric view, Snowflake semantic view) and pin *that* object's version, rather than owning a parallel metric registry. The differentiating claim — "compilation, evidence, and signed plans" — does not require owning metric definitions, and owning them creates an adoption fight the product cannot win.
 
-### 3.4 Agent factory integration: no supported surface
+### 3.4 Agent factory integration: no supported surface — PARTIALLY ADDRESSED
 
 The Context API is an idiosyncratic REST API with no machine-readable description — no OpenAPI document, no MCP server, no tool/function schemas. Enterprises standardizing on Bedrock AgentCore, Azure AI Foundry Agent Service, Databricks Agent Bricks, Vertex Agent Builder, Agentforce, or in-house LangGraph will each have to hand-roll a client, discover the compile/clarify/approve/execute state machine by reading the README, and reimplement plan verification.
 
@@ -227,6 +227,21 @@ The minimum viable surface:
 - **Tool-schema projection**: emit each governed operation as an OpenAI/Anthropic tool definition, so the contract's operations become the agent's tools directly and the "contract is the deployable artifact" claim becomes literally true.
 - **OpenTelemetry GenAI semantic-convention traces** on the compile path, so decisions land in Datadog/Dynatrace/Arize/LangSmith alongside the rest of the agent trace.
 - **A2A / multi-agent delegation**: a plan issued to agent A and handed to agent B currently works by accident (finding 2.2). It should work by design, with delegation recorded.
+
+**Landed.** `apps/mcp-server` exposes the governed loop as six MCP tools over stdio and streamable
+HTTP, so an MCP-capable runtime consumes Lattice with no glue. The API describes itself at
+`GET /openapi.json`, and a drift test fails the build if a route is added without appearing there.
+`projectGovernedTools` in `@lattice/contracts` emits each governed operation as an Anthropic- or
+OpenAI-shaped tool definition carrying its risk tier, required permissions, required governed
+entity types, and approval requirement — with the tool description stating plainly that selecting
+it compiles rather than executes, so the projection strengthens the confirmation path instead of
+bypassing it.
+
+**Still open.** The standalone verification library is deliberately deferred: the signing key is
+still ephemeral and per-process (2.6), so a library could only verify against the instance that
+issued the plan. It lands with KMS signing in P1.7. OpenTelemetry GenAI traces (P1.15) and
+recorded A2A delegation remain open, and the MCP server acts as a single service identity, so the
+data platform still sees a service principal rather than the asking user (3.1).
 
 ### 3.5 Purpose limitation is declared but never enforced
 
@@ -281,7 +296,7 @@ Nine generated industry ontologies (16,488 lines) derived from 74 forms are an e
 
 **P2 — required for enterprise GA.**
 
-16. MCP server + OpenAPI document + tool-schema projection (3.4).
+16. ~~MCP server + OpenAPI document + tool-schema projection (3.4).~~ **Done**, except the offline verification library, which is blocked on KMS signing in P1.7.
 17. Catalog federation: glossary import, classification propagation, SKOS/DCAT export, OpenLineage emission (3.2).
 18. Semantic-layer binding for metrics instead of a parallel metric registry (3.3).
 19. Purpose as a first-class policy input, plan pin, and audit field; obligations, residency, retention in `GuardrailPolicy` (3.5).

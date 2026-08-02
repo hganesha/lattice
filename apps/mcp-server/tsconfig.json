@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": ["node"],
+    // The MCP SDK's public types are not authored for exactOptionalPropertyTypes: its Transport
+    // accessors expose `(() => void) | undefined` against an optional interface member. Scoped
+    // off here rather than casting at every SDK boundary, which would hide the mismatch.
+    "exactOptionalPropertyTypes": false,
+    "composite": true
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../../packages/contracts" }
+  ]
+}

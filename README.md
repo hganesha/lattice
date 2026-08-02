@@ -175,13 +175,36 @@ Use `Arcadia` instead of `Arcadia Capital` to exercise the typed clarification p
 | `POST /v1/reviews` | Submit a contract claim for authenticated review. |
 | `POST /v1/reviews/:id/decisions` | Record a rationale-backed approval, exception, or rejection. |
 | `GET /v1/keys/current` | Retrieve the current public signing key. |
+| `GET /openapi.json` | Retrieve the OpenAPI 3.1 description of this API. |
 | `GET /health` | Check API health. |
+
+The API describes itself at `GET /openapi.json`, so enterprises can generate a client instead of
+hand-rolling one. A test fails the build if a route is added without appearing in that document.
+
+## Use it from an agent
+
+`@lattice/mcp-server` exposes the governed loop as MCP tools, so any MCP-capable agent runtime can
+consume Lattice without writing a client. It acts as one governed service identity; plans are
+issued to it and its token scopes decide what it may execute.
+
+```bash
+pnpm --filter @lattice/mcp-server build
+LATTICE_API_URL=http://127.0.0.1:8787 LATTICE_API_TOKEN=local-demo \
+  node apps/mcp-server/dist/index.js
+```
+
+See [apps/mcp-server/README.md](apps/mcp-server/README.md) for the tool reference, the streamable
+HTTP transport, and the identity model. To drive an agent's own tool list from a contract,
+`projectGovernedTools` in `@lattice/contracts` emits each governed operation as an
+Anthropic- or OpenAI-shaped tool definition carrying its risk tier, required permissions, and
+approval requirement.
 
 ## Repository layout
 
 ```text
 apps/
   api/                 Context API and signing boundary
+  mcp-server/          MCP surface over the governed runtime loop
   studio/              Human authoring, assurance, and runtime UI
 packages/
   compiler-core/       Pure deterministic compiler

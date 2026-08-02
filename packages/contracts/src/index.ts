@@ -1,4 +1,5 @@
 export * from './types.js'
+export * from './agentTools.js'
 export * from './connectors.js'
 export * from './counterpartyContract.js'
 export * from './gridOutageExample.js'
