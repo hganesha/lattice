@@ -42,7 +42,8 @@ import { discoverConnector, probeConnectorHealth, validateConnectorBinding } fro
 import { buildReleaseDiffArtifact } from './releaseDiff.js'
 import { authenticatorFromEnvironment, type RequestIdentity } from './auth.js'
 import { applyTenantMembership, tenantMembershipResolverFromEnvironment } from './tenancy.js'
-import { hasOrganizationRole, requiredOrganizationRoles } from './authorization.js'
+import { hasOrganizationRole, missingPermissions, requiredOrganizationRoles, resolveGrantedPermissions } from './authorization.js'
+import { SubjectScopedStore, type Subject } from './planStore.js'
 import { SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
 import { intentResolverFromEnvironment } from './embeddingProvider.js'
 
@@ -62,10 +63,12 @@ const requestIdentityCache = new WeakMap<IncomingMessage, Promise<RequestIdentit
 type PendingClarification =
   | { kind: 'ENTITY'; request: CompileRequest; typeId: string; operationId: string; intentResolution: IntentResolution }
   | { kind: 'OPERATION'; request: CompileRequest; candidateOperationIds: string[]; intentResolution: IntentResolution }
-const clarifications = new Map<string, PendingClarification>()
+const clarificationRetentionMs = 30 * 60_000
+/** Kept past expiry so the owner still gets an "expired" answer rather than a bare 404. */
+const expiredPlanGraceMs = 60 * 60_000
+const clarifications = new SubjectScopedStore<PendingClarification>(clarificationRetentionMs)
 const intentResolver = intentResolverFromEnvironment()
-const plans = new Map<string, SignedExecutionPlan>()
-const planContractIds = new Map<string, string>()
+const plans = new SubjectScopedStore<{ plan: SignedExecutionPlan; contractId: string }>(expiredPlanGraceMs)
 const keyId = 'lattice-dev-ed25519-1'
 const { privateKey, publicKey } = generateKeyPairSync('ed25519')
 
@@ -187,11 +190,12 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/connectors/health') {
-      if (!await authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      send(response, 200, { records: connectorHealthStore.list(url.searchParams.get('bindingId') ?? undefined) })
+      send(response, 200, { records: connectorHealthStore.list(identity.tenantId, url.searchParams.get('bindingId') ?? undefined) })
       return
     }
 
@@ -206,7 +210,7 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONNECTOR_BINDING_REQUIRED' })
         return
       }
-      const record = await connectorHealthStore.append(await probeConnectorHealth(body.binding), body.binding.freshnessMinutes)
+      const record = await connectorHealthStore.append(await probeConnectorHealth(body.binding), body.binding.freshnessMinutes, identity.tenantId)
       console.info('[connector.health]', { principalId: identity.principalId, bindingId: record.bindingId, provider: record.provider, status: record.status, latencyMs: record.latencyMs, credentialSource: record.credentialSource, errorCode: record.errorCode })
       send(response, 200, record)
       return
@@ -361,7 +365,8 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/assurance/runs') {
-      if (!await authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -370,12 +375,13 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, assuranceStore.list(contractId))
+      send(response, 200, assuranceStore.list(contractId, identity.tenantId))
       return
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/assurance/runs') {
-      if (!await authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -388,12 +394,13 @@ const server = createServer(async (request, response) => {
         send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
         return
       }
-      send(response, 201, await assuranceStore.append(runAssurance(body.contract)))
+      send(response, 201, await assuranceStore.append(runAssurance(body.contract), identity.tenantId))
       return
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/reviews') {
-      if (!await authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -402,7 +409,7 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, reviewStore.list(contractId))
+      send(response, 200, reviewStore.list(contractId, identity.tenantId))
       return
     }
 
@@ -433,7 +440,7 @@ const server = createServer(async (request, response) => {
         targetLabel: entityType?.label ?? binding?.sourceSystem ?? policy!.label,
         impact: entityType?.impact ?? (policy?.riskTier === 'OPERATIONAL_ACTION' ? 'CRITICAL' : policy?.riskTier === 'PLANNING_DECISION' ? 'HIGH' : 'MEDIUM'),
         evidenceRefs: body.evidenceRefs ?? [],
-      }, principal.principalId)
+      }, principal.principalId, principal.tenantId)
       send(response, 201, review)
       return
     }
@@ -451,7 +458,7 @@ const server = createServer(async (request, response) => {
         return
       }
       try {
-        send(response, 201, await reviewStore.decide(reviewDecisionMatch[1], body.decision, body.rationale.trim(), principal.principalId))
+        send(response, 201, await reviewStore.decide(reviewDecisionMatch[1], body.decision, body.rationale.trim(), principal.principalId, principal.tenantId))
       } catch (error) {
         const message = error instanceof Error ? error.message : 'REVIEW_DECISION_FAILED'
         send(response, message === 'REVIEW_NOT_FOUND' ? 404 : 409, { error: message })
@@ -461,11 +468,12 @@ const server = createServer(async (request, response) => {
 
     const assuranceRunMatch = url.pathname.match(/^\/v1\/assurance\/runs\/([^/]+)$/)
     if (request.method === 'GET' && assuranceRunMatch?.[1]) {
-      if (!await authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const run = assuranceStore.get(assuranceRunMatch[1])
+      const run = assuranceStore.get(assuranceRunMatch[1], identity.tenantId)
       if (!run) {
         send(response, 404, { error: 'ASSURANCE_RUN_NOT_FOUND' })
         return
@@ -632,7 +640,8 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/runtime-approvals') {
-      if (!await authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -641,12 +650,13 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, runtimeApprovalStore.list(contractId))
+      send(response, 200, runtimeApprovalStore.list(contractId, identity.tenantId))
       return
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/executions') {
-      if (!await authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -655,7 +665,7 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, executionStore.list(contractId))
+      send(response, 200, executionStore.list(contractId, identity.tenantId))
       return
     }
 
@@ -685,11 +695,11 @@ const server = createServer(async (request, response) => {
       const runtimeContract = materializeSimulatedContext(selectedContract)
       const intentResolution = await intentResolver.resolve(body, runtimeContract)
       const result = await prepareCompile(
-        new ContextCompiler(runtimeContract).compile(body, { intentResolution }),
+        new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) }),
         runtimeContract,
-        principal.principalId,
+        principal,
       )
-      rememberClarification(result, body, intentResolution)
+      rememberClarification(result, principal, body, intentResolution)
       send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...result, principal })
       return
     }
@@ -701,7 +711,7 @@ const server = createServer(async (request, response) => {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const pending = clarifications.get(clarificationMatch[1])
+      const pending = clarifications.get(clarificationMatch[1], subjectOf(principal))
       if (!pending) {
         send(response, 404, { error: 'CLARIFICATION_NOT_FOUND' })
         return
@@ -731,10 +741,11 @@ const server = createServer(async (request, response) => {
         }, {
           intentResolution: pending.intentResolution,
           selectedOperationId,
-        }), runtimeContract, principal.principalId,
+          ...subjectOf(principal),
+        }), runtimeContract, principal,
       )
       clarifications.delete(clarificationMatch[1])
-      rememberClarification(result, pending.request, pending.intentResolution, selectedOperationId)
+      rememberClarification(result, principal, pending.request, pending.intentResolution, selectedOperationId)
       send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...result, principal })
       return
     }
@@ -752,7 +763,7 @@ const server = createServer(async (request, response) => {
         return
       }
       try {
-        send(response, 201, await runtimeApprovalStore.decide(runtimeDecisionMatch[1], body.decision, body.rationale.trim(), principal.principalId))
+        send(response, 201, await runtimeApprovalStore.decide(runtimeDecisionMatch[1], body.decision, body.rationale.trim(), principal.principalId, principal.tenantId))
       } catch (error) {
         const message = error instanceof Error ? error.message : 'RUNTIME_APPROVAL_DECISION_FAILED'
         send(response, message === 'RUNTIME_APPROVAL_NOT_FOUND' ? 404 : 409, { error: message })
@@ -762,17 +773,18 @@ const server = createServer(async (request, response) => {
 
     const runtimeResumeMatch = url.pathname.match(/^\/v1\/runtime-approvals\/([^/]+)\/resume$/)
     if (request.method === 'POST' && runtimeResumeMatch?.[1]) {
-      if (!await authenticate(request)) {
+      const principal = await authenticate(request)
+      if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const approval = runtimeApprovalStore.get(runtimeResumeMatch[1])
+      const approval = runtimeApprovalStore.get(runtimeResumeMatch[1], principal.tenantId)
       if (!approval) {
         send(response, 404, { error: 'RUNTIME_APPROVAL_NOT_FOUND' })
         return
       }
       if (approval.status === 'RESUMED' && approval.signedPlanId) {
-        send(response, 200, { approval, plan: plans.get(approval.signedPlanId) })
+        send(response, 200, { approval, plan: plans.get(approval.signedPlanId, subjectOf(principal))?.plan })
         return
       }
       if (approval.status !== 'APPROVED') {
@@ -785,21 +797,32 @@ const server = createServer(async (request, response) => {
         return
       }
       const now = new Date()
+      // The renewed plan is re-bound to the operator resuming it, who holds the role required
+      // to execute. The requester's original plan is never handed on as a bearer capability.
       const renewedPlan: UnsignedExecutionPlan = {
         ...approval.pendingPlan,
         planId: `plan_${randomUUID()}`,
+        principalId: principal.principalId,
+        ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
         expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString(),
         nonce: randomUUID(),
       }
-      const signedPlan = signAndStore(renewedPlan, approval.contractId)
-      const resumed = await runtimeApprovalStore.markResumed(approval.id, signedPlan.planId, now)
+      const signedPlan = signAndStore(renewedPlan, approval.contractId, principal)
+      const resumed = await runtimeApprovalStore.markResumed(approval.id, signedPlan.planId, principal.tenantId, now)
       send(response, 200, { approval: resumed, plan: signedPlan })
       return
     }
 
     const verifyMatch = url.pathname.match(/^\/v1\/plans\/([^/]+)\/verify$/)
     if (request.method === 'POST' && verifyMatch?.[1]) {
-      const plan = plans.get(verifyMatch[1])
+      const principal = await authenticate(request)
+      if (!principal) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      // A plan belonging to another subject is reported as absent rather than forbidden, so
+      // the response cannot be used to probe for live plan identifiers.
+      const plan = plans.get(verifyMatch[1], subjectOf(principal))?.plan
       if (!plan) {
         send(response, 404, { error: 'PLAN_NOT_FOUND' })
         return
@@ -824,17 +847,25 @@ const server = createServer(async (request, response) => {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const plan = plans.get(executeMatch[1])
-      const contractId = planContractIds.get(executeMatch[1])
-      if (!plan || !contractId) {
+      const stored = plans.get(executeMatch[1], subjectOf(principal))
+      if (!stored) {
         send(response, 404, { error: 'PLAN_NOT_FOUND' })
+        return
+      }
+      const { plan, contractId } = stored
+      const body = await readJson<ExecutePlanRequest & { grantedPermissions?: unknown }>(request)
+      if (body.grantedPermissions !== undefined) {
+        send(response, 400, {
+          error: 'PERMISSIONS_IN_BODY_FORBIDDEN',
+          message: 'Granted permissions are derived from the authenticated identity, never from the request body.',
+        })
         return
       }
       if (!verifyPlan(plan) || Date.now() > new Date(plan.expiresAt).getTime()) {
         send(response, 422, { error: 'PLAN_INVALID_OR_EXPIRED' })
         return
       }
-      if (executionStore.findByPlanId(plan.planId)) {
+      if (executionStore.findConsumedByPlanId(plan.planId)) {
         send(response, 409, { error: 'PLAN_NONCE_ALREADY_CONSUMED' })
         return
       }
@@ -843,12 +874,13 @@ const server = createServer(async (request, response) => {
         send(response, 409, { error: 'PLAN_RELEASE_NO_LONGER_ACTIVE' })
         return
       }
-      const body = await readJson<ExecutePlanRequest>(request)
-      const grantedPermissions = Array.isArray(body.grantedPermissions) ? [...new Set(body.grantedPermissions)] : []
-      const missingPermissions = plan.requiredPermissions.filter((permission) => !grantedPermissions.includes(permission))
+      const grantedPermissions = resolveGrantedPermissions(principal)
+      const missing = missingPermissions(grantedPermissions, plan.requiredPermissions)
       const startedAt = new Date().toISOString()
-      if (missingPermissions.length > 0) {
+      if (missing.length > 0) {
+        // Recorded for audit, but deliberately not treated as consuming the plan's nonce.
         const receipt = await executionStore.append({
+          ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
           contractId,
           contractVersion: activeContract.version,
           plan,
@@ -859,11 +891,12 @@ const server = createServer(async (request, response) => {
           grantedPermissions,
           bindingResults: [],
         })
-        send(response, 403, { error: 'REQUIRED_PERMISSION_MISSING', missingPermissions, receipt })
+        send(response, 403, { error: 'REQUIRED_PERMISSION_MISSING', missingPermissions: missing, receipt })
         return
       }
       const bindingResults = await executeBindings(plan, activeContract)
       const receipt = await executionStore.append({
+        ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
         contractId,
         contractVersion: activeContract.version,
         plan,
@@ -895,7 +928,7 @@ server.listen(port, '127.0.0.1', () => {
   process.stdout.write(`Lattice Context API listening at http://127.0.0.1:${port}\n`)
 })
 
-async function prepareCompile(result: CompileResponse, contract: ContextContract, requestedBy: string): Promise<CompileResponse> {
+async function prepareCompile(result: CompileResponse, contract: ContextContract, principal: RequestIdentity): Promise<CompileResponse> {
   if (result.decision === 'APPROVAL_REQUIRED' && result.pendingPlan) {
     const operation = contract.operations.find((candidate) => candidate.id === result.pendingPlan?.operation)
     const policy = operation ? contract.policies.find((candidate) => candidate.riskTier === operation.riskTier) : undefined
@@ -904,29 +937,32 @@ async function prepareCompile(result: CompileResponse, contract: ContextContract
       return withoutPendingPlan
     }
     const approval = await runtimeApprovalStore.create({
+      ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
       contractId: contract.id,
       contractVersion: contract.version,
       contractDigest: contract.digest,
       operationId: operation.id,
       policyId: policy.id,
       riskTier: operation.riskTier,
-      requestedBy,
+      requestedBy: principal.principalId,
       pendingPlan: result.pendingPlan,
     })
     return { ...result, approval }
   }
-  return finalize(result, contract.id)
+  return finalize(result, contract.id, principal)
 }
 
 function rememberClarification(
   result: CompileResponse,
+  principal: RequestIdentity,
   request: CompileRequest,
   intentResolution: IntentResolution,
   selectedOperationId?: string,
 ): void {
   if (!result.clarification) return
+  const subject = subjectOf(principal)
   if (result.clarification.kind === 'OPERATION') {
-    clarifications.set(result.clarification.id, {
+    clarifications.set(result.clarification.id, subject, {
       kind: 'OPERATION',
       request,
       candidateOperationIds: result.clarification.candidates.map((candidate) => candidate.operationId),
@@ -936,7 +972,7 @@ function rememberClarification(
   }
   const operationId = selectedOperationId ?? intentResolution.candidates[0]?.operationId
   if (!operationId) return
-  clarifications.set(result.clarification.id, {
+  clarifications.set(result.clarification.id, subject, {
     kind: 'ENTITY',
     request,
     typeId: result.clarification.entityTypeId,
@@ -945,17 +981,24 @@ function rememberClarification(
   })
 }
 
-function finalize(result: CompileResponse, contractId: string): CompileResponse {
+function finalize(result: CompileResponse, contractId: string, principal: RequestIdentity): CompileResponse {
   if (!result.plan) return result
-  const signed = signAndStore(result.plan, contractId)
+  const signed = signAndStore(result.plan, contractId, principal)
   return { ...result, plan: signed }
 }
 
-function signAndStore(plan: UnsignedExecutionPlan, contractId: string): SignedExecutionPlan {
+function signAndStore(plan: UnsignedExecutionPlan, contractId: string, principal: RequestIdentity): SignedExecutionPlan {
   const signed = signPlan(plan)
-  plans.set(signed.planId, signed)
-  planContractIds.set(signed.planId, contractId)
+  plans.set(signed.planId, subjectOf(principal), { plan: signed, contractId }, planRetentionUntil(signed))
   return signed
+}
+
+function planRetentionUntil(plan: SignedExecutionPlan): number {
+  return new Date(plan.expiresAt).getTime() + expiredPlanGraceMs
+}
+
+function subjectOf(identity: RequestIdentity): Subject {
+  return { principalId: identity.principalId, ...(identity.tenantId ? { tenantId: identity.tenantId } : {}) }
 }
 
 function signPlan(plan: UnsignedExecutionPlan): SignedExecutionPlan {

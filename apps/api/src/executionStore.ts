@@ -25,16 +25,26 @@ export class ExecutionStore {
     }
   }
 
-  list(contractId: string): ExecutionReceipt[] {
-    return this.document.receipts.filter((receipt) => receipt.contractId === contractId).map((receipt) => structuredClone(receipt)).reverse()
+  list(contractId: string, tenantId: string | undefined): ExecutionReceipt[] {
+    return this.document.receipts
+      .filter((receipt) => receipt.contractId === contractId && receipt.tenantId === tenantId)
+      .map((receipt) => structuredClone(receipt))
+      .reverse()
   }
 
-  findByPlanId(planId: string): ExecutionReceipt | undefined {
-    const receipt = this.document.receipts.find((candidate) => candidate.planId === planId)
+  /**
+   * A plan's nonce is spent only by an attempt that got past authorization. A rejected
+   * attempt is still recorded for audit, but it must not destroy an approved plan — otherwise
+   * one unauthorized call is enough to force a whole compile and approval cycle again.
+   * The lookup is deliberately not tenant-scoped: a plan identifier is single-use globally.
+   */
+  findConsumedByPlanId(planId: string): ExecutionReceipt | undefined {
+    const receipt = this.document.receipts.find((candidate) => candidate.planId === planId && candidate.status !== 'DENIED')
     return receipt ? structuredClone(receipt) : undefined
   }
 
   async append(input: {
+    tenantId?: string
     contractId: string
     contractVersion: string
     plan: SignedExecutionPlan
@@ -45,8 +55,9 @@ export class ExecutionStore {
     grantedPermissions: string[]
     bindingResults: BindingExecutionResult[]
   }): Promise<ExecutionReceipt> {
-    if (this.findByPlanId(input.plan.planId)) throw new Error('PLAN_NONCE_ALREADY_CONSUMED')
+    if (this.findConsumedByPlanId(input.plan.planId)) throw new Error('PLAN_NONCE_ALREADY_CONSUMED')
     const unsigned = {
+      ...(input.tenantId ? { tenantId: input.tenantId } : {}),
       contractId: input.contractId,
       contractVersion: input.contractVersion,
       contractDigest: input.plan.contractDigest,

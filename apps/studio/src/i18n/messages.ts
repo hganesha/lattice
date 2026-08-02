@@ -376,6 +376,8 @@ export const messages = defineMessages({
   runtimeIntentCandidateMeta: { id: 'runtime.result.intentCandidateMeta', defaultMessage: '{risk} · score {score}' },
   runtimeSignedPlan: { id: 'runtime.result.signedPlan', defaultMessage: '⌁ Signed plan' },
   runtimeApprovalPending: { id: 'runtime.result.approvalPending', defaultMessage: '◴ Approval pending' },
+  runtimeSimulatedGrounding: { id: 'runtime.result.simulatedGrounding', defaultMessage: '◔ Sample data' },
+  runtimeSimulatedGroundingDetail: { id: 'runtime.result.simulatedGroundingDetail', defaultMessage: 'Resolved from documented sample payloads, not live source reads' },
   wizardNewContract: { id: 'wizard.newContract', defaultMessage: 'New context contract' },
   wizardDecisionsTitle: { id: 'wizard.decisionsTitle', defaultMessage: 'Start with the decisions that matter.' },
   wizardDecisionsDescription: { id: 'wizard.decisionsDescription', defaultMessage: 'The ontology, evidence, policy, and tests will grow around the questions this contract must answer.' },

@@ -399,6 +399,9 @@ export function validateContract(contract: ContextContract): string[] {
       if (!binding.connector.credentialRef.trim() || !binding.connector.readOnly || !resourceComplete) issues.push(`${binding.sourceSystem} must use a complete read-only resource scope and an external credential reference.`)
     }
     if (binding.approvalStatus !== 'APPROVED' && binding.approvalStatus !== 'APPROVED_WITH_EXCEPTION') issues.push(`${binding.sourceSystem} must be approved before publishing.`)
+    if (binding.executionMode === 'SIMULATED' && contract.runtimeMode !== 'REFERENCE') {
+      issues.push(`${binding.sourceSystem} reads a documented sample payload, so this contract must declare reference runtime mode before publishing.`)
+    }
   }
   const requiredRiskTiers = new Set(contract.operations.map((operation) => operation.riskTier))
   for (const riskTier of requiredRiskTiers) {

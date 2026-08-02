@@ -5,6 +5,11 @@ export type EvidenceStatus =
   | 'TEMPLATE_DERIVED'
   | 'CONFLICTING'
   | 'UNVERIFIED'
+  /** Materialized from a documented sample payload rather than a live source read. */
+  | 'SIMULATED'
+
+/** Whether the runtime objects behind a decision came from live sources or documented samples. */
+export type ContextGrounding = 'LIVE' | 'SIMULATED'
 
 export type EvidenceStrength = 'EXACT' | 'STRONG' | 'MODERATE' | 'WEAK' | 'INSUFFICIENT'
 
@@ -226,6 +231,8 @@ export interface ConnectorHealthRequest {
 
 export interface ConnectorHealthRecord {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
   bindingId: string
   provider: ConnectorProvider
   status: ConnectorHealthStatus
@@ -299,6 +306,8 @@ export interface AssuranceCheckResult {
 
 export interface AssuranceRun {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
   contractId: string
   contractVersion: string
   contractDigest: string
@@ -335,6 +344,8 @@ export interface ReviewDecisionArtifact {
 
 export interface ReviewRequestArtifact {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
   contractId: string
   contractVersion: string
   targetKind: ReviewTargetKind
@@ -498,6 +509,12 @@ export interface ContextContract {
   releaseStatus: ReleaseStatus
   digest: string
   versions: VersionPin
+  /**
+   * REFERENCE contracts may ground runtime decisions in documented sample payloads and are
+   * published for demonstration and regulatory reference only. LIVE (the default) forbids
+   * simulated bindings, so a leftover sample payload can never silently ground a decision.
+   */
+  runtimeMode?: 'LIVE' | 'REFERENCE'
   competencyQuestions: CompetencyQuestion[]
   /** Reference to the workspace ontology. Embedded schema fields remain a runtime snapshot during migration. */
   ontologyRef?: OntologyReference
@@ -755,11 +772,17 @@ export interface IntentDecisionEvidence {
 }
 
 export interface UnsignedExecutionPlan {
-  schemaVersion: '1.0'
+  schemaVersion: '1.1'
   planId: string
   resolutionId: string
   decision: 'RESOLVED'
   riskTier: RiskTier
+  /** Principal the plan was issued to. Signed, and enforced on verification and execution. */
+  principalId: string
+  /** Tenant the plan was issued within. Signed, and enforced on verification and execution. */
+  tenantId?: string
+  /** Whether the resolved context came from live source reads or documented samples. */
+  grounding: ContextGrounding
   operation: string
   intent: IntentDecisionEvidence
   arguments: Record<string, { entityId: string } | string | number | boolean>
@@ -786,6 +809,8 @@ export interface CompileResponse {
   reasonCodes: string[]
   explanation: string[]
   versions: VersionPin
+  /** Present once context objects have been resolved; mirrors the grounding pinned into the plan. */
+  grounding?: ContextGrounding
   intentResolution?: IntentResolution
   clarification?: ClarificationContract
   plan?: SignedExecutionPlan | UnsignedExecutionPlan
@@ -807,6 +832,8 @@ export interface RuntimeApprovalDecisionArtifact {
 
 export interface RuntimeApprovalArtifact {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
   contractId: string
   contractVersion: string
   contractDigest: string
@@ -847,6 +874,8 @@ export interface BindingExecutionResult {
 
 export interface ExecutionReceipt {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
   contractId: string
   contractVersion: string
   contractDigest: string
@@ -863,6 +892,10 @@ export interface ExecutionReceipt {
   artifactDigest: string
 }
 
+/**
+ * Execution takes no client-supplied authorization input. Granted permissions are derived
+ * from the verified identity server-side; a body that asserts them is rejected.
+ */
 export interface ExecutePlanRequest {
-  grantedPermissions: string[]
+  grantedPermissions?: never
 }

@@ -24,20 +24,24 @@ export class AssuranceStore {
     }
   }
 
-  list(contractId: string): AssuranceRun[] {
-    return this.document.runs.filter((run) => run.contractId === contractId).map((run) => structuredClone(run)).reverse()
+  list(contractId: string, tenantId: string | undefined): AssuranceRun[] {
+    return this.document.runs
+      .filter((run) => run.contractId === contractId && run.tenantId === tenantId)
+      .map((run) => structuredClone(run))
+      .reverse()
   }
 
-  get(runId: string): AssuranceRun | undefined {
-    const run = this.document.runs.find((candidate) => candidate.id === runId)
+  get(runId: string, tenantId: string | undefined): AssuranceRun | undefined {
+    const run = this.document.runs.find((candidate) => candidate.id === runId && candidate.tenantId === tenantId)
     return run ? structuredClone(run) : undefined
   }
 
-  async append(run: AssuranceRun): Promise<AssuranceRun> {
+  async append(run: AssuranceRun, tenantId: string | undefined): Promise<AssuranceRun> {
     if (this.document.runs.some((candidate) => candidate.id === run.id)) throw new Error('ASSURANCE_RUN_IMMUTABLE')
-    this.document.runs.push(structuredClone(run))
+    const owned: AssuranceRun = { ...structuredClone(run), ...(tenantId ? { tenantId } : {}) }
+    this.document.runs.push(owned)
     await this.persist()
-    return structuredClone(run)
+    return structuredClone(owned)
   }
 
   private async persist(): Promise<void> {

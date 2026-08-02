@@ -50,6 +50,8 @@ export LATTICE_OIDC_DEFAULT_TENANT_ID=tenant-example
 
 The API verifies the asymmetric signature, key ID, issuer, audience, token lifetime, maximum token age, and configured algorithm before trusting identity claims. Remote issuer and JWKS URLs require HTTPS; loopback HTTP is accepted only for local identity-provider testing. Studio reads its production access token from session storage through `setApiAccessToken`; built-in role-specific demo identities are emitted only by development builds. `LATTICE_DEV_AUTH=true` is rejected when `NODE_ENV=production`.
 
+Runtime authorization is derived entirely from that verified identity. The permissions a plan requires are checked against the caller's token scopes — a request body that asserts its own entitlements is rejected — and wildcard scopes are stripped, so an issuer cannot mint blanket authority. The blanket bypass used by the development identity mapper is keyed off the authenticator rather than a role name, so an external directory that happens to emit a group called `DEVELOPER` gains nothing. Signed plans carry the principal and tenant they were issued to, and verification and execution both fail closed for anyone else.
+
 ### Optional semantic intent resolution
 
 The Context API always has a deterministic lexical resolver. To add vector-backed paraphrase resolution, configure an HTTPS embedding endpoint that accepts `{ model, input, encoding_format }` and returns indexed float vectors under `data`. Loopback HTTP is allowed for local models:
@@ -143,7 +145,8 @@ Use `Arcadia` instead of `Arcadia Capital` to exercise the typed clarification p
 |---|---|
 | `POST /v1/compile` | Compile a question into an explicit runtime decision. |
 | `POST /v1/clarifications/:id` | Continue a paused resolution with a governed entity selection. |
-| `POST /v1/plans/:id/verify` | Verify signature, expiry, key, and contract digest for a plan. |
+| `POST /v1/plans/:id/verify` | Verify signature, expiry, key, and contract digest for a plan issued to the caller. |
+| `POST /v1/plans/:id/execute` | Execute a plan issued to the caller, using permissions derived from the verified token. |
 | `GET /v1/contracts/active` | Inspect the active published Context Contract. |
 | `GET /v1/workspaces` | List industry workspaces and shared ontology counts. |
 | `GET /v1/workspaces/:id` | Retrieve a workspace and its shared ontology. |

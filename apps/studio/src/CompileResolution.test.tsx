@@ -43,4 +43,35 @@ describe('CompileResolution', () => {
     expect(onChoose).toHaveBeenCalledWith('risk.exposure')
     expect(screen.getByText('ANALYTICAL · score 0.890')).toBeVisible()
   })
+
+  it('warns when the resolution was grounded in sample payloads rather than live reads', () => {
+    const result: CompileResponse = {
+      resolutionId: 'res-simulated',
+      decision: 'APPROVAL_REQUIRED',
+      reasonCodes: ['RUNTIME_APPROVAL_REQUIRED'],
+      explanation: ['A human approval is required.'],
+      grounding: 'SIMULATED',
+      versions: { contract: 'contract@1', semantic: 'semantic@1', policy: 'policy@1', bindings: 'bindings@1', api: 'compile@1' },
+    }
+
+    render(<LatticeI18nProvider><CompileResolution result={result} onChoose={vi.fn()} /></LatticeI18nProvider>)
+
+    expect(screen.getByText('◔ SAMPLE DATA')).toBeVisible()
+    expect(screen.getByText(/not live source reads/)).toBeVisible()
+  })
+
+  it('says nothing about grounding when the resolution came from live reads', () => {
+    const result: CompileResponse = {
+      resolutionId: 'res-live',
+      decision: 'RESOLVED',
+      reasonCodes: ['CONTEXT_COMPILED'],
+      explanation: ['Resolved.'],
+      grounding: 'LIVE',
+      versions: { contract: 'contract@1', semantic: 'semantic@1', policy: 'policy@1', bindings: 'bindings@1', api: 'compile@1' },
+    }
+
+    render(<LatticeI18nProvider><CompileResolution result={result} onChoose={vi.fn()} /></LatticeI18nProvider>)
+
+    expect(screen.queryByText('◔ SAMPLE DATA')).toBeNull()
+  })
 })

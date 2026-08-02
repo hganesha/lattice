@@ -6,6 +6,12 @@ export interface RequestIdentity {
   principalId: string
   roles: string[]
   scopes: string[]
+  /**
+   * Which authenticator produced this identity. Development conveniences — wildcard scopes
+   * and the blanket role bypass — are keyed off this, never off a role or scope string an
+   * external identity provider could also emit.
+   */
+  authenticationMode: 'DEVELOPMENT' | 'OIDC'
 }
 
 export interface Authenticator {
@@ -81,6 +87,7 @@ export function createOidcAuthenticator(config: OidcAuthenticatorConfig, keyReso
           ...(tenantId ? { tenantId } : {}),
           roles: listClaim(nestedClaim(payload, config.rolesClaim)),
           scopes: typeof payload.scope === 'string' ? payload.scope.split(/\s+/).filter(Boolean) : [],
+          authenticationMode: 'OIDC',
         }
       } catch {
         return undefined
@@ -99,6 +106,7 @@ function developmentAuthenticator(): Authenticator {
         principalId: `principal_${createHash('sha256').update(token).digest('hex').slice(0, 12)}`,
         roles: ['DEVELOPER'],
         scopes: ['lattice:*'],
+        authenticationMode: 'DEVELOPMENT',
       }
     },
   }

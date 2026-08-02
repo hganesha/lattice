@@ -25,16 +25,20 @@ export class RuntimeApprovalStore {
     }
   }
 
-  list(contractId: string): RuntimeApprovalArtifact[] {
-    return this.document.approvals.filter((approval) => approval.contractId === contractId).map((approval) => structuredClone(approval)).reverse()
+  list(contractId: string, tenantId: string | undefined): RuntimeApprovalArtifact[] {
+    return this.document.approvals
+      .filter((approval) => approval.contractId === contractId && approval.tenantId === tenantId)
+      .map((approval) => structuredClone(approval))
+      .reverse()
   }
 
-  get(approvalId: string): RuntimeApprovalArtifact | undefined {
-    const approval = this.document.approvals.find((candidate) => candidate.id === approvalId)
+  get(approvalId: string, tenantId: string | undefined): RuntimeApprovalArtifact | undefined {
+    const approval = this.document.approvals.find((candidate) => candidate.id === approvalId && candidate.tenantId === tenantId)
     return approval ? structuredClone(approval) : undefined
   }
 
   async create(input: {
+    tenantId?: string
     contractId: string
     contractVersion: string
     contractDigest: string
@@ -58,8 +62,8 @@ export class RuntimeApprovalStore {
     return structuredClone(approval)
   }
 
-  async decide(approvalId: string, decision: 'APPROVED' | 'REJECTED', rationale: string, decidedBy: string, now = new Date()): Promise<RuntimeApprovalArtifact> {
-    const index = this.document.approvals.findIndex((approval) => approval.id === approvalId)
+  async decide(approvalId: string, decision: 'APPROVED' | 'REJECTED', rationale: string, decidedBy: string, tenantId: string | undefined, now = new Date()): Promise<RuntimeApprovalArtifact> {
+    const index = this.document.approvals.findIndex((approval) => approval.id === approvalId && approval.tenantId === tenantId)
     const approval = this.document.approvals[index]
     if (!approval) throw new Error('RUNTIME_APPROVAL_NOT_FOUND')
     if (approval.status !== 'PENDING') throw new Error('RUNTIME_APPROVAL_ALREADY_DECIDED')
@@ -82,8 +86,8 @@ export class RuntimeApprovalStore {
     return structuredClone(decided)
   }
 
-  async markResumed(approvalId: string, signedPlanId: string, now = new Date()): Promise<RuntimeApprovalArtifact> {
-    const index = this.document.approvals.findIndex((approval) => approval.id === approvalId)
+  async markResumed(approvalId: string, signedPlanId: string, tenantId: string | undefined, now = new Date()): Promise<RuntimeApprovalArtifact> {
+    const index = this.document.approvals.findIndex((approval) => approval.id === approvalId && approval.tenantId === tenantId)
     const approval = this.document.approvals[index]
     if (!approval) throw new Error('RUNTIME_APPROVAL_NOT_FOUND')
     if (approval.status === 'RESUMED') return structuredClone(approval)

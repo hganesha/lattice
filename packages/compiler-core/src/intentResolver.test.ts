@@ -7,6 +7,8 @@ import {
   type RiskTier,
 } from '@lattice/contracts'
 import { ContextCompiler } from './compiler.js'
+
+const subject = { principalId: 'principal_test', tenantId: 'tenant_test' }
 import { HybridIntentResolver, type EmbeddingProvider } from './intentResolver.js'
 
 test('hybrid resolution maps a paraphrase to the governed operation through question vectors', async () => {
@@ -30,7 +32,7 @@ test('compiler accepts a strong, unambiguous semantic candidate before determini
   ])
   const result = new ContextCompiler(contract, { id: () => 'semantic' }).compile({
     question: 'How much could we lose if Arcadia defaults?',
-  }, { intentResolution: resolution })
+  }, { intentResolution: resolution, ...subject })
 
   assert.equal(result.decision, 'RESOLVED')
   assert.equal(result.plan?.operation, 'risk.exposure')
@@ -45,7 +47,7 @@ test('compiler asks for operation clarification when semantic candidates are too
   ])
   const result = new ContextCompiler(contract, { id: () => 'ambiguous' }).compile({
     question: 'What protection do we have if Arcadia defaults?',
-  }, { intentResolution: resolution })
+  }, { intentResolution: resolution, ...subject })
 
   assert.equal(result.decision, 'CLARIFICATION_REQUIRED')
   assert.deepEqual(result.reasonCodes, ['AMBIGUOUS_OPERATION'])
@@ -63,14 +65,14 @@ test('semantic-only operational actions require explicit confirmation', () => {
   const resolution = intentResolution([['risk.exposure', 0.98, 0]])
   const result = new ContextCompiler(contract, { id: () => 'operational' }).compile({
     question: 'Take action on the Arcadia limit.',
-  }, { intentResolution: resolution })
+  }, { intentResolution: resolution, ...subject })
 
   assert.equal(result.decision, 'CLARIFICATION_REQUIRED')
   assert.deepEqual(result.reasonCodes, ['SEMANTIC_OPERATION_CONFIRMATION_REQUIRED'])
 
   const confirmed = new ContextCompiler(contract, { id: () => 'confirmed' }).compile({
     question: 'Take action on the Arcadia limit.',
-  }, { intentResolution: resolution, selectedOperationId: 'risk.exposure' })
+  }, { intentResolution: resolution, selectedOperationId: 'risk.exposure', ...subject })
   assert.equal(confirmed.decision, 'RESOLVED')
   assert.equal(confirmed.plan?.intent.acceptance, 'USER_CONFIRMED')
 })
@@ -85,7 +87,7 @@ test('confirmed operation context survives a subsequent entity clarification', (
   })
   const request = { question: 'How much could we lose if Arcadia defaults?' }
 
-  const entityClarification = compiler.compile(request, { intentResolution: resolution })
+  const entityClarification = compiler.compile(request, { intentResolution: resolution, ...subject })
   assert.equal(entityClarification.clarification?.kind, 'ENTITY')
 
   const continued = compiler.compile({
@@ -94,6 +96,7 @@ test('confirmed operation context survives a subsequent entity clarification', (
   }, {
     intentResolution: resolution,
     selectedOperationId: 'risk.exposure',
+    ...subject,
   })
   assert.equal(continued.decision, 'RESOLVED')
   assert.equal(continued.plan?.operation, 'risk.exposure')
