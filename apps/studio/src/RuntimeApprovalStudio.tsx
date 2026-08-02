@@ -94,10 +94,12 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
     setWorkingId(approval.id)
     setError('')
     try {
+      // Permissions are derived from the caller's verified identity. Echoing the plan's own
+      // requirements back would make the check a tautology, and the API now rejects it.
       const response = await fetch(`${API_URL}/v1/plans/${approval.signedPlanId}/execute`, {
         method: 'POST',
         headers: { ...apiAuthHeaders('studio-runtime-agent'), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ grantedPermissions: approval.pendingPlan.requiredPermissions }),
+        body: JSON.stringify({}),
       })
       const payload = await response.json() as ExecutionReceipt & { error?: string }
       if (!response.ok) throw new Error(payload.error ?? t('approvalExecutionFailed'))

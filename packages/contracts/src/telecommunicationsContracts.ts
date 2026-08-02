@@ -262,6 +262,7 @@ function contract(input: ContractInput): ContextContract {
     workflow: input.workflow,
     version: '1.0.0',
     releaseStatus: 'PUBLISHED',
+    runtimeMode: 'REFERENCE',
     digest: `sha256:reference-${input.id}-1`,
     versions: {
       contract: `${input.id}@1.0.0`,

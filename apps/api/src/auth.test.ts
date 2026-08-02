@@ -16,7 +16,7 @@ test('verifies OIDC signatures, issuer, audience, expiry, and identity claims', 
     .setExpirationTime('5m')
     .sign(privateKey)
 
-  assert.deepEqual(await authenticator.authenticate(`Bearer ${token}`), { tenantId: 'tenant-risk', principalId: 'user-42', roles: ['AUTHOR', 'REVIEWER'], scopes: ['contracts:read', 'contracts:write'] })
+  assert.deepEqual(await authenticator.authenticate(`Bearer ${token}`), { tenantId: 'tenant-risk', principalId: 'user-42', roles: ['AUTHOR', 'REVIEWER'], scopes: ['contracts:read', 'contracts:write'], authenticationMode: 'OIDC' })
   assert.equal(await authenticator.authenticate(`Bearer ${token} trailing`), undefined)
   assert.equal(await authenticator.authenticate(undefined), undefined)
 })
@@ -49,6 +49,7 @@ test('accepts Supabase-style identity before tenant membership resolution', asyn
     principalId: '1351f96b-8103-4851-b7c2-a9e4f60dde1b',
     roles: ['AUTHOR'],
     scopes: [],
+    authenticationMode: 'OIDC',
   })
 })
 

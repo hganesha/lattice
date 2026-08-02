@@ -6,8 +6,15 @@ import type { ContextContract, EntityRecord, EvidenceRecord, RelationshipAsserti
  * Reference contracts remain immutable and content-addressed. The API calls this
  * at compile time so a documented sample binding behaves like a live read
  * without persisting synthetic operational observations into the release.
+ *
+ * Only contracts that explicitly publish `runtimeMode: 'REFERENCE'` are materialized.
+ * A LIVE contract with a leftover sample payload resolves no synthetic context, so a
+ * fixture can never silently ground a production decision. Everything produced here is
+ * marked `SIMULATED` and capped below exact evidence so the compiler, the signed plan,
+ * and the Studio can all tell samples apart from live source reads.
  */
 export function materializeSimulatedContext(contract: ContextContract, now = new Date()): ContextContract {
+  if (contract.runtimeMode !== 'REFERENCE') return contract
   const simulatedBindings = contract.bindings.filter((binding) => binding.executionMode === 'SIMULATED' && binding.samplePayload)
   if (simulatedBindings.length === 0) return contract
 
@@ -44,7 +51,8 @@ export function materializeSimulatedContext(contract: ContextContract, now = new
       aliases: [...new Set([type?.label ?? humanize(typeId), contract.workflow.replaceAll('_', ' '), ...operationAliases, ...mappedAliases])],
       properties: mappedProperties,
       evidenceRefs,
-      evidenceStrength: 'EXACT',
+      // A documented sample is never exact evidence of the live world, however complete it looks.
+      evidenceStrength: 'STRONG',
       validFrom: observedAt,
     }
     return [entity]
@@ -86,7 +94,7 @@ function bindingEvidence(binding: SourceBinding, observedAt: string): EvidenceRe
     checksum: `sha256:simulated-${binding.id}-${binding.version}`,
     observedAt,
     validFrom: observedAt,
-    status: 'DIRECTLY_EVIDENCED',
+    status: 'SIMULATED',
   }
 }
 

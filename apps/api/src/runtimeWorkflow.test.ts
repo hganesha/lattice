@@ -10,8 +10,9 @@ import { RuntimeApprovalStore } from './runtimeApprovalStore.js'
 
 function plan(): SignedExecutionPlan {
   return {
-    schemaVersion: '1.0', planId: 'plan-runtime-test', resolutionId: 'resolution-test', decision: 'RESOLVED',
-    riskTier: 'PLANNING_DECISION', operation: 'grid.get_outage_context', arguments: {}, metrics: [],
+    schemaVersion: '1.1', planId: 'plan-runtime-test', resolutionId: 'resolution-test', decision: 'RESOLVED',
+    riskTier: 'PLANNING_DECISION', principalId: 'requester', tenantId: 'tenant_a', grounding: 'SIMULATED',
+    operation: 'grid.get_outage_context', arguments: {}, metrics: [],
     intent: { resolverVersion: 'test-resolver', method: 'LEXICAL', indexDigest: 'sha256:test-index', operationId: 'grid.get_outage_context', matchedQuestionIds: [], lexicalScore: 1, aggregateScore: 1, acceptance: 'AUTOMATIC', candidateMargin: 1, thresholds: { minimumSupportedScore: 0.5, automaticAcceptanceScore: 0.75, minimumCandidateMargin: 0.05 } },
     sourceBindings: ['binding_grid_operations_api_grid_get_outage_context'], requiredPermissions: ['grid.outage.read'],
     expectedResultSchema: 'grid_get_outage_context_response', evidenceRefs: ['evidence-1'], versions: counterpartyRiskContract.versions,
@@ -25,16 +26,33 @@ test('runtime approval enforces separation of duties and resumes once', async ()
   const store = await RuntimeApprovalStore.open(join(directory, 'approvals.json'))
   const signed = plan()
   const approval = await store.create({
+    tenantId: 'tenant_a',
     contractId: 'contract-grid-outage-response', contractVersion: '0.2.0', contractDigest: signed.contractDigest,
     operationId: signed.operation, policyId: 'policy-grid', riskTier: signed.riskTier, requestedBy: 'requester', pendingPlan: signed,
   }, new Date('2026-07-19T20:00:00.000Z'))
 
-  await assert.rejects(() => store.decide(approval.id, 'APPROVED', 'Current evidence is sufficient.', 'requester'), /SEPARATION_REQUIRED/)
-  const decided = await store.decide(approval.id, 'APPROVED', 'Current evidence is sufficient.', 'reviewer', new Date('2026-07-19T21:00:00.000Z'))
+  await assert.rejects(() => store.decide(approval.id, 'APPROVED', 'Current evidence is sufficient.', 'requester', 'tenant_a'), /SEPARATION_REQUIRED/)
+  const decided = await store.decide(approval.id, 'APPROVED', 'Current evidence is sufficient.', 'reviewer', 'tenant_a', new Date('2026-07-19T21:00:00.000Z'))
   assert.equal(decided.status, 'APPROVED')
-  const resumed = await store.markResumed(approval.id, signed.planId)
+  const resumed = await store.markResumed(approval.id, signed.planId, 'tenant_a')
   assert.equal(resumed.status, 'RESUMED')
-  assert.equal((await RuntimeApprovalStore.open(join(directory, 'approvals.json'))).get(approval.id)?.status, 'RESUMED')
+  assert.equal((await RuntimeApprovalStore.open(join(directory, 'approvals.json'))).get(approval.id, 'tenant_a')?.status, 'RESUMED')
+})
+
+test('a runtime approval cannot be decided or resumed from another tenant', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-runtime-approval-tenancy-'))
+  const store = await RuntimeApprovalStore.open(join(directory, 'approvals.json'))
+  const signed = plan()
+  const approval = await store.create({
+    tenantId: 'tenant_a',
+    contractId: 'contract-grid-outage-response', contractVersion: '0.2.0', contractDigest: signed.contractDigest,
+    operationId: signed.operation, policyId: 'policy-grid', riskTier: signed.riskTier, requestedBy: 'requester', pendingPlan: signed,
+  }, new Date('2026-07-19T20:00:00.000Z'))
+
+  assert.equal(store.list('contract-grid-outage-response', 'tenant_b').length, 0)
+  assert.equal(store.get(approval.id, 'tenant_b'), undefined)
+  await assert.rejects(() => store.decide(approval.id, 'APPROVED', 'Approving another tenant request.', 'reviewer', 'tenant_b'), /RUNTIME_APPROVAL_NOT_FOUND/)
+  await assert.rejects(() => store.markResumed(approval.id, signed.planId, 'tenant_b'), /RUNTIME_APPROVAL_NOT_FOUND/)
 })
 
 test('sample adapter maps governed values and execution receipts prevent replay', async () => {
@@ -55,6 +73,21 @@ test('sample adapter maps governed values and execution receipts prevent replay'
 
   const directory = await mkdtemp(join(tmpdir(), 'lattice-execution-'))
   const store = await ExecutionStore.open(join(directory, 'receipts.json'))
-  await store.append({ contractId: contract.id, contractVersion: '0.2.0', plan: signed, principalId: 'agent', status: 'SUCCESS', startedAt: '2026-07-19T20:00:00.000Z', completedAt: '2026-07-19T20:00:01.000Z', grantedPermissions: ['grid.outage.read'], bindingResults: results })
-  await assert.rejects(() => store.append({ contractId: contract.id, contractVersion: '0.2.0', plan: signed, principalId: 'agent', status: 'SUCCESS', startedAt: '2026-07-19T20:00:00.000Z', completedAt: '2026-07-19T20:00:01.000Z', grantedPermissions: ['grid.outage.read'], bindingResults: results }), /NONCE_ALREADY_CONSUMED/)
+  await store.append({ tenantId: 'tenant_a', contractId: contract.id, contractVersion: '0.2.0', plan: signed, principalId: 'agent', status: 'SUCCESS', startedAt: '2026-07-19T20:00:00.000Z', completedAt: '2026-07-19T20:00:01.000Z', grantedPermissions: ['grid.outage.read'], bindingResults: results })
+  await assert.rejects(() => store.append({ tenantId: 'tenant_a', contractId: contract.id, contractVersion: '0.2.0', plan: signed, principalId: 'agent', status: 'SUCCESS', startedAt: '2026-07-19T20:00:00.000Z', completedAt: '2026-07-19T20:00:01.000Z', grantedPermissions: ['grid.outage.read'], bindingResults: results }), /NONCE_ALREADY_CONSUMED/)
+  assert.equal(store.list(contract.id, 'tenant_b').length, 0)
+})
+
+test('a denied attempt is recorded for audit without spending the plan nonce', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-execution-denied-'))
+  const store = await ExecutionStore.open(join(directory, 'receipts.json'))
+  const signed = plan()
+  const timestamps = { startedAt: '2026-07-19T20:00:00.000Z', completedAt: '2026-07-19T20:00:01.000Z' }
+
+  await store.append({ tenantId: 'tenant_a', contractId: 'contract-grid-outage-response', contractVersion: '0.2.0', plan: signed, principalId: 'intruder', status: 'DENIED', ...timestamps, grantedPermissions: [], bindingResults: [] })
+  assert.equal(store.findConsumedByPlanId(signed.planId), undefined)
+
+  const receipt = await store.append({ tenantId: 'tenant_a', contractId: 'contract-grid-outage-response', contractVersion: '0.2.0', plan: signed, principalId: 'agent', status: 'SUCCESS', ...timestamps, grantedPermissions: ['grid.outage.read'], bindingResults: [] })
+  assert.equal(store.findConsumedByPlanId(signed.planId)?.id, receipt.id)
+  assert.equal(store.list('contract-grid-outage-response', 'tenant_a').length, 2)
 })

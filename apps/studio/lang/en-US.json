@@ -816,6 +816,8 @@
   "runtime.result.expires": "{operation} · expires {time}",
   "runtime.result.intentCandidateMeta": "{risk} · score {score}",
   "runtime.result.signedPlan": "⌁ Signed plan",
+  "runtime.result.simulatedGrounding": "◔ Sample data",
+  "runtime.result.simulatedGroundingDetail": "Resolved from documented sample payloads, not live source reads",
   "runtime.result.unsignedIntent": "{id} · unsigned intent persisted for independent review",
   "runtime.supportedEvidence": "Supported evidence",
   "runtime.suspended": "Runtime suspended",

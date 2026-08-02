@@ -25,20 +25,23 @@ export class ReviewStore {
     }
   }
 
-  list(contractId: string): ReviewRequestArtifact[] {
-    return this.document.reviews.filter((review) => review.contractId === contractId).map((review) => structuredClone(review)).reverse()
+  list(contractId: string, tenantId: string | undefined): ReviewRequestArtifact[] {
+    return this.document.reviews
+      .filter((review) => review.contractId === contractId && review.tenantId === tenantId)
+      .map((review) => structuredClone(review))
+      .reverse()
   }
 
-  get(reviewId: string): ReviewRequestArtifact | undefined {
-    const review = this.document.reviews.find((candidate) => candidate.id === reviewId)
+  get(reviewId: string, tenantId: string | undefined): ReviewRequestArtifact | undefined {
+    const review = this.document.reviews.find((candidate) => candidate.id === reviewId && candidate.tenantId === tenantId)
     return review ? structuredClone(review) : undefined
   }
 
-  async create(input: CreateReviewRequest, submittedBy: string, now = new Date()): Promise<ReviewRequestArtifact> {
-    const existing = this.document.reviews.find((review) => review.contractId === input.contractId && review.targetKind === input.targetKind && review.targetId === input.targetId && review.status === 'OPEN')
+  async create(input: CreateReviewRequest, submittedBy: string, tenantId: string | undefined, now = new Date()): Promise<ReviewRequestArtifact> {
+    const existing = this.document.reviews.find((review) => review.tenantId === tenantId && review.contractId === input.contractId && review.targetKind === input.targetKind && review.targetId === input.targetId && review.status === 'OPEN')
     if (existing) return structuredClone(existing)
     const submittedAt = now.toISOString()
-    const unsigned = { ...input, submittedAt, submittedBy }
+    const unsigned = { ...(tenantId ? { tenantId } : {}), ...input, submittedAt, submittedBy }
     const review: ReviewRequestArtifact = {
       id: `review_${randomUUID()}`,
       ...unsigned,
@@ -50,8 +53,8 @@ export class ReviewStore {
     return structuredClone(review)
   }
 
-  async decide(reviewId: string, decision: ReviewDecisionValue, rationale: string, decidedBy: string, now = new Date()): Promise<ReviewRequestArtifact> {
-    const index = this.document.reviews.findIndex((review) => review.id === reviewId)
+  async decide(reviewId: string, decision: ReviewDecisionValue, rationale: string, decidedBy: string, tenantId: string | undefined, now = new Date()): Promise<ReviewRequestArtifact> {
+    const index = this.document.reviews.findIndex((review) => review.id === reviewId && review.tenantId === tenantId)
     const review = this.document.reviews[index]
     if (!review) throw new Error('REVIEW_NOT_FOUND')
     if (review.status === 'DECIDED') throw new Error('REVIEW_ALREADY_DECIDED')

@@ -26,21 +26,23 @@ export class ConnectorHealthStore {
     }
   }
 
-  list(bindingId?: string): ConnectorHealthRecord[] {
-    const records = bindingId ? this.document.records.filter((record) => record.bindingId === bindingId) : this.document.records
+  list(tenantId: string | undefined, bindingId?: string): ConnectorHealthRecord[] {
+    const owned = this.document.records.filter((record) => record.tenantId === tenantId)
+    const records = bindingId ? owned.filter((record) => record.bindingId === bindingId) : owned
     const now = new Date().toISOString()
     return records.map((record) => ({ ...structuredClone(record), freshnessStatus: freshnessStatus(record.lastSuccessfulAt, record.maximumFreshnessMinutes, now) })).reverse()
   }
 
-  latest(bindingId: string): ConnectorHealthRecord | undefined {
-    return this.list(bindingId)[0]
+  latest(tenantId: string | undefined, bindingId: string): ConnectorHealthRecord | undefined {
+    return this.list(tenantId, bindingId)[0]
   }
 
-  async append(probe: ConnectorHealthProbe, maximumFreshnessMinutes: number): Promise<ConnectorHealthRecord> {
-    const previousSuccess = [...this.document.records].reverse().find((record) => record.bindingId === probe.bindingId && record.status === 'HEALTHY')
+  async append(probe: ConnectorHealthProbe, maximumFreshnessMinutes: number, tenantId: string | undefined): Promise<ConnectorHealthRecord> {
+    const previousSuccess = [...this.document.records].reverse().find((record) => record.tenantId === tenantId && record.bindingId === probe.bindingId && record.status === 'HEALTHY')
     const lastSuccessfulAt = probe.status === 'HEALTHY' ? probe.checkedAt : previousSuccess?.checkedAt
     const record: ConnectorHealthRecord = {
       id: `connector_health_${randomUUID()}`,
+      ...(tenantId ? { tenantId } : {}),
       ...probe,
       maximumFreshnessMinutes,
       ...(lastSuccessfulAt ? { lastSuccessfulAt } : {}),

@@ -103,11 +103,16 @@ Industry packs should contribute semantics, evidence adapters, policy profiles, 
 ## Trust boundaries
 
 - `tenantId` and `principalId` are derived from authentication context. Request bodies cannot assert identity.
+- Granted permissions are likewise derived from the verified token, never from the request body. A client that could declare its own entitlements would make every permission gate in every contract a tautology, so `/v1/plans/:id/execute` rejects a body that asserts them.
+- The blanket development role bypass is keyed off the authenticator that produced the identity, not off a role or scope string an external identity provider could also emit.
 - The compiler cannot execute source operations.
 - Source bindings name permissions and expected result schemas; credentials never enter a contract.
 - Plans pin contract, semantic, policy, binding, API, metric, and intent-resolver evidence, including the model/index digest, selected candidate scores, thresholds, margin, matched governed questions, and whether the operation was user-confirmed.
+- Plans are issued to one subject: `principalId` and `tenantId` are signed into the plan and enforced on verification and execution, so holding a plan identifier is not enough to use it. A plan belonging to another subject is reported as absent rather than forbidden.
 - Plans are short-lived and signed with Ed25519.
-- Executors must reject invalid signatures, expired plans, unexpected contracts, missing permissions, or reused nonces.
+- Plans pin whether their context was resolved from live source reads or documented samples. Only a contract that publishes `runtimeMode: 'REFERENCE'` may resolve simulated context at all, and such contracts cannot be published without that declaration.
+- Executors must reject invalid signatures, expired plans, unexpected contracts, missing permissions, or reused nonces. A nonce is spent only by an attempt that passed authorization; a rejected attempt is recorded for audit without destroying an approved plan.
+- Governance artifacts — assurance runs, reviews, runtime approvals, execution receipts, and connector health — are scoped to the tenant that produced them on every read and write.
 
 The development API uses an ephemeral plan-signing key and an explicitly enabled development identity mapper. Production authentication validates asymmetric JWT signatures, issuer, audience, lifetime, algorithm, and principal claims against a cached remote JWKS. In Supabase mode the Studio selects an organization from authoritative memberships and the API independently resolves that membership through the user-scoped Data API before accepting protected requests. A centralized route matrix then limits authoring, review decisions, runtime operations, and release rollback to the appropriate organization roles. Managed KMS/HSM plan-signing keys, normalized registry cutover, durable nonce storage, and fine-grained permission scopes remain production hardening work.
 
@@ -122,7 +127,7 @@ The development API uses an ephemeral plan-signing key and an explicitly enabled
 | Policy | Risk-tier profiles with evidence strength, freshness, runtime escalation, review approval, and release gates | Purpose-aware expressions, obligations, policy simulation, and delegated approval workflows |
 | Resolution | Deterministic lexical resolver | Governed hybrid resolution with explainable candidate scores |
 | Bindings | OpenAPI plus live Databricks/Fabric/PostgreSQL discovery, native bounded execution, server-only pluggable credential resolution, durable health/freshness telemetry, field mappings, schema compatibility, freshness and permission declarations | Additional native provider adapters are deferred |
-| Audit | In-memory plan lookup | Tamper-evident resolution, decision, approval, and execution log |
+| Audit | Subject-scoped, expiring in-memory plan lookup | Shared durable plan and nonce storage, plus a tamper-evident resolution, decision, approval, and execution log |
 | Assurance | Deterministic draft gates and persistent digest-backed runs | Distributed adapter tests, signed attestations, and policy-specific release thresholds |
 | Review | Authenticated rationale-backed decisions with immutable artifacts | Role-based assignments, quorum rules, escalation, and delegated approval authority |
 

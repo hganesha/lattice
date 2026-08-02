@@ -163,6 +163,20 @@ test('seeds valid airline regulatory reference contracts into the airline worksp
   }
 })
 
+test('a contract that has not declared reference runtime mode cannot publish a sample-payload binding', () => {
+  const reference = airlineExampleContracts[0]!
+  assert.deepEqual(validateContract(reference), [])
+
+  const asLiveContract = { ...structuredClone(reference), runtimeMode: 'LIVE' as const }
+  assert.deepEqual(
+    validateContract(asLiveContract).filter((issue) => issue.includes('reference runtime mode')).length,
+    asLiveContract.bindings.filter((binding) => binding.executionMode === 'SIMULATED').length,
+  )
+
+  const { runtimeMode: _runtimeMode, ...withoutDeclaredMode } = structuredClone(reference)
+  assert.ok(validateContract(withoutDeclaredMode).some((issue) => issue.includes('reference runtime mode')))
+})
+
 test('seeds valid telecommunications regulatory reference contracts into the telecommunications workspace', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-telecommunications-'))
   const registry = await ContractRegistry.open(join(directory, 'registry.json'), counterpartyRiskContract)

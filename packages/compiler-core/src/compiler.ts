@@ -3,6 +3,7 @@ import type {
   CompileRequest,
   CompileResponse,
   ContextContract,
+  ContextGrounding,
   EntityRecord,
   EvidenceStrength,
   IntentResolution,
@@ -30,6 +31,14 @@ export interface CompilerOptions {
 export interface CompileContext {
   intentResolution?: IntentResolution
   selectedOperationId?: string
+  /**
+   * Principal the plan is issued to. Signed into the plan and enforced when it is later
+   * verified or executed, so a plan is a capability for one subject rather than a bearer token.
+   * Compilation fails closed when a plan would be built without it.
+   */
+  principalId?: string
+  /** Tenant the plan is issued within. Signed into the plan alongside the principal. */
+  tenantId?: string
 }
 
 export interface IntentGate {
@@ -235,23 +244,49 @@ export class ContextCompiler {
       ])
     }
 
+    const principalId = context.principalId
+    if (!principalId) {
+      return respond('DENIED', ['PLAN_SUBJECT_REQUIRED'], [
+        'An execution plan cannot be issued without an authenticated principal to bind it to.',
+      ])
+    }
+
+    const grounding = this.groundingFor(argumentsByType)
+    const subject = { principalId, ...(context.tenantId ? { tenantId: context.tenantId } : {}) }
+    const plan = this.buildPlan(resolutionId, operation, argumentsByType, intentResolution, Boolean(selectedOperation), subject, grounding)
+
     if (policy.approvalRequired) {
       return {
         ...respond('APPROVAL_REQUIRED', ['RUNTIME_APPROVAL_REQUIRED'], [
           `${policy.label} requires a human approval before ${operation.label} can execute.`,
         ]),
-        pendingPlan: this.buildPlan(resolutionId, operation, argumentsByType, intentResolution, Boolean(selectedOperation)),
+        grounding,
+        pendingPlan: plan,
       }
     }
 
-    const plan = this.buildPlan(resolutionId, operation, argumentsByType, intentResolution, Boolean(selectedOperation))
     return {
       ...respond('RESOLVED', ['CONTEXT_COMPILED'], [
         `Resolved ${operation.label} against ${this.contract.name}.`,
         'Semantic, policy, source-binding, and evidence versions are pinned in the plan.',
+        ...(grounding === 'SIMULATED'
+          ? ['Context was resolved from documented sample payloads, not live source reads.']
+          : []),
       ]),
+      grounding,
       plan,
     }
+  }
+
+  /**
+   * A decision is only as live as its weakest supporting record: one simulated evidence
+   * record makes the whole resolution simulated.
+   */
+  private groundingFor(argumentsByType: Record<string, EntityRecord>): ContextGrounding {
+    const simulated = Object.values(argumentsByType)
+      .flatMap((entity) => entity.evidenceRefs)
+      .some((evidenceId) => this.contract.evidence.find((item) => item.id === evidenceId)?.status === 'SIMULATED')
+    return simulated ? 'SIMULATED' : 'LIVE'
   }
 
   private response(
@@ -308,6 +343,8 @@ export class ContextCompiler {
     argumentsByType: Record<string, EntityRecord>,
     intentResolution: IntentResolution,
     operationConfirmed: boolean,
+    subject: { principalId: string; tenantId?: string },
+    grounding: ContextGrounding,
   ): UnsignedExecutionPlan {
     const now = this.now()
     const evidenceRefs = new Set(Object.values(argumentsByType).flatMap((entity) => entity.evidenceRefs))
@@ -320,11 +357,14 @@ export class ContextCompiler {
     }
 
     return {
-      schemaVersion: '1.0',
+      schemaVersion: '1.1',
       planId: `plan_${this.id()}`,
       resolutionId,
       decision: 'RESOLVED',
       riskTier: operation.riskTier,
+      principalId: subject.principalId,
+      ...(subject.tenantId ? { tenantId: subject.tenantId } : {}),
+      grounding,
       operation: operation.id,
       intent: intentDecisionEvidence(intentResolution, operation.id, this.intentPolicy[operation.riskTier], operationConfirmed),
       arguments: Object.fromEntries(

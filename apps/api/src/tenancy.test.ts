@@ -30,7 +30,7 @@ test('rejects malformed tenant identifiers before contacting Supabase', async ()
 })
 
 test('applies the validated organization and membership role to request identity', () => {
-  const identity = applyTenantMembership({ principalId: 'user-1', roles: [], scopes: [] }, 'organization-1', 'AUTHOR')
+  const identity = applyTenantMembership({ principalId: 'user-1', roles: [], scopes: [], authenticationMode: 'OIDC' }, 'organization-1', 'AUTHOR')
   assert.equal(identity.tenantId, 'organization-1')
   assert.deepEqual(identity.roles, ['AUTHOR'])
 })

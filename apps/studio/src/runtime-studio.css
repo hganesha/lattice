@@ -32,6 +32,8 @@
 .runtime-readiness > div:last-child { display: flex; gap: 8px; }
 .signed-pill { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .signed-pill small { color: var(--text-muted); font: 6px DM Mono; }
+.signed-pill.simulated span { color: #e4b166; }
+.signed-pill.simulated small { max-width: 190px; text-align: right; line-height: 1.5; }
 
 @media (max-width: 1250px) {
   .runtime-workbench { grid-template-columns: minmax(570px, 1fr) 260px; }
