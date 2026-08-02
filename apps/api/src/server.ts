@@ -46,6 +46,7 @@ import { hasOrganizationRole, missingPermissions, requiredOrganizationRoles, res
 import { SubjectScopedStore, type Subject } from './planStore.js'
 import { SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
 import { intentResolverFromEnvironment } from './embeddingProvider.js'
+import { openApiDocument } from './openapi.js'
 
 const port = Number(process.env.PORT ?? 8787)
 const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
@@ -85,6 +86,13 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'GET' && url.pathname === '/health') {
       send(response, 200, { status: 'ok', service: 'lattice-context-api' })
+      return
+    }
+
+    // Served unauthenticated: it describes the shape of the API, never its data, and a client
+    // generator needs it before it has a token.
+    if (request.method === 'GET' && url.pathname === '/openapi.json') {
+      send(response, 200, openApiDocument)
       return
     }
 
