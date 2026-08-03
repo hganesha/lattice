@@ -40,6 +40,19 @@ describe('Studio shell', () => {
     expect(localStorage.getItem('lattice:navigation-collapsed')).toBe('true')
   })
 
+  it('opens the self-contained introduction from the Studio header', async () => {
+    const user = userEvent.setup()
+    render(<LatticeI18nProvider><App /></LatticeI18nProvider>)
+
+    await user.click(screen.getByRole('button', { name: 'Intro' }))
+
+    expect(screen.getByRole('dialog', { name: 'Introduction to Lattice' })).toBeVisible()
+    expect(screen.getByTitle('Lattice introduction')).toHaveAttribute('src', '/lattice-intro.html')
+
+    await user.click(screen.getByRole('button', { name: 'Close introduction' }))
+    expect(screen.queryByRole('dialog', { name: 'Introduction to Lattice' })).not.toBeInTheDocument()
+  })
+
   it('opens a selected existing contract in its workspace', async () => {
     const user = userEvent.setup()
     const workspaceId = 'workspace-financial-services'
