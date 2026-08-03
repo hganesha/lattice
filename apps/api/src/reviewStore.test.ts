@@ -18,6 +18,19 @@ test('persists an immutable review request and rationale-backed decision', async
   await assert.rejects(() => store.decide(review.id, 'REJECTED', 'Changed mind', 'principal_reviewer', 'tenant_a'), /REVIEW_ALREADY_DECIDED/)
 })
 
+test('the author of a claim cannot approve it', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-review-separation-'))
+  const store = await ReviewStore.open(join(directory, 'reviews.json'))
+  const review = await store.create({ contractId: 'grid', contractVersion: '0.1.0', targetKind: 'ENTITY_TYPE', targetId: 'outage', targetLabel: 'Outage', impact: 'HIGH', evidenceRefs: [] }, 'principal_author', 'tenant_a')
+
+  await assert.rejects(
+    () => store.decide(review.id, 'APPROVED', 'Looks correct to me, approving.', 'principal_author', 'tenant_a'),
+    /REVIEW_SEPARATION_REQUIRED/,
+  )
+  const decided = await store.decide(review.id, 'APPROVED', 'Independently reviewed and correct.', 'principal_reviewer', 'tenant_a')
+  assert.equal(decided.status, 'DECIDED')
+})
+
 test('reviews are not readable or decidable from another tenant', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'lattice-review-tenancy-'))
   const store = await ReviewStore.open(join(directory, 'reviews.json'))

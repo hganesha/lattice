@@ -58,6 +58,9 @@ export class ReviewStore {
     const review = this.document.reviews[index]
     if (!review) throw new Error('REVIEW_NOT_FOUND')
     if (review.status === 'DECIDED') throw new Error('REVIEW_ALREADY_DECIDED')
+    // These approvals are exactly what unblocks publishing, so the author cannot be the
+    // reviewer. Runtime approvals have always enforced this; governance reviews did not.
+    if (review.submittedBy === decidedBy) throw new Error('REVIEW_SEPARATION_REQUIRED')
     const decidedAt = now.toISOString()
     const unsignedDecision = { reviewId, decision, rationale, decidedAt, decidedBy }
     const artifact: ReviewDecisionArtifact = { id: `decision_${randomUUID()}`, ...unsignedDecision, artifactDigest: digest(unsignedDecision) }

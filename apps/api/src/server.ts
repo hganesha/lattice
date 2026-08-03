@@ -902,7 +902,7 @@ const server = createServer(async (request, response) => {
         send(response, 403, { error: 'REQUIRED_PERMISSION_MISSING', missingPermissions: missing, receipt })
         return
       }
-      const bindingResults = await executeBindings(plan, activeContract)
+      const bindingResults = await executeBindings(plan, activeContract, principal.tenantId ? { digestSalt: principal.tenantId } : {})
       const receipt = await executionStore.append({
         ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
         contractId,

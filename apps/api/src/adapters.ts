@@ -1,21 +1,44 @@
 import { createHash } from 'node:crypto'
-import type { BindingExecutionResult, ContextContract, SignedExecutionPlan, SourceBinding } from '@lattice/contracts'
+import { discloseMappedValue, type BindingExecutionResult, type ContextContract, type SignedExecutionPlan, type SourceBinding } from '@lattice/contracts'
 import { executeConnector } from './connectors.js'
 
-export async function executeBindings(plan: SignedExecutionPlan, contract: ContextContract): Promise<BindingExecutionResult[]> {
+export interface ExecuteBindingsOptions {
+  /** Scopes value digests to one tenant so they stay comparable within an audit trail only. */
+  digestSalt?: string
+}
+
+/**
+ * Hashes a confidential value for the receipt. Salting is what makes it a one-way record
+ * rather than a lookup table: an unsalted digest of a low-cardinality field is reversible by
+ * hashing every candidate.
+ */
+function saltedDigest(salt: string | undefined) {
+  return (value: unknown): string => {
+    const hash = createHash('sha256')
+    if (salt) hash.update(salt)
+    hash.update(' ')
+    hash.update(JSON.stringify(value ?? null))
+    return `sha256:${hash.digest('hex')}`
+  }
+}
+
+export async function executeBindings(
+  plan: SignedExecutionPlan,
+  contract: ContextContract,
+  options: ExecuteBindingsOptions = {},
+): Promise<BindingExecutionResult[]> {
   return Promise.all(plan.sourceBindings.map(async (bindingId) => {
     const binding = contract.bindings.find((candidate) => candidate.id === bindingId)
     if (!binding) return failed(bindingId, 'Unknown source', 'SIMULATED', 'SOURCE_BINDING_NOT_FOUND')
     const startedAt = Date.now()
     try {
       const payload = await loadPayload(binding, plan.arguments)
-      const mappedValues = (binding.mappings ?? []).map((mapping) => ({
-        sourcePath: mapping.sourcePath,
-        targetTypeId: mapping.targetTypeId,
-        targetPropertyId: mapping.targetPropertyId,
-        value: readPath(payload, mapping.sourcePath),
-      }))
-      if (mappedValues.some((mapping) => mapping.value === undefined)) throw new Error('SOURCE_MAPPING_VALUE_MISSING')
+      // The raw value is read to confirm the mapping resolves, then immediately reduced to
+      // whatever its classification permits a receipt to retain.
+      const rawValues = (binding.mappings ?? []).map((mapping) => ({ mapping, value: readPath(payload, mapping.sourcePath) }))
+      if (rawValues.some((entry) => entry.value === undefined)) throw new Error('SOURCE_MAPPING_VALUE_MISSING')
+      const digest = saltedDigest(options.digestSalt)
+      const mappedValues = rawValues.map((entry) => discloseMappedValue(entry.mapping, entry.value, contract, digest))
       return {
         bindingId,
         sourceSystem: binding.sourceSystem,
