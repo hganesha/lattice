@@ -29,8 +29,6 @@ import { AppearanceSettings } from './AppearanceSettings'
 import { Brand } from './Brand'
 import { ConfirmDialog } from './ConfirmDialog'
 import { IndustryWorkspaceIcon } from './IndustryWorkspaceIcon'
-import { IntroDeck } from './IntroDeck'
-import { IntroDeck } from './IntroDeck'
 import { AccountControl } from './AccountControl'
 import { IntroDialog } from './IntroDialog'
 import { API_URL, apiAuthHeaders } from './api'
@@ -91,7 +89,6 @@ export function App() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [welcomeOpen, setWelcomeOpen] = useState(() => localStorage.getItem(WELCOME_DISMISSED_KEY) !== 'true')
-  const [introOpen, setIntroOpen] = useState(false)
   const [introOpen, setIntroOpen] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<{ kind: 'CONTRACT' | 'WORKSPACE'; id: string; mode?: StudioMode }>()
   const [shareState, setShareState] = useState<'IDLE' | 'COPIED' | 'FAILED'>('IDLE')
@@ -348,7 +345,6 @@ export function App() {
           <div className="header-actions">
             {(workspaceMode || hasActiveWorkspaceContract) && <span className={`draft-state ${draftDirty ? 'dirty' : ''}`}>{saveState === 'FAILED' ? t('headerSaveFailed') : draftDirty ? t('unsavedDraft') : t('draftSaved')}</span>}
             {(workspaceMode ? Boolean(workspace) : hasActiveWorkspaceContract) && <button className="release" onClick={() => void saveActiveDraft()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}
-            <button className="ghost" onClick={() => setIntroOpen(true)}>{t('introOpen')}</button>
             <button className="ghost" onClick={() => setIntroOpen(true)}>{t('introOpen')}</button>
             <button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button>
             <AppearanceSettings />
