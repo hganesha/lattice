@@ -108,12 +108,37 @@ export const openApiDocument: OpenApiDocument = {
         responses: { 200: jsonResponse('The OpenAPI 3.1 description of this API.', { type: 'object' }) },
       },
     },
+    '/v1/keys': {
+      get: {
+        tags: ['Service'],
+        operationId: 'listSigningKeys',
+        summary: 'Retrieve every plan-signing key a verifier should trust.',
+        description: 'A JWKS `keys` array, newest first. Retired keys are retained so a plan signed before a rotation can still be verified offline until it expires.',
+        security: [],
+        responses: {
+          200: jsonResponse('The signing key set.', {
+            type: 'object',
+            properties: {
+              keys: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: true,
+                  description: 'A public JWK carrying `kid`, `alg`, and `use`.',
+                },
+              },
+            },
+            required: ['keys'],
+          }),
+        },
+      },
+    },
     '/v1/keys/current': {
       get: {
         tags: ['Service'],
         operationId: 'getCurrentSigningKey',
         summary: 'Retrieve the current plan-signing public key.',
-        description: 'The key is currently ephemeral and per-process, so a plan cannot yet be verified offline or across instances.',
+        description: 'The active signing key. Use `GET /v1/keys` for the full set, which retains retired keys through a rotation.',
         security: [],
         responses: {
           200: jsonResponse('The active public signing key as a JWK.', {

@@ -1,4 +1,4 @@
-import { generateKeyPairSync, randomUUID, sign, verify } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -47,6 +47,7 @@ import { SubjectScopedStore, type Subject } from './planStore.js'
 import { ContractRegistryConflictError, SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
 import { intentResolverFromEnvironment } from './embeddingProvider.js'
 import { openApiDocument } from './openapi.js'
+import { planSignerFromEnvironment } from './signing.js'
 
 const port = Number(process.env.PORT ?? 8787)
 const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
@@ -70,8 +71,13 @@ const expiredPlanGraceMs = 60 * 60_000
 const clarifications = new SubjectScopedStore<PendingClarification>(clarificationRetentionMs)
 const intentResolver = intentResolverFromEnvironment()
 const plans = new SubjectScopedStore<{ plan: SignedExecutionPlan; contractId: string }>(expiredPlanGraceMs)
-const keyId = 'lattice-dev-ed25519-1'
-const { privateKey, publicKey } = generateKeyPairSync('ed25519')
+const { signer: planSigner, ephemeral: ephemeralSigningKey } = planSignerFromEnvironment()
+if (ephemeralSigningKey && process.env.NODE_ENV === 'production') {
+  throw new Error('LATTICE_SIGNING_KEY is required in production: an ephemeral key cannot verify a plan across restarts or replicas.')
+}
+if (ephemeralSigningKey) {
+  process.stderr.write('[signing] No LATTICE_SIGNING_KEY configured; using an ephemeral development key. Plans will not verify across restarts.\n')
+}
 
 const server = createServer(async (request, response) => {
   setCors(response)
@@ -96,7 +102,7 @@ const server = createServer(async (request, response) => {
       return
     }
 
-    if (url.pathname.startsWith('/v1/') && url.pathname !== '/v1/keys/current') {
+    if (url.pathname.startsWith('/v1/') && !['/v1/keys/current', '/v1/keys'].includes(url.pathname)) {
       requestIdentity = await authenticate(request)
       if (!requestIdentity) {
         send(response, 401, { error: 'UNAUTHENTICATED_OR_UNAUTHORIZED', message: 'A valid user session and organization membership are required.' })
@@ -650,11 +656,15 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/keys/current') {
-      send(response, 200, {
-        keyId,
-        algorithm: 'Ed25519',
-        publicKey: publicKey.export({ format: 'jwk' }),
-      })
+      const [active] = planSigner.publicKeys()
+      send(response, 200, { keyId: planSigner.activeKeyId, algorithm: 'Ed25519', publicKey: active })
+      return
+    }
+
+    // Every key a verifier should trust, so a plan signed before a rotation can still be checked
+    // offline for as long as it is valid.
+    if (request.method === 'GET' && url.pathname === '/v1/keys') {
+      send(response, 200, { keys: planSigner.publicKeys() })
       return
     }
 
@@ -1025,14 +1035,13 @@ function subjectOf(identity: RequestIdentity): Subject {
 }
 
 function signPlan(plan: UnsignedExecutionPlan): SignedExecutionPlan {
-  const payload = Buffer.from(JSON.stringify(plan))
-  const signature = sign(null, payload, privateKey).toString('base64url')
-  return { ...plan, keyId, signatureAlgorithm: 'Ed25519', signature }
+  const signature = planSigner.sign(Buffer.from(JSON.stringify(plan)))
+  return { ...plan, keyId: planSigner.activeKeyId, signatureAlgorithm: 'Ed25519', signature }
 }
 
 function verifyPlan(plan: SignedExecutionPlan): boolean {
-  const { keyId: _keyId, signatureAlgorithm: _algorithm, signature, ...unsigned } = plan
-  return verify(null, Buffer.from(JSON.stringify(unsigned)), publicKey, Buffer.from(signature, 'base64url'))
+  const { keyId, signatureAlgorithm: _algorithm, signature, ...unsigned } = plan
+  return planSigner.verify(Buffer.from(JSON.stringify(unsigned)), signature, keyId)
 }
 
 async function authenticate(request: IncomingMessage): Promise<RequestIdentity | undefined> {

@@ -136,9 +136,27 @@ Fix: propagate a `grounding: 'SIMULATED' | 'LIVE'` field into the plan and the c
 
 The deviation: synthetic evidence is capped at `STRONG`, not `WEAK`, and high-risk simulated plans are still signed rather than refused. Both reference packs set `minimumEvidenceStrength: 'STRONG'`, so either change would disable the shipped airline and telco demos, which are `OPERATIONAL_ACTION` by nature. The opt-in `runtimeMode` declaration is the substantive control — explicit, reviewable, and part of the published release and its digest. Revisit if reference packs stop being the demo centrepiece.
 
-### 2.6 Ephemeral in-process signing key and plan store — P1
+### 2.6 Ephemeral in-process signing key and plan store — P1 · FIXED
 
 `generateKeyPairSync('ed25519')` at module load (`server.ts:70`). This is listed as a known gap, but the operational blast radius is worth stating: on Vercel (a deployment target the README documents) every serverless instance mints its own key, so `/v1/keys/current` returns a key that cannot verify a plan issued by a sibling instance, and `/v1/plans/:id/verify` 404s for any plan issued by another instance. The system is single-instance-only today, and there is no `Cache-Control`, key history, or `kid`-addressed JWKS to grow into. `plans`, `planContractIds`, and `clarifications` are unbounded `Map`s that never expire — a slow memory leak and a store of live capabilities that survives long past `expiresAt`.
+
+**Fixed.** The key comes from configuration, its identifier is the key's own RFC 7638 thumbprint
+so it cannot be reused for a different key, and retired keys are retained through a rotation so
+plans signed before it keep verifying until they expire. `GET /v1/keys` publishes the set. An
+unconfigured key still generates one for local development, but the server warns and refuses to
+start with `NODE_ENV=production`.
+
+`@lattice/plan-verifier` is the standalone library the review asked for: it verifies a plan from
+the JWKS alone with no call back to the API, and checks signature, expiry, the subject the plan
+was issued to, and the release it is pinned to — because a valid signature over an expired plan,
+or one issued to somebody else, is not a plan anyone should act on. Verified against a live
+server: a plan verified offline as its subject, failed for another principal, failed when
+tampered with, and the key identifier was unchanged across a restart.
+
+**Still open.** The private key is held in process memory rather than a KMS or HSM, and the plan
+and clarification stores are still per-process (bounded and expiring, but not shared). The
+`PlanSigner` interface is deliberately narrow — sign bytes, publish public keys — so a managed
+KMS is a drop-in without anything above it changing.
 
 ### 2.7 Execution receipts persist raw source values — P1 · FIXED
 
@@ -389,7 +407,7 @@ Nine generated industry ontologies (16,488 lines) derived from 74 forms are an e
 
 **P1 — required for a design-partner deployment.**
 
-7. KMS/HSM signing with `kid`-addressed JWKS, key history, and a standalone verification library (2.6, 3.4).
+7. ~~`kid`-addressed JWKS, key history, and a standalone verification library (2.6, 3.4).~~ **Done.** Moving the private key into a managed KMS or HSM remains, and is now a matter of implementing one narrow interface.
 8. User-identity propagation to the data platform — OBO/token exchange — so native row/column security applies (3.1).
 9. ~~Result sets, real parameter binding, and source-key mapping (2.11).~~ **Done.** The read-only regex blocklist and the loopback-only HTTP mode remain.
 10. Measured freshness from the source system, replacing authoring-time `observedAt` (2.12).

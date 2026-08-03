@@ -52,6 +52,25 @@ The API verifies the asymmetric signature, key ID, issuer, audience, token lifet
 
 Runtime authorization is derived entirely from that verified identity. The permissions a plan requires are checked against the caller's token scopes — a request body that asserts its own entitlements is rejected — and wildcard scopes are stripped, so an issuer cannot mint blanket authority. The blanket bypass used by the development identity mapper is keyed off the authenticator rather than a role name, so an external directory that happens to emit a group called `DEVELOPER` gains nothing. Signed plans carry the principal and tenant they were issued to, and verification and execution both fail closed for anyone else.
 
+### Plan signing and offline verification
+
+Execution plans are signed with Ed25519. Configure a persistent key so a plan stays verifiable
+across restarts and replicas; without one the server generates an ephemeral key, warns, and
+refuses to start at all when `NODE_ENV=production`:
+
+```bash
+export LATTICE_SIGNING_KEY="$(cat signing-key.pem)"          # PKCS#8 Ed25519, PEM or base64 PEM
+export LATTICE_SIGNING_KEYS_RETIRED="$(cat previous.pub.pem)" # comma-separated, kept through a rotation
+```
+
+The key identifier is the key's own RFC 7638 thumbprint, so it can never be reused for a
+different key. `GET /v1/keys` publishes every key a verifier should trust, retired ones included,
+so a plan signed before a rotation keeps verifying until it expires.
+
+`@lattice/plan-verifier` verifies a plan from that key set alone, with no call back to the API —
+checking signature, expiry, the subject it was issued to, and the contract release it is pinned
+to. See [packages/plan-verifier/README.md](packages/plan-verifier/README.md).
+
 ### Optional semantic intent resolution
 
 The Context API always has a deterministic lexical resolver. To add vector-backed paraphrase resolution, configure an HTTPS embedding endpoint that accepts `{ model, input, encoding_format }` and returns indexed float vectors under `data`. Loopback HTTP is allowed for local models:
@@ -216,6 +235,7 @@ apps/
   studio/              Human authoring, assurance, and runtime UI
 packages/
   compiler-core/       Pure deterministic compiler
+  plan-verifier/       Offline execution-plan verification
   contracts/           Shared contract and plan types
   exporter-core/       Deterministic RDF/XML and Turtle serializer
   importer-core/       OpenAPI/JSON Schema proposal engine
