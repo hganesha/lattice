@@ -3,10 +3,7 @@ import type { MessageKey } from './messages'
 export const spanishMessages = {
   runtimeIntentCandidateMeta: '{risk} · puntuación {score}',
   appearance: 'Apariencia', appearanceSettings: 'Configuración de apariencia', theme: 'Tema', themeAuto: 'Automático', themeLight: 'Claro', themeDark: 'Oscuro', textSize: 'Tamaño del texto', textDefault: 'Normal', textLarge: 'Grande', language: 'Idioma', languageEnglish: 'Inglés', languageSpanish: 'Español', languagePseudo: 'Seudolocalización', localizationReady: 'La preferencia de idioma se guarda en este navegador.',
-  introOpen: 'Introducción', introEyebrow: 'Presentación', introTitle: 'Introducción a Lattice', introOpenInTab: 'Abrir en una pestaña nueva', introClose: 'Cerrar',
-  introHint: 'Use ← y → para avanzar por la presentación, G para el índice de diapositivas y P para imprimir. Escape vuelve al estudio.',
-  introOpen: 'Introducción', introEyebrow: 'Presentación', introTitle: 'Introducción a Lattice', introOpenInTab: 'Abrir en una pestaña nueva', introClose: 'Cerrar',
-  introHint: 'Use ← y → para avanzar por la presentación, G para el índice de diapositivas y P para imprimir. Escape vuelve al estudio.',
+  introOpen: 'Introducción', introKicker: 'Presentación de Lattice', introTitle: 'Introducción a Lattice', introClose: 'Cerrar introducción', introFrameTitle: 'Introducción a Lattice',
   welcomeEnterpriseKicker: 'Patrones empresariales',
   welcomeEnterpriseTitle: 'Dónde encaja Lattice en la empresa',
   welcomeEnterpriseDescription: 'Problemas operativos documentados, no afirmaciones de clientes. Cada ejemplo muestra cómo el contexto gobernado puede conectar sistemas fragmentados con una decisión explicable.',

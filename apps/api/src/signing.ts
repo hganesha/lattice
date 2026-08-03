@@ -1,4 +1,5 @@
 import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sign, verify, type JsonWebKey, type KeyObject } from 'node:crypto'
+import type { PlanSignatureAlgorithm } from '@lattice/contracts'
 
 /**
  * Plan signing, and the key material behind it.
@@ -15,7 +16,10 @@ import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sig
  */
 export interface PlanSigner {
   readonly activeKeyId: string
-  sign(payload: Buffer): string
+  /** Which algorithm this signer produces, recorded on every plan it signs. */
+  readonly algorithm: PlanSignatureAlgorithm
+  /** Async because a managed KMS signs over the network; a local key resolves immediately. */
+  sign(payload: Buffer): Promise<string>
   /** Verifies against the named key, so a plan signed before a rotation still verifies. */
   verify(payload: Buffer, signature: string, keyId: string): boolean
   /** Every key a verifier should trust, newest first, as a JWKS `keys` array. */
@@ -36,11 +40,13 @@ export class LocalPlanSigner implements PlanSigner {
     this.keys = [activeKey, ...retired.map((key) => describeKey(key))]
   }
 
+  readonly algorithm: PlanSignatureAlgorithm = 'Ed25519'
+
   get activeKeyId(): string {
     return this.keys[0]!.keyId
   }
 
-  sign(payload: Buffer): string {
+  async sign(payload: Buffer): Promise<string> {
     const active = this.keys[0]!
     if (!active.privateKey) throw new Error('SIGNING_KEY_NOT_AVAILABLE')
     return sign(null, payload, active.privateKey).toString('base64url')
@@ -75,8 +81,12 @@ export class LocalPlanSigner implements PlanSigner {
  * verification. A thumbprint cannot: change the key and the identifier changes with it.
  */
 export function keyThumbprint(publicKey: KeyObject): string {
-  const jwk = publicKey.export({ format: 'jwk' }) as { crv?: string; kty?: string; x?: string }
-  const canonical = JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x })
+  const jwk = publicKey.export({ format: 'jwk' }) as { crv?: string; kty?: string; x?: string; y?: string }
+  // RFC 7638 fixes which members are hashed, and in which order, per key type. An EC key
+  // includes y; omitting it would give two distinct keys the same identifier.
+  const canonical = jwk.kty === 'EC'
+    ? JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x, y: jwk.y })
+    : JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x })
   return createHash('sha256').update(canonical).digest('base64url')
 }
 
@@ -103,7 +113,18 @@ export interface SignerFromEnvironmentResult {
  * rotation. Without a configured key the server generates one and reports it as ephemeral, which
  * the caller refuses to accept in production — an unverifiable audit trail is worse than none.
  */
-export function planSignerFromEnvironment(environment: NodeJS.ProcessEnv = process.env): SignerFromEnvironmentResult {
+export async function planSignerFromEnvironment(environment: NodeJS.ProcessEnv = process.env): Promise<SignerFromEnvironmentResult> {
+  const provider = environment.LATTICE_SIGNING_PROVIDER?.trim().toUpperCase()
+
+  if (provider === 'AZURE_KEY_VAULT' || provider === 'AWS_KMS') {
+    // Imported here so a deployment using a local key never loads a cloud SDK.
+    const { managedSignerFromEnvironment } = await import('./signingEnvironment.js')
+    return { signer: await managedSignerFromEnvironment(provider, environment), ephemeral: false }
+  }
+  if (provider && provider !== 'LOCAL') {
+    throw new Error('LATTICE_SIGNING_PROVIDER must be LOCAL, AZURE_KEY_VAULT, or AWS_KMS.')
+  }
+
   const configured = environment.LATTICE_SIGNING_KEY?.trim()
   if (!configured) {
     const { privateKey } = generateKeyPairSync('ed25519')

@@ -153,10 +153,16 @@ or one issued to somebody else, is not a plan anyone should act on. Verified aga
 server: a plan verified offline as its subject, failed for another principal, failed when
 tampered with, and the key identifier was unchanged across a restart.
 
-**Still open.** The private key is held in process memory rather than a KMS or HSM, and the plan
-and clarification stores are still per-process (bounded and expiring, but not shared). The
-`PlanSigner` interface is deliberately narrow — sign bytes, publish public keys — so a managed
-KMS is a drop-in without anything above it changing.
+**Managed keys landed.** Azure Key Vault and AWS KMS both hold the private key and never release
+it, so compromising the API no longer compromises the ability to mint plans. Neither provider
+signs Ed25519, so a managed key signs ES256 — which is why the plan records its algorithm rather
+than assuming one. The two providers also disagree on encoding: Key Vault returns the raw r||s
+form JWS expects, AWS returns DER, and normalizing at the boundary is what keeps a plan
+verifiable by any standard verifier regardless of who signed it. Only signing crosses the
+network; verification uses the public key fetched once, so checking a plan costs no KMS quota.
+
+**Still open.** The plan and clarification stores remain per-process — bounded and expiring, but
+not shared — and no adapter has yet been exercised against a real vault or KMS account.
 
 ### 2.7 Execution receipts persist raw source values — P1 · FIXED
 
@@ -293,7 +299,7 @@ test types the model declares but nothing produces.
 ### 2.14 Engineering-maturity gaps
 
 - **No CI.** ~~There is no `.github/` at all.~~ **Fixed** — `.github/workflows/ci.yml` runs install, build, typecheck, unit tests, and an i18n-catalog drift check; a browser job runs the Playwright behaviour and accessibility suite; a database job applies migrations from scratch, runs the pgTAP tests, and fails on Supabase security advisories. Two notes: the visual snapshot baselines are macOS-rasterized and cannot match a Linux runner, so CI runs Playwright with `--ignore-snapshots` and asserts behaviour and accessibility only; and those committed baselines are also stale against the current ontology canvas locally, which needs a deliberate `test:e2e:update` once someone confirms the visual drift is intended.
-- **No observability.** Zero OpenTelemetry, zero metrics, three `console.info` calls in the entire API. No request ids, no trace propagation into connector calls, no latency/error/cost telemetry for the compile path.
+- **No observability.** ~~Zero OpenTelemetry, zero metrics, three `console.info` calls in the entire API.~~ **Partly fixed** — compilation, intent resolution, and execution now emit spans carrying the governance facts a trace should answer with: decision and reason codes, risk tier, grounding, declared purpose, whether a binding read as the user or as a service, and how many values classification withheld. Questions, source values, and tokens are never attributes, and a test asserts it — a trace backend is not an approved destination for governed data. Registration is automatic on Vercel and inert elsewhere unless asked for. Metrics and connector-level trace propagation remain.
 - **No rate limiting or request quotas** on any route, including the embedding-backed compile path that costs money per call.
 - **No shared HTTP client in the Studio** — 41 raw `fetch` call sites across 15 components, each with its own error handling, no 401→re-auth, no cancellation, no retry, no correlation id.
 - **`packages/contracts` has no tests**, despite owning the type system, the connector catalog, `simulatedContext`, `releaseDiff`, and 16k lines of generated ontology. **Partly fixed** — its `test` script never compiled, so it silently ran nothing; it now builds and runs, with the agent tool projection covered. The rest of the package is still untested.
@@ -305,7 +311,7 @@ test types the model declares but nothing produces.
 
 This is the part that is not in the architecture doc's gap table. The findings above are bugs and hardening. The following are *missing surfaces* — and they determine whether Lattice can be adopted at all, independent of code quality.
 
-### 3.1 Identity: the query does not run as the user
+### 3.1 Identity: the query does not run as the user — ADDRESSED
 
 Lattice resolves one credential per binding — `env:`, vault, workload identity, or broker (`connectors.ts:418-462`) — and runs every user's query through it. That means:
 
@@ -315,6 +321,21 @@ Lattice resolves one credential per binding — `env:`, vault, workload identity
 What enterprises expect instead: OAuth on-behalf-of / token exchange (Entra ID OBO, Databricks U2M, Snowflake OAuth), so the warehouse enforces its own policies and Lattice's contract becomes an *additional* constraint rather than a replacement. Failing that, at minimum a documented "trusted service principal with least-privilege views" pattern plus verified user-attribute pass-through (`SESSION_CONTEXT`, `current_user`, query tags) so the platform can apply its own filters.
 
 This is the highest-value architectural change in this document. Everything else is smaller.
+
+**Landed.** A binding can declare `identityMode: 'DELEGATED'`, and the caller's token is exchanged
+for one the platform accepts — Entra's on-behalf-of flow or Okta's RFC 8693 token exchange, behind
+one interface so nothing downstream knows which is configured. Databricks and Fabric have default
+resource scopes; a token minted for one is useless against the other.
+
+A delegated binding **fails** rather than falling back to the service identity, because quietly
+running as the service principal would apply none of the platform's controls while the receipt
+claimed the user's own entitlements had. And because `SERVICE` remains the default for
+compatibility, every receipt now records which identity was used, and the MCP surface warns the
+agent when a result was read as a service rather than as the user. The dangerous version of this
+gap was never the behaviour — it was that the behaviour was invisible.
+
+**Still open.** Verification against a real Entra or Okta tenant, and delegation for Snowflake and
+BigQuery, which need their own resource scopes.
 
 ### 3.2 Data catalog and glossary federation: absent — PARTIALLY ADDRESSED
 
@@ -334,10 +355,16 @@ the one place governed data would otherwise be copied into an audit artifact (2.
 carry `source: 'CATALOG' | 'AUTHOR'` plus the catalog name and a locator, so a federated tag is
 distinguishable from a local guess and can be re-synchronized.
 
-**Still open.** The vendor adapters themselves — Purview, Collibra, Unity Catalog, Dataplex — plus
-glossary term import with `sameAs`/`closeMatch` mappings, SKOS/DCAT export, OpenLineage emission,
-and ownership federation. The classification assertion is the interface those adapters populate;
-nothing about it presumes a particular catalog.
+**Adapters landed for Purview, Unity Catalog, and Collibra.** Each maps its own vocabulary —
+Purview's sensitivity labels and classification rules, Unity Catalog's column tags, Collibra's
+asset attributes — onto the single assertion, and regime names normalize so PII, PHI, PCI, and
+CPNI mean the same thing whichever catalog said them. An unrecognized label becomes CONFIDENTIAL
+rather than INTERNAL: a catalog bothered to label the column, so treating an unfamiliar label as
+ordinary is the wrong way to be wrong. Classification is applied at binding discovery, which is
+the moment an author would otherwise form a second, diverging judgement.
+
+**Still open.** Dataplex, glossary term import with `sameAs`/`closeMatch` mappings, SKOS/DCAT
+export, OpenLineage emission, and ownership federation.
 
 ### 3.3 The semantic layer already exists and Lattice re-derives it
 
@@ -422,7 +449,7 @@ Nine generated industry ontologies (16,488 lines) derived from 74 forms are an e
 
 **P1 — required for a design-partner deployment.**
 
-7. ~~`kid`-addressed JWKS, key history, and a standalone verification library (2.6, 3.4).~~ **Done.** Moving the private key into a managed KMS or HSM remains, and is now a matter of implementing one narrow interface.
+7. ~~KMS signing with `kid`-addressed JWKS, key history, and a standalone verification library (2.6, 3.4).~~ **Done**, including Azure Key Vault and AWS KMS adapters. Neither has been exercised against a real account.
 8. User-identity propagation to the data platform — OBO/token exchange — so native row/column security applies (3.1).
 9. ~~Result sets, real parameter binding, and source-key mapping (2.11).~~ **Done.** The read-only regex blocklist and the loopback-only HTTP mode remain.
 10. Measured freshness from the source system, replacing authoring-time `observedAt` (2.12).
@@ -430,12 +457,12 @@ Nine generated industry ontologies (16,488 lines) derived from 74 forms are an e
 12. ~~Classification-aware receipts: redaction for `mappedValues` (2.7).~~ **Done** — delivered ahead of P1 because the classification model in P2.17 is what it depends on. Retention and an encryption boundary remain open.
 13. ~~Separation of duties on governance reviews; append-only, hash-chained artifact ledger (2.4).~~ **Done** for reviews and the two append-only ledgers; in-place-mutating artifacts and an external anchor remain.
 14. ~~A golden-question regression suite executed by assurance, gating publish (2.13).~~ **Done** for routing; answer-level assertions remain.
-15. OpenTelemetry traces and metrics across compile, resolve, and execute (2.14).
+15. ~~OpenTelemetry traces across compile, resolve, and execute (2.14).~~ **Done** via Vercel's collector; metrics remain.
 
 **P2 — required for enterprise GA.**
 
 16. ~~MCP server + OpenAPI document + tool-schema projection (3.4).~~ **Done**, except the offline verification library, which is blocked on KMS signing in P1.7.
-17. Catalog federation (3.2). **Classification propagation done**; glossary import, SKOS/DCAT export, OpenLineage emission, and the vendor adapters remain.
+17. Catalog federation (3.2). **Classification propagation and the Purview, Unity Catalog, and Collibra adapters are done**; glossary import, SKOS/DCAT export, and OpenLineage emission remain.
 18. Semantic-layer binding for metrics instead of a parallel metric registry (3.3).
 19. ~~Purpose as a first-class policy input, plan pin, and audit field; obligations, residency, retention (3.5).~~ **Done.**
 20. Environment promotion, contracts-as-code, cross-contract impact analysis, deprecation lifecycle (3.7).

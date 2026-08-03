@@ -63,13 +63,90 @@ export LATTICE_SIGNING_KEY="$(cat signing-key.pem)"          # PKCS#8 Ed25519, P
 export LATTICE_SIGNING_KEYS_RETIRED="$(cat previous.pub.pem)" # comma-separated, kept through a rotation
 ```
 
+For a managed key, point Lattice at Azure Key Vault or AWS KMS instead. Neither provider signs
+Ed25519, so a managed key signs **ES256** and the plan records which algorithm was used — the
+verifier is told rather than left to guess:
+
+```bash
+# Azure Key Vault
+export LATTICE_SIGNING_PROVIDER=AZURE_KEY_VAULT
+export LATTICE_SIGNING_KEY_ID=https://<vault>.vault.azure.net/keys/lattice-signing/<version>
+export LATTICE_SIGNING_AZURE_TOKEN_ENDPOINT=https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token
+export LATTICE_SIGNING_AZURE_CLIENT_ID=<application id>
+export LATTICE_SIGNING_AZURE_CLIENT_SECRET=<client secret>
+
+# AWS KMS
+export LATTICE_SIGNING_PROVIDER=AWS_KMS
+export LATTICE_SIGNING_KEY_ID=alias/lattice-signing        # id, alias, or ARN
+export LATTICE_SIGNING_AWS_REGION=eu-west-1
+```
+
+The key must be ECDSA P-256 (`ECC_NIST_P256` in KMS); anything else fails at startup rather than
+at the first signature. `LATTICE_SIGNING_KEYS_RETIRED` holds retired key identifiers for either
+provider. Only signing crosses the network — verification uses the public key, fetched once, so
+checking a plan costs no KMS quota.
+
 The key identifier is the key's own RFC 7638 thumbprint, so it can never be reused for a
-different key. `GET /v1/keys` publishes every key a verifier should trust, retired ones included,
+different key, and the same key has the same identifier whichever provider holds it. `GET /v1/keys` publishes every key a verifier should trust, retired ones included,
 so a plan signed before a rotation keeps verifying until it expires.
 
 `@lattice/plan-verifier` verifies a plan from that key set alone, with no call back to the API —
 checking signature, expiry, the subject it was issued to, and the contract release it is pinned
 to. See [packages/plan-verifier/README.md](packages/plan-verifier/README.md).
+
+### Tracing
+
+The governed loop emits OpenTelemetry spans for compilation, intent resolution, and execution,
+carrying the governance facts a trace should answer with: the decision and its reason codes, the
+risk tier, whether context was live or simulated, the declared purpose, whether a binding read as
+the user or as a service, and how many values were withheld by classification. Questions, source
+values, and tokens are never span attributes — a trace backend is not an approved destination for
+governed data.
+
+On Vercel this needs no configuration: `@vercel/otel` registers automatically. Elsewhere, set
+`LATTICE_OTEL_ENABLED=true` and it registers the same way, or leave it unset and the
+instrumentation stays inert.
+
+### Running queries as the asking user
+
+By default a governed query runs as one shared service principal, which means Unity Catalog row
+filters and column masks, and Microsoft Fabric's own security, never see the person who asked.
+Set a binding's `identityMode` to `DELEGATED` and configure a token exchange to run it as them
+instead. Okta uses RFC 8693 token exchange; Microsoft Entra ID uses its on-behalf-of flow:
+
+```bash
+export LATTICE_DELEGATED_IDENTITY_PROVIDER=ENTRA          # or OKTA
+export LATTICE_DELEGATED_IDENTITY_TOKEN_ENDPOINT=https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token
+export LATTICE_DELEGATED_IDENTITY_CLIENT_ID=<application id>
+export LATTICE_DELEGATED_IDENTITY_CLIENT_SECRET=<client secret>
+# Optional per-platform overrides; Databricks and Fabric have sensible defaults
+export LATTICE_DELEGATION_SCOPE_DATABRICKS=2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default
+export LATTICE_DELEGATION_SCOPE_MICROSOFT_FABRIC=https://database.windows.net/.default
+```
+
+A `DELEGATED` binding **fails** rather than falling back to the service identity when no exchange
+is configured: quietly running as the service principal would apply none of the platform's
+controls while the receipt claimed the user's own entitlements had. Every execution receipt
+records which identity was used, and the MCP surface warns when a result was read as a service.
+
+### Federating classification from your data catalog
+
+Your catalog already decides which columns are sensitive. Point Lattice at it and discovered
+fields arrive pre-classified, so nobody re-decides it in the Studio:
+
+```bash
+export LATTICE_CATALOG_PROVIDER=purview                   # or unity-catalog, collibra
+export LATTICE_CATALOG_ENDPOINT=https://<account>.purview.azure.com
+export LATTICE_CATALOG_TOKEN=<read-only token>
+# Unity Catalog only: which tag key carries sensitivity (default `sensitivity`)
+export LATTICE_CATALOG_SENSITIVITY_TAG=sensitivity
+```
+
+Purview reads sensitivity labels and classification rules, Unity Catalog reads column tags, and
+Collibra reads asset attributes. All three normalize onto one assertion carrying the catalog it
+came from, and an unrecognized label is treated as confidential rather than ordinary. A catalog
+that cannot be read leaves fields unlabelled rather than blocking discovery — it is never
+reported as "nothing sensitive here".
 
 ### Optional semantic intent resolution
 
