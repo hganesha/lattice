@@ -6,8 +6,10 @@ import type {
   ContextGrounding,
   EntityRecord,
   EvidenceStrength,
+  GuardrailPolicy,
   IntentResolution,
   OperationDefinition,
+  PinnedPurpose,
   RiskTier,
   UnsignedExecutionPlan,
 } from '@lattice/contracts'
@@ -165,6 +167,11 @@ export class ContextCompiler {
       ])
     }
 
+    const purpose = this.resolvePurpose(request, policy)
+    if ('reasonCode' in purpose) {
+      return respond('DENIED', [purpose.reasonCode], [purpose.explanation])
+    }
+
     const argumentsByType: Record<string, EntityRecord> = {}
 
     for (const typeId of operation.requiredEntityTypes) {
@@ -253,7 +260,7 @@ export class ContextCompiler {
 
     const grounding = this.groundingFor(argumentsByType)
     const subject = { principalId, ...(context.tenantId ? { tenantId: context.tenantId } : {}) }
-    const plan = this.buildPlan(resolutionId, operation, argumentsByType, intentResolution, Boolean(selectedOperation), subject, grounding)
+    const plan = this.buildPlan(resolutionId, operation, argumentsByType, intentResolution, Boolean(selectedOperation), subject, grounding, purpose.purpose)
 
     if (policy.approvalRequired) {
       return {
@@ -275,6 +282,61 @@ export class ContextCompiler {
       ]),
       grounding,
       plan,
+    }
+  }
+
+  /**
+   * Resolves the declared purpose a decision is compiled under.
+   *
+   * Purpose limitation only means something if an unrecognized or impermissible purpose stops
+   * the decision, so this fails closed on both. A policy that does not require a purpose still
+   * pins one when the caller names it, because an audit trail benefits either way.
+   */
+  private resolvePurpose(
+    request: CompileRequest,
+    policy: GuardrailPolicy,
+  ): { purpose?: PinnedPurpose } | { reasonCode: string; explanation: string } {
+    const stated = request.purpose?.trim()
+    const purposeId = request.purposeId?.trim()
+
+    if (!purposeId) {
+      if (policy.purposeRequired) {
+        const available = (this.contract.purposes ?? []).map((candidate) => candidate.id)
+        return {
+          reasonCode: 'PURPOSE_REQUIRED',
+          explanation: available.length > 0
+            ? `${policy.label} requires a declared purpose. This contract permits: ${available.join(', ')}.`
+            : `${policy.label} requires a declared purpose, but this contract declares none.`,
+        }
+      }
+      return {}
+    }
+
+    const declared = (this.contract.purposes ?? []).find((candidate) => candidate.id === purposeId)
+    if (!declared) {
+      return {
+        reasonCode: 'PURPOSE_NOT_DECLARED',
+        explanation: `${purposeId} is not a purpose declared by ${this.contract.name}.`,
+      }
+    }
+
+    const permitted = policy.permittedPurposeIds ?? []
+    if (permitted.length > 0 && !permitted.includes(declared.id)) {
+      return {
+        reasonCode: 'PURPOSE_NOT_PERMITTED_AT_RISK_TIER',
+        explanation: `${declared.label} is not permitted for ${policy.label}; permitted purposes are ${permitted.join(', ')}.`,
+      }
+    }
+
+    return {
+      purpose: {
+        id: declared.id,
+        label: declared.label,
+        ...(declared.obligations?.length ? { obligations: [...declared.obligations] } : {}),
+        ...(declared.jurisdictions?.length ? { jurisdictions: [...declared.jurisdictions] } : {}),
+        ...(declared.retentionDays !== undefined ? { retentionDays: declared.retentionDays } : {}),
+        ...(stated ? { statedPurpose: stated } : {}),
+      },
     }
   }
 
@@ -345,6 +407,7 @@ export class ContextCompiler {
     operationConfirmed: boolean,
     subject: { principalId: string; tenantId?: string },
     grounding: ContextGrounding,
+    purpose: PinnedPurpose | undefined,
   ): UnsignedExecutionPlan {
     const now = this.now()
     const evidenceRefs = new Set(Object.values(argumentsByType).flatMap((entity) => entity.evidenceRefs))
@@ -365,6 +428,7 @@ export class ContextCompiler {
       principalId: subject.principalId,
       ...(subject.tenantId ? { tenantId: subject.tenantId } : {}),
       grounding,
+      ...(purpose ? { purpose } : {}),
       operation: operation.id,
       intent: intentDecisionEvidence(intentResolution, operation.id, this.intentPolicy[operation.riskTier], operationConfirmed),
       arguments: Object.fromEntries(
