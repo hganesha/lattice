@@ -1,4 +1,4 @@
-import type { CompileResponse, ContractSummary, ExecutionReceipt, SignedExecutionPlan } from '@lattice/contracts'
+import type { CompileResponse, ContractSummary, ExecutionReceipt, MappedValueRecord, SignedExecutionPlan } from '@lattice/contracts'
 
 /** Keeps a single tool result from crowding out the rest of an agent's context. */
 export const CHARACTER_LIMIT = 25_000
@@ -106,9 +106,25 @@ export function formatReceipt(receipt: ExecutionReceipt): string {
     lines.push(`## ${binding.sourceSystem} — ${binding.status} (${binding.mode})`)
     if (binding.error) lines.push(`- **Error**: ${binding.error}`)
     for (const mapping of binding.mappedValues) {
-      lines.push(`- **${mapping.targetPropertyId}**: ${JSON.stringify(mapping.value)}`)
+      lines.push(`- **${mapping.targetPropertyId}**: ${describeMappedValue(mapping)}`)
     }
     lines.push('')
   }
+
+  const protectedValues = receipt.bindingResults.flatMap((binding) => binding.mappedValues).filter((mapping) => mapping.disclosure !== 'VALUE')
+  if (protectedValues.length > 0) {
+    lines.push(`> ${protectedValues.length} value(s) were classified above internal, so the receipt records that they were read without retaining them. Ask the source system if you need the value itself.`, '')
+  }
   return lines.join('\n')
+}
+
+/**
+ * A classified value must not be reconstructed for the model just because the receipt proves it
+ * was read. Withheld stays withheld, and a digest is shown as a digest.
+ */
+function describeMappedValue(mapping: MappedValueRecord): string {
+  const labels = mapping.categories?.length ? ` [${mapping.categories.join(', ')}]` : ''
+  if (mapping.disclosure === 'WITHHELD') return `withheld — ${mapping.classification}${labels}`
+  if (mapping.disclosure === 'DIGEST') return `${mapping.valueDigest} (digest — ${mapping.classification}${labels})`
+  return JSON.stringify(mapping.value)
 }
