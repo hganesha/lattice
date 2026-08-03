@@ -153,10 +153,16 @@ or one issued to somebody else, is not a plan anyone should act on. Verified aga
 server: a plan verified offline as its subject, failed for another principal, failed when
 tampered with, and the key identifier was unchanged across a restart.
 
-**Still open.** The private key is held in process memory rather than a KMS or HSM, and the plan
-and clarification stores are still per-process (bounded and expiring, but not shared). The
-`PlanSigner` interface is deliberately narrow — sign bytes, publish public keys — so a managed
-KMS is a drop-in without anything above it changing.
+**Managed keys landed.** Azure Key Vault and AWS KMS both hold the private key and never release
+it, so compromising the API no longer compromises the ability to mint plans. Neither provider
+signs Ed25519, so a managed key signs ES256 — which is why the plan records its algorithm rather
+than assuming one. The two providers also disagree on encoding: Key Vault returns the raw r||s
+form JWS expects, AWS returns DER, and normalizing at the boundary is what keeps a plan
+verifiable by any standard verifier regardless of who signed it. Only signing crosses the
+network; verification uses the public key fetched once, so checking a plan costs no KMS quota.
+
+**Still open.** The plan and clarification stores remain per-process — bounded and expiring, but
+not shared — and no adapter has yet been exercised against a real vault or KMS account.
 
 ### 2.7 Execution receipts persist raw source values — P1 · FIXED
 
@@ -293,7 +299,7 @@ test types the model declares but nothing produces.
 ### 2.14 Engineering-maturity gaps
 
 - **No CI.** ~~There is no `.github/` at all.~~ **Fixed** — `.github/workflows/ci.yml` runs install, build, typecheck, unit tests, and an i18n-catalog drift check; a browser job runs the Playwright behaviour and accessibility suite; a database job applies migrations from scratch, runs the pgTAP tests, and fails on Supabase security advisories. Two notes: the visual snapshot baselines are macOS-rasterized and cannot match a Linux runner, so CI runs Playwright with `--ignore-snapshots` and asserts behaviour and accessibility only; and those committed baselines are also stale against the current ontology canvas locally, which needs a deliberate `test:e2e:update` once someone confirms the visual drift is intended.
-- **No observability.** Zero OpenTelemetry, zero metrics, three `console.info` calls in the entire API. No request ids, no trace propagation into connector calls, no latency/error/cost telemetry for the compile path.
+- **No observability.** ~~Zero OpenTelemetry, zero metrics, three `console.info` calls in the entire API.~~ **Partly fixed** — compilation, intent resolution, and execution now emit spans carrying the governance facts a trace should answer with: decision and reason codes, risk tier, grounding, declared purpose, whether a binding read as the user or as a service, and how many values classification withheld. Questions, source values, and tokens are never attributes, and a test asserts it — a trace backend is not an approved destination for governed data. Registration is automatic on Vercel and inert elsewhere unless asked for. Metrics and connector-level trace propagation remain.
 - **No rate limiting or request quotas** on any route, including the embedding-backed compile path that costs money per call.
 - **No shared HTTP client in the Studio** — 41 raw `fetch` call sites across 15 components, each with its own error handling, no 401→re-auth, no cancellation, no retry, no correlation id.
 - **`packages/contracts` has no tests**, despite owning the type system, the connector catalog, `simulatedContext`, `releaseDiff`, and 16k lines of generated ontology. **Partly fixed** — its `test` script never compiled, so it silently ran nothing; it now builds and runs, with the agent tool projection covered. The rest of the package is still untested.
@@ -443,7 +449,7 @@ Nine generated industry ontologies (16,488 lines) derived from 74 forms are an e
 
 **P1 — required for a design-partner deployment.**
 
-7. ~~`kid`-addressed JWKS, key history, and a standalone verification library (2.6, 3.4).~~ **Done.** Moving the private key into a managed KMS or HSM remains, and is now a matter of implementing one narrow interface.
+7. ~~KMS signing with `kid`-addressed JWKS, key history, and a standalone verification library (2.6, 3.4).~~ **Done**, including Azure Key Vault and AWS KMS adapters. Neither has been exercised against a real account.
 8. User-identity propagation to the data platform — OBO/token exchange — so native row/column security applies (3.1).
 9. ~~Result sets, real parameter binding, and source-key mapping (2.11).~~ **Done.** The read-only regex blocklist and the loopback-only HTTP mode remain.
 10. Measured freshness from the source system, replacing authoring-time `observedAt` (2.12).
@@ -451,7 +457,7 @@ Nine generated industry ontologies (16,488 lines) derived from 74 forms are an e
 12. ~~Classification-aware receipts: redaction for `mappedValues` (2.7).~~ **Done** — delivered ahead of P1 because the classification model in P2.17 is what it depends on. Retention and an encryption boundary remain open.
 13. ~~Separation of duties on governance reviews; append-only, hash-chained artifact ledger (2.4).~~ **Done** for reviews and the two append-only ledgers; in-place-mutating artifacts and an external anchor remain.
 14. ~~A golden-question regression suite executed by assurance, gating publish (2.13).~~ **Done** for routing; answer-level assertions remain.
-15. OpenTelemetry traces and metrics across compile, resolve, and execute (2.14).
+15. ~~OpenTelemetry traces across compile, resolve, and execute (2.14).~~ **Done** via Vercel's collector; metrics remain.
 
 **P2 — required for enterprise GA.**
 

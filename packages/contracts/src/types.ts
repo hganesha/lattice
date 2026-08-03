@@ -924,9 +924,15 @@ export interface UnsignedExecutionPlan {
   nonce: string
 }
 
+export type PlanSignatureAlgorithm = 'Ed25519' | 'ES256'
+
 export interface SignedExecutionPlan extends UnsignedExecutionPlan {
   keyId: string
-  signatureAlgorithm: 'Ed25519'
+  /**
+   * Ed25519 for locally-held keys; ES256 when a managed KMS holds the key, since neither AWS KMS
+   * nor Azure Key Vault signs Ed25519. Both are recorded on the plan so a verifier never guesses.
+   */
+  signatureAlgorithm: PlanSignatureAlgorithm
   signature: string
 }
 

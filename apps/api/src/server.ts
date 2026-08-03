@@ -53,6 +53,7 @@ import { delegationScopeFor, tokenExchangeFromEnvironment } from './delegatedIde
 import { catalogSourceFromEnvironment } from './catalogFederation.js'
 import { openApiDocument } from './openapi.js'
 import { planSignerFromEnvironment } from './signing.js'
+import { recordCompileDecision, recordExecution, registerTelemetry, withSpan } from './telemetry.js'
 
 const port = Number(process.env.PORT ?? 8787)
 const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
@@ -84,8 +85,11 @@ if (catalogSource) {
 if (tokenExchange) {
   process.stderr.write(`[identity] Delegated identity enabled via ${tokenExchange.provider}; DELEGATED bindings run as the asking user.\n`)
 }
+if (await registerTelemetry()) {
+  process.stderr.write('[telemetry] Tracing registered; governed decisions and executions are exported as spans.\n')
+}
 const plans = new SubjectScopedStore<{ plan: SignedExecutionPlan; contractId: string }>(expiredPlanGraceMs)
-const { signer: planSigner, ephemeral: ephemeralSigningKey } = planSignerFromEnvironment()
+const { signer: planSigner, ephemeral: ephemeralSigningKey } = await planSignerFromEnvironment()
 if (ephemeralSigningKey && process.env.NODE_ENV === 'production') {
   throw new Error('LATTICE_SIGNING_KEY is required in production: an ephemeral key cannot verify a plan across restarts or replicas.')
 }
@@ -737,14 +741,22 @@ const server = createServer(async (request, response) => {
         return
       }
       const runtimeContract = materializeSimulatedContext(selectedContract)
-      const resolver = resolverFor(principal, request)
-      const intentResolution = await resolver.resolve(body, runtimeContract)
-      const result = await prepareCompile(
-        new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) }),
-        runtimeContract,
-        principal,
-      )
-      rememberClarification(result, principal, body, intentResolution)
+      const result = await withSpan('lattice.compile', {
+        'lattice.contract_id': runtimeContract.id,
+        'lattice.contract_version': runtimeContract.version,
+        'lattice.tenant_id': principal.tenantId ?? 'none',
+      }, async (span) => {
+        const resolver = resolverFor(principal, request)
+        const intentResolution = await withSpan('lattice.resolve_intent', {}, async () => resolver.resolve(body, runtimeContract))
+        const compiled = await prepareCompile(
+          new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) }),
+          runtimeContract,
+          principal,
+        )
+        rememberClarification(compiled, principal, body, intentResolution)
+        recordCompileDecision(span, compiled)
+        return compiled
+      })
       send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...result, principal })
       return
     }
@@ -852,7 +864,7 @@ const server = createServer(async (request, response) => {
         expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString(),
         nonce: randomUUID(),
       }
-      const signedPlan = signAndStore(renewedPlan, approval.contractId, principal)
+      const signedPlan = await signAndStore(renewedPlan, approval.contractId, principal)
       const resumed = await runtimeApprovalStore.markResumed(approval.id, signedPlan.planId, principal.tenantId, now)
       send(response, 200, { approval: resumed, plan: signedPlan })
       return
@@ -939,10 +951,15 @@ const server = createServer(async (request, response) => {
         send(response, 403, { error: 'REQUIRED_PERMISSION_MISSING', missingPermissions: missing, receipt })
         return
       }
-      const bindingResults = await executeBindings(plan, activeContract, {
+      const bindingResults = await withSpan('lattice.execute_bindings', {
+        'lattice.operation': plan.operation,
+        'lattice.risk_tier': plan.riskTier,
+        'lattice.grounding': plan.grounding,
+        'lattice.bindings': plan.sourceBindings.length,
+      }, async () => executeBindings(plan, activeContract, {
         ...(principal.tenantId ? { digestSalt: principal.tenantId } : {}),
         ...delegationFor(request),
-      })
+      }))
       const receipt = await executionStore.append({
         ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
         contractId,
@@ -955,6 +972,7 @@ const server = createServer(async (request, response) => {
         grantedPermissions,
         bindingResults,
       })
+      await withSpan('lattice.execution_receipt', {}, async (span) => { recordExecution(span, receipt) })
       send(response, receipt.status === 'SUCCESS' ? 200 : 502, receipt)
       return
     }
@@ -1105,14 +1123,14 @@ function rememberClarification(
   })
 }
 
-function finalize(result: CompileResponse, contractId: string, principal: RequestIdentity): CompileResponse {
+async function finalize(result: CompileResponse, contractId: string, principal: RequestIdentity): Promise<CompileResponse> {
   if (!result.plan) return result
-  const signed = signAndStore(result.plan, contractId, principal)
+  const signed = await signAndStore(result.plan, contractId, principal)
   return { ...result, plan: signed }
 }
 
-function signAndStore(plan: UnsignedExecutionPlan, contractId: string, principal: RequestIdentity): SignedExecutionPlan {
-  const signed = signPlan(plan)
+async function signAndStore(plan: UnsignedExecutionPlan, contractId: string, principal: RequestIdentity): Promise<SignedExecutionPlan> {
+  const signed = await signPlan(plan)
   plans.set(signed.planId, subjectOf(principal), { plan: signed, contractId }, planRetentionUntil(signed))
   return signed
 }
@@ -1125,9 +1143,9 @@ function subjectOf(identity: RequestIdentity): Subject {
   return { principalId: identity.principalId, ...(identity.tenantId ? { tenantId: identity.tenantId } : {}) }
 }
 
-function signPlan(plan: UnsignedExecutionPlan): SignedExecutionPlan {
-  const signature = planSigner.sign(Buffer.from(JSON.stringify(plan)))
-  return { ...plan, keyId: planSigner.activeKeyId, signatureAlgorithm: 'Ed25519', signature }
+async function signPlan(plan: UnsignedExecutionPlan): Promise<SignedExecutionPlan> {
+  const signature = await planSigner.sign(Buffer.from(JSON.stringify(plan)))
+  return { ...plan, keyId: planSigner.activeKeyId, signatureAlgorithm: planSigner.algorithm, signature }
 }
 
 function verifyPlan(plan: SignedExecutionPlan): boolean {

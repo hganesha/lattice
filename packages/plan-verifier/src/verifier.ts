@@ -49,7 +49,7 @@ export function verifyExecutionPlan(input: PlanVerificationInput): PlanVerificat
   const now = input.now ?? new Date()
   const failures: PlanVerificationFailure[] = []
 
-  if (plan.signatureAlgorithm !== 'Ed25519') {
+  if (plan.signatureAlgorithm !== 'Ed25519' && plan.signatureAlgorithm !== 'ES256') {
     failures.push('UNSUPPORTED_ALGORITHM')
   } else {
     const jwk = input.jwks.find((candidate) => candidate.kid === plan.keyId)
@@ -78,10 +78,16 @@ export function verifyExecutionPlan(input: PlanVerificationInput): PlanVerificat
  * are removed in the same order the issuer added them and the remainder is re-serialized.
  */
 function signatureMatches(plan: SignedExecutionPlan, jwk: JsonWebKey): boolean {
-  const { keyId: _keyId, signatureAlgorithm: _algorithm, signature, ...unsigned } = plan
+  const { keyId: _keyId, signatureAlgorithm, signature, ...unsigned } = plan
+  const payload = Buffer.from(JSON.stringify(unsigned))
   try {
     const key = createPublicKey({ key: jwk, format: 'jwk' })
-    return verify(null, Buffer.from(JSON.stringify(unsigned)), key, Buffer.from(signature, 'base64url'))
+    if (signatureAlgorithm === 'Ed25519') {
+      return verify(null, payload, key, Buffer.from(signature, 'base64url'))
+    }
+    // ES256 signatures follow the JWS convention of raw r||s rather than DER, whichever KMS
+    // produced them, so verification must be told not to expect DER.
+    return verify('sha256', payload, { key, dsaEncoding: 'ieee-p1363' }, Buffer.from(signature, 'base64url'))
   } catch {
     return false
   }
@@ -103,6 +109,6 @@ export function explainVerificationFailure(failure: PlanVerificationFailure): st
     case 'CONTRACT_DIGEST_MISMATCH':
       return 'The plan is pinned to a different contract release than the one you consider active.'
     case 'UNSUPPORTED_ALGORITHM':
-      return 'The plan is signed with an algorithm this verifier does not support.'
+      return 'The plan is signed with an algorithm this verifier does not support. Only Ed25519 and ES256 are recognized.'
   }
 }
