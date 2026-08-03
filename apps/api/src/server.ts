@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { URL } from 'node:url'
-import { ContextCompiler } from '@lattice/compiler-core'
+import { ContextCompiler, type IntentResolver } from '@lattice/compiler-core'
 import { previewBindingSource, previewImport } from '@lattice/importer-core'
 import {
   connectorCatalog,
@@ -45,7 +45,8 @@ import { applyTenantMembership, tenantMembershipResolverFromEnvironment } from '
 import { hasOrganizationRole, missingPermissions, requiredOrganizationRoles, resolveGrantedPermissions } from './authorization.js'
 import { SubjectScopedStore, type Subject } from './planStore.js'
 import { ContractRegistryConflictError, SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
-import { intentResolverFromEnvironment } from './embeddingProvider.js'
+import { embeddingProviderFromEnvironment, intentResolverFromEnvironment } from './embeddingProvider.js'
+import { PersistedIntentResolver } from './persistedIntentIndex.js'
 import { openApiDocument } from './openapi.js'
 import { planSignerFromEnvironment } from './signing.js'
 
@@ -70,6 +71,7 @@ const clarificationRetentionMs = 30 * 60_000
 const expiredPlanGraceMs = 60 * 60_000
 const clarifications = new SubjectScopedStore<PendingClarification>(clarificationRetentionMs)
 const intentResolver = intentResolverFromEnvironment()
+const embeddingProvider = embeddingProviderFromEnvironment()
 const plans = new SubjectScopedStore<{ plan: SignedExecutionPlan; contractId: string }>(expiredPlanGraceMs)
 const { signer: planSigner, ephemeral: ephemeralSigningKey } = planSignerFromEnvironment()
 if (ephemeralSigningKey && process.env.NODE_ENV === 'production') {
@@ -722,7 +724,8 @@ const server = createServer(async (request, response) => {
         return
       }
       const runtimeContract = materializeSimulatedContext(selectedContract)
-      const intentResolution = await intentResolver.resolve(body, runtimeContract)
+      const resolver = resolverFor(principal, request)
+      const intentResolution = await resolver.resolve(body, runtimeContract)
       const result = await prepareCompile(
         new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) }),
         runtimeContract,
@@ -960,6 +963,26 @@ const server = createServer(async (request, response) => {
 server.listen(port, '127.0.0.1', () => {
   process.stdout.write(`Lattice Context API listening at http://127.0.0.1:${port}\n`)
 })
+
+
+/**
+ * Chooses where semantic candidates come from for this request.
+ *
+ * The persisted index is release-scoped and read under the caller's own token, so it has to be
+ * built per request rather than once at startup. Without Supabase or without an embedding
+ * endpoint there is nothing to read, and the process-level resolver — lexical, or the in-memory
+ * hybrid — answers instead.
+ */
+function resolverFor(identity: RequestIdentity, request: IncomingMessage): IntentResolver {
+  if (!supabaseRegistryConfig || !embeddingProvider || !identity.tenantId) return intentResolver
+  return new PersistedIntentResolver({
+    projectUrl: supabaseRegistryConfig.projectUrl,
+    publishableKey: supabaseRegistryConfig.publishableKey,
+    organizationId: identity.tenantId,
+    authorization: request.headers.authorization ?? '',
+    embeddingProvider,
+  })
+}
 
 async function prepareCompile(result: CompileResponse, contract: ContextContract, principal: RequestIdentity): Promise<CompileResponse> {
   if (result.decision === 'APPROVAL_REQUIRED' && result.pendingPlan) {

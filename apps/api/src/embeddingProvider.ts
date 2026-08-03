@@ -88,3 +88,27 @@ function validateEndpoint(value: string): string {
   }
   return url.toString()
 }
+
+/**
+ * The embedding provider on its own, for callers that supply their own index.
+ *
+ * Returns undefined when no endpoint is configured, so a deployment without embeddings simply
+ * resolves lexically rather than failing.
+ */
+export function embeddingProviderFromEnvironment(
+  environment: NodeJS.ProcessEnv = process.env,
+  fetchImpl: typeof fetch = fetch,
+): HttpEmbeddingProvider | undefined {
+  const endpoint = environment.LATTICE_EMBEDDING_URL?.trim()
+  const model = environment.LATTICE_EMBEDDING_MODEL?.trim()
+  if (!endpoint && !model) return undefined
+  if (!endpoint || !model) {
+    throw new Error('LATTICE_EMBEDDING_URL and LATTICE_EMBEDDING_MODEL must be configured together.')
+  }
+  return new HttpEmbeddingProvider({
+    endpoint,
+    model,
+    ...(environment.LATTICE_EMBEDDING_API_KEY ? { apiKey: environment.LATTICE_EMBEDDING_API_KEY } : {}),
+    fetchImpl,
+  })
+}

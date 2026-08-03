@@ -209,6 +209,21 @@ abstraction than the runtime path required.
 - **The semantic-confirmation gate is trivially defeated.** `confirmSemanticOnly` only triggers when `lexicalScore === 0` (`compiler.ts:102-104`). A weak lexical overlap of 0.45 plus a strong semantic score aggregates above 0.93 (`intentResolver.ts:61-63`) and is accepted with no confirmation.
 - **Every compile makes a synchronous embedding call** with a 10-second timeout (`intentResolver.ts:52`), and the first compile after any cold start embeds the entire contract's operation and question corpus inline (`intentResolver.ts:108-125`). The cache is an unbounded per-process `Map` keyed by contract digest (`intentResolver.ts:39`) — on serverless, that is a full re-embed per cold lambda, per contract, forever. There is no query cache, no bulk pre-warm, no cost ceiling.
 - **The pgvector work is not wired.** `supabase/migrations/20260728182130_contract_intent_embeddings.sql` builds a full release-scoped, organization-scoped, provider-pinned embedding store with pgmq/pg_cron/pg_net worker plumbing — 631 lines, plus a 353-line test — and nothing in `apps/api` or `packages/compiler-core` references it. `intentResolverFromEnvironment` (`embeddingProvider.ts:65`) only ever builds the in-memory hybrid resolver. Two divergent designs for the same capability now exist; one of them is dead.
+
+  **Resolved by wiring it, not deleting it.** The schema was the better design of the two: the
+  in-memory index re-embeds a contract's whole corpus on every cold start and every replica,
+  keeps an unbounded cache, and cannot pin the embedding profile to the release it describes.
+  `PersistedIntentResolver` now queries `match_contract_intents` under the caller's own token —
+  the function is `security invoker`, so RLS stays the data boundary — and only the question is
+  embedded at compile time. Scoring is shared with the in-memory path through
+  `combineIntentCandidates`, because two resolvers that scored differently would quietly mean two
+  different risk postures against the compiler's calibrated gates. A release whose index is not
+  ready, an unreachable index, and a failing embedding endpoint all degrade to lexical resolution
+  with a sanitized reason rather than failing the compile or leaking the question.
+
+  Verified with a stubbed PostgREST, the same way the Supabase registry is tested. The worker that
+  populates the vectors is an Edge Function deployment, and the migration header documents its
+  provisioning steps.
 - **Degradation is invisible.** When the embedding endpoint fails, resolution silently falls back to lexical and records `degradedReason` (`intentResolver.ts:88-95`) — which no Studio component reads. An operator cannot tell that semantic routing is down.
 
 ### 2.11 The data plane can return exactly one row — P1 · FIXED
@@ -424,7 +439,7 @@ Nine generated industry ontologies (16,488 lines) derived from 74 forms are an e
 18. Semantic-layer binding for metrics instead of a parallel metric registry (3.3).
 19. ~~Purpose as a first-class policy input, plan pin, and audit field; obligations, residency, retention (3.5).~~ **Done.**
 20. Environment promotion, contracts-as-code, cross-contract impact analysis, deprecation lifecycle (3.7).
-21. Resolve the two competing embedding designs — wire the pgvector migration or delete it (2.10).
+21. ~~Resolve the two competing embedding designs (2.10).~~ **Done** — the pgvector index is wired and read; the in-memory index remains the fallback when Supabase is not configured.
 22. Self-hosted / air-gapped deployment profile (3.6).
 
 ---

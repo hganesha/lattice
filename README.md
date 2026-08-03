@@ -81,7 +81,15 @@ export LATTICE_EMBEDDING_MODEL=governed-intent-embedding-v1
 export LATTICE_EMBEDDING_API_KEY=server-only-token # optional for local endpoints
 ```
 
-At runtime, the API embeds published operation descriptions and linked competency questions into a contract-release-scoped in-memory index. The index is cached by contract digest and model version. Semantic candidates never bypass the compiler: risk-tier-specific score, margin, and confirmation gates decide whether to continue, ask the user to choose an operation, or return `UNSUPPORTED`. Planning and operational actions require confirmation when selected only by semantic similarity. If the embedding endpoint is unavailable, resolution degrades to lexical candidates and records the sanitized degradation reason in `intentResolution`; questions and API keys are not logged.
+When Supabase is configured, the API reads the persisted, release-scoped index the
+`contract_intent_embeddings` migration provisions: vectors belong to one immutable release with
+the provider, model, and dimensions pinned alongside them, so a release can never mix vectors
+from two embedding spaces. Only the question is embedded at compile time; the corpus is embedded
+once when the release is published. The index is queried through `match_contract_intents` under
+the caller's own token, so RLS remains the data boundary. A release whose index is not yet ready
+resolves lexically rather than failing.
+
+Without Supabase, the API embeds published operation descriptions and linked competency questions into a contract-release-scoped in-memory index. The index is cached by contract digest and model version. Semantic candidates never bypass the compiler: risk-tier-specific score, margin, and confirmation gates decide whether to continue, ask the user to choose an operation, or return `UNSUPPORTED`. Planning and operational actions require confirmation when selected only by semantic similarity. If the embedding endpoint is unavailable, resolution degrades to lexical candidates and records the sanitized degradation reason in `intentResolution`; questions and API keys are not logged.
 
 ### Supabase production identity and tenancy
 
