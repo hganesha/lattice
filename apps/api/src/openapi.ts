@@ -879,7 +879,7 @@ export const openApiDocument: OpenApiDocument = {
           evidenceRefs: { type: 'array', items: { type: 'string' } },
           bindingResults: {
             type: 'array',
-            items: opaqueDocument('BindingExecutionResult', 'Per-binding outcome: the rows read, whether the result was truncated at the binding\'s row ceiling, and whether it read a live source or a sample. Each mapped value carries its classification and a disclosure of VALUE, DIGEST, or WITHHELD: confidential values are reduced to a salted digest and restricted values are recorded as read without being retained.'),
+            items: opaqueDocument('BindingExecutionResult', 'Per-binding outcome: the rows read, whether the result was truncated at the binding\'s row ceiling, whether it read a live source or a sample, and whether the query ran as the asking user (DELEGATED) or a shared service identity (SERVICE) — under SERVICE the platform\'s own row and column controls never see the user. Each mapped value carries its classification and a disclosure of VALUE, DIGEST, or WITHHELD: confidential values are reduced to a salted digest and restricted values are recorded as read without being retained.'),
           },
           artifactDigest: { type: 'string' },
         },

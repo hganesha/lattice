@@ -21,6 +21,8 @@ import {
   type CreateRuntimeApprovalDecisionRequest,
   type ContextContract,
   type ContractSummary,
+  type BindingPreview,
+  type SourceBinding,
   type CreateContractRequest,
   type ExecutePlanRequest,
   type ImportPreviewRequest,
@@ -30,7 +32,7 @@ import {
   type UnsignedExecutionPlan,
   type WorkspaceSummary,
 } from '@lattice/contracts'
-import { executeBindings } from './adapters.js'
+import { executeBindings, type ExecuteBindingsOptions } from './adapters.js'
 import { runAssurance } from './assurance.js'
 import { AssuranceStore } from './assuranceStore.js'
 import { ContractRegistry, ContractValidationError, type PublishRequest } from './registry.js'
@@ -47,6 +49,8 @@ import { SubjectScopedStore, type Subject } from './planStore.js'
 import { ContractRegistryConflictError, SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
 import { embeddingProviderFromEnvironment, intentResolverFromEnvironment } from './embeddingProvider.js'
 import { PersistedIntentResolver } from './persistedIntentIndex.js'
+import { delegationScopeFor, tokenExchangeFromEnvironment } from './delegatedIdentity.js'
+import { catalogSourceFromEnvironment } from './catalogFederation.js'
 import { openApiDocument } from './openapi.js'
 import { planSignerFromEnvironment } from './signing.js'
 
@@ -72,6 +76,14 @@ const expiredPlanGraceMs = 60 * 60_000
 const clarifications = new SubjectScopedStore<PendingClarification>(clarificationRetentionMs)
 const intentResolver = intentResolverFromEnvironment()
 const embeddingProvider = embeddingProviderFromEnvironment()
+const tokenExchange = tokenExchangeFromEnvironment()
+const catalogSource = catalogSourceFromEnvironment()
+if (catalogSource) {
+  process.stderr.write(`[catalog] Classification federated from ${catalogSource.catalog}.\n`)
+}
+if (tokenExchange) {
+  process.stderr.write(`[identity] Delegated identity enabled via ${tokenExchange.provider}; DELEGATED bindings run as the asking user.\n`)
+}
 const plans = new SubjectScopedStore<{ plan: SignedExecutionPlan; contractId: string }>(expiredPlanGraceMs)
 const { signer: planSigner, ephemeral: ephemeralSigningKey } = planSignerFromEnvironment()
 if (ephemeralSigningKey && process.env.NODE_ENV === 'production') {
@@ -266,6 +278,7 @@ const server = createServer(async (request, response) => {
         const contractId = body.contractId ?? `ontology:${body.workspaceId}`
         const sourceName = body.sourceName?.trim() || [body.binding.connector.resource.catalog, body.binding.connector.resource.database, body.binding.connector.resource.schema, body.binding.connector.resource.object].filter(Boolean).join('.')
         const preview = await discoverConnector(body.binding, contractId, sourceName)
+        await applyCatalogClassifications(body.binding, preview)
         console.info('[connector.discover]', { principalId: identity.principalId, provider: body.binding.connector.provider, sourceName, fieldCount: preview.operations[0]?.fields.length ?? 0 })
         send(response, 200, preview)
       } catch (error) {
@@ -926,7 +939,10 @@ const server = createServer(async (request, response) => {
         send(response, 403, { error: 'REQUIRED_PERMISSION_MISSING', missingPermissions: missing, receipt })
         return
       }
-      const bindingResults = await executeBindings(plan, activeContract, principal.tenantId ? { digestSalt: principal.tenantId } : {})
+      const bindingResults = await executeBindings(plan, activeContract, {
+        ...(principal.tenantId ? { digestSalt: principal.tenantId } : {}),
+        ...delegationFor(request),
+      })
       const receipt = await executionStore.append({
         ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
         contractId,
@@ -973,6 +989,58 @@ server.listen(port, '127.0.0.1', () => {
  * endpoint there is nothing to read, and the process-level resolver — lexical, or the in-memory
  * hybrid — answers instead.
  */
+
+/**
+ * Supplies the caller's own token so a DELEGATED binding runs as them.
+ *
+ * Without a configured exchange there is nothing to delegate with, and a binding that asked for
+ * delegation fails rather than quietly running as the service principal — which would apply none
+ * of the platform's row filters while the receipt claimed otherwise.
+ */
+
+/**
+ * Labels discovered fields with the classification the data catalog already holds.
+ *
+ * Discovery is the moment an author first sees a source column, and it is the only moment they
+ * are choosing what to map. Arriving pre-labelled is what stops a second, diverging judgement
+ * being made in the Studio. A catalog that cannot be read leaves the fields unlabelled rather
+ * than blocking discovery — but it is never reported as "nothing sensitive here".
+ */
+async function applyCatalogClassifications(binding: SourceBinding, preview: BindingPreview): Promise<void> {
+  if (!catalogSource) return
+
+  const resource = binding.connector?.resource
+  const prefix = [resource?.catalog, resource?.database, resource?.schema, resource?.object].filter(Boolean).join('.')
+  if (!prefix) return
+
+  const columns = preview.operations.flatMap((operation) => operation.fields.map((field) => ({
+    field,
+    qualifiedName: `${prefix}.${field.path.replace(/^\$\./, '')}`,
+  })))
+
+  try {
+    const assertions = await catalogSource.classify(columns.map((column) => ({ qualifiedName: column.qualifiedName })))
+    for (const column of columns) {
+      const assertion = assertions.get(column.qualifiedName)
+      if (assertion) column.field.classification = assertion
+    }
+  } catch (error) {
+    console.warn('[catalog.classify]', { catalog: catalogSource.catalog, error: error instanceof Error ? error.message : 'unknown' })
+  }
+}
+
+function delegationFor(request: IncomingMessage): { delegation?: ExecuteBindingsOptions['delegation'] } {
+  const subjectToken = request.headers.authorization?.replace(/^Bearer /i, '').trim()
+  if (!tokenExchange || !subjectToken) return {}
+  return {
+    delegation: {
+      subjectToken,
+      exchange: (token, scope) => tokenExchange!.exchange(token, scope),
+      scopeFor: (provider) => delegationScopeFor(provider),
+    },
+  }
+}
+
 function resolverFor(identity: RequestIdentity, request: IncomingMessage): IntentResolver {
   if (!supabaseRegistryConfig || !embeddingProvider || !identity.tenantId) return intentResolver
   return new PersistedIntentResolver({

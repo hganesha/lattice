@@ -197,6 +197,15 @@ export interface BindingConnectorConfig {
    * MAXIMUM_ROWS_CEILING, so a governed read cannot become an unbounded extract.
    */
   maximumRows?: number
+  /**
+   * Whose identity the query runs as.
+   *
+   * DELEGATED exchanges the asking user's token for one the platform accepts, so Unity Catalog
+   * row filters, column masks, and Fabric's own security apply to them. SERVICE — the default,
+   * for compatibility — runs as one shared principal, which means those controls never see the
+   * user. Every receipt records which was used, so the difference is never assumed.
+   */
+  identityMode?: 'SERVICE' | 'DELEGATED'
   readOnly: boolean
 }
 
@@ -320,6 +329,8 @@ export interface BindingSourceField {
   label: string
   dataType: string
   required: boolean
+  /** Sensitivity federated from the data catalog at discovery, so an author never re-decides it. */
+  classification?: ClassificationAssertion
 }
 
 export interface BindingOperationProposal {
@@ -979,6 +990,8 @@ export interface BindingExecutionResult {
   status: 'SUCCESS' | 'FAILED'
   durationMs: number
   responseDigest?: string
+  /** Whose identity the query ran as. Recorded so service-principal reads are never mistaken for user-level enforcement. */
+  identityMode: 'SERVICE' | 'DELEGATED'
   /** Rows the binding returned, each mapped onto governed properties. */
   rows: MappedRow[]
   rowCount: number

@@ -120,6 +120,11 @@ export function formatReceipt(receipt: ExecutionReceipt): string {
     }
   }
 
+  const serviceReads = receipt.bindingResults.filter((binding) => binding.mode === 'CONNECTOR' && binding.identityMode === 'SERVICE')
+  if (serviceReads.length > 0) {
+    lines.push(`> ${serviceReads.length} binding(s) read as a shared service identity rather than as the asking user, so the source system's own row and column controls did not see them. Treat the result as service-scoped.`, '')
+  }
+
   const protectedValues = receipt.bindingResults.flatMap((binding) => binding.rows).flatMap((row) => row.values).filter((mapping) => mapping.disclosure !== 'VALUE')
   if (protectedValues.length > 0) {
     lines.push(`> ${protectedValues.length} value(s) were classified above internal, so the receipt records that they were read without retaining them. Ask the source system if you need the value itself.`, '')

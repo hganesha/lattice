@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto'
 import { discloseMappedValue, type BindingExecutionResult, type ContextContract, type MappedRow, type SignedExecutionPlan, type SourceBinding } from '@lattice/contracts'
-import { executeConnector, type ConnectorArgument, type ConnectorRows } from './connectors.js'
+import { executeConnector, type ConnectorArgument, type ConnectorRows, type ConnectorRuntime } from './connectors.js'
 
 export interface ExecuteBindingsOptions {
   /** Scopes value digests to one tenant so they stay comparable within an audit trail only. */
   digestSalt?: string
+  /** Lets a DELEGATED binding run as the asking user rather than the service principal. */
+  delegation?: ConnectorRuntime['delegation']
 }
 
 /**
@@ -32,7 +34,7 @@ export async function executeBindings(
     if (!binding) return failed(bindingId, 'Unknown source', 'SIMULATED', 'SOURCE_BINDING_NOT_FOUND')
     const startedAt = Date.now()
     try {
-      const { rows, truncated } = await loadRows(binding, resolveBindingParameters(binding, plan, contract))
+      const { rows, truncated } = await loadRows(binding, resolveBindingParameters(binding, plan, contract), options)
       const digest = saltedDigest(options.digestSalt)
       const mappings = binding.mappings ?? []
 
@@ -54,12 +56,13 @@ export async function executeBindings(
         status: 'SUCCESS' as const,
         durationMs: Date.now() - startedAt,
         responseDigest: digest(rows),
+        identityMode: identityModeOf(binding),
         rows: mappedRows,
         rowCount: mappedRows.length,
         truncated,
       }
     } catch (error) {
-      return failed(binding.id, binding.sourceSystem, binding.executionMode ?? 'SIMULATED', error instanceof Error ? error.message : 'ADAPTER_EXECUTION_FAILED', Date.now() - startedAt)
+      return failed(binding.id, binding.sourceSystem, binding.executionMode ?? 'SIMULATED', error instanceof Error ? error.message : 'ADAPTER_EXECUTION_FAILED', Date.now() - startedAt, identityModeOf(binding))
     }
   }))
 }
@@ -135,8 +138,10 @@ export function isAllowedHttpSource(endpoint: URL, environment: NodeJS.ProcessEn
  * Sample payloads and HTTP sources describe a single object today, so they yield one row. A
  * connector returns as many as its row ceiling allows.
  */
-async function loadRows(binding: SourceBinding, parameters: Record<string, ConnectorArgument>): Promise<ConnectorRows> {
-  if (binding.executionMode === 'CONNECTOR') return executeConnector(binding, parameters)
+async function loadRows(binding: SourceBinding, parameters: Record<string, ConnectorArgument>, options: ExecuteBindingsOptions): Promise<ConnectorRows> {
+  if (binding.executionMode === 'CONNECTOR') {
+    return executeConnector(binding, parameters, options.delegation ? { delegation: options.delegation } : {})
+  }
   if ((binding.executionMode ?? 'SIMULATED') === 'SIMULATED') {
     if (!binding.samplePayload) throw new Error('SAMPLE_PAYLOAD_NOT_CONFIGURED')
     return { rows: [structuredClone(binding.samplePayload)], truncated: false }
@@ -162,8 +167,20 @@ function readPath(payload: Record<string, unknown>, path: string): unknown {
   }, payload)
 }
 
-function failed(bindingId: string, sourceSystem: string, mode: 'SIMULATED' | 'HTTP' | 'CONNECTOR', error: string, durationMs = 0): BindingExecutionResult {
-  return { bindingId, sourceSystem, mode, status: 'FAILED', durationMs, rows: [], rowCount: 0, truncated: false, error }
+function failed(
+  bindingId: string,
+  sourceSystem: string,
+  mode: 'SIMULATED' | 'HTTP' | 'CONNECTOR',
+  error: string,
+  durationMs = 0,
+  identityMode: 'SERVICE' | 'DELEGATED' = 'SERVICE',
+): BindingExecutionResult {
+  return { bindingId, sourceSystem, mode, status: 'FAILED', durationMs, identityMode, rows: [], rowCount: 0, truncated: false, error }
+}
+
+/** Only a connector binding can delegate; a sample payload has no identity to run as. */
+function identityModeOf(binding: SourceBinding): 'SERVICE' | 'DELEGATED' {
+  return binding.executionMode === 'CONNECTOR' && binding.connector?.identityMode === 'DELEGATED' ? 'DELEGATED' : 'SERVICE'
 }
 
 function digest(value: unknown): string {

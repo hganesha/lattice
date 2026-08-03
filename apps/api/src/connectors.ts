@@ -50,6 +50,15 @@ type LocatedConnectorCredential = ResolvedConnectorCredential & { source: Connec
 
 export interface ConnectorRuntime {
   fetch?: typeof globalThis.fetch
+  /**
+   * The asking user's token and the exchange that turns it into one the platform accepts.
+   * Present only when the request carried an identity to delegate.
+   */
+  delegation?: {
+    subjectToken: string
+    exchange: (subjectToken: string, scope: string) => Promise<{ accessToken: string; expiresAt?: string }>
+    scopeFor: (provider: string) => string | undefined
+  }
   createPostgresClient?: (config: ClientConfig) => PostgresClient
   createFabricClient?: (config: FabricClientConfig) => FabricClient
   credentialResolvers?: ConnectorCredentialResolver[]
@@ -109,9 +118,16 @@ export async function executeConnector(binding: SourceBinding, parameters: Recor
   if (!binding.connector) throw new Error('CONNECTOR_CONFIG_REQUIRED')
   const validation = validateConnectorBinding(binding)
   if (validation.status === 'INVALID') throw new Error('CONNECTOR_CONFIG_INVALID')
-  const resolved = builtInHttpProviders.has(binding.connector.provider) || builtInNativeProviders.has(binding.connector.provider)
-    ? await resolveConnectorCredential(binding, runtime)
+
+  // A binding asking to run as the user must not silently fall back to the service identity:
+  // that would apply none of the platform's row filters while looking like it had.
+  const delegated = binding.connector.identityMode === 'DELEGATED'
+    ? await resolveDelegatedCredential(binding, runtime)
     : undefined
+
+  const resolved = delegated ?? (builtInHttpProviders.has(binding.connector.provider) || builtInNativeProviders.has(binding.connector.provider)
+    ? await resolveConnectorCredential(binding, runtime)
+    : undefined)
   const token = resolved?.value
   if (token && builtInHttpProviders.has(binding.connector.provider)) {
     if (binding.connector.provider === 'DATABRICKS') return executeDatabricks(binding, token, parameters, runtime)
@@ -124,6 +140,26 @@ export async function executeConnector(binding: SourceBinding, parameters: Recor
   if (gateway) return executeGateway(gateway, binding, parameters, runtime)
   if (!token) throw new Error(`CREDENTIAL_RESOLVER_NOT_CONFIGURED:${binding.connector.credentialRef}`)
   throw new Error(`CONNECTOR_DRIVER_NOT_AVAILABLE:${binding.connector.provider}`)
+}
+
+
+/**
+ * Exchanges the caller's token for one the data platform accepts.
+ *
+ * Fails rather than degrading. A binding declared DELEGATED that quietly ran as the service
+ * principal would be worse than one that never claimed to delegate, because the receipt would
+ * say the user's own entitlements applied when they did not.
+ */
+async function resolveDelegatedCredential(binding: SourceBinding, runtime: ConnectorRuntime): Promise<LocatedConnectorCredential> {
+  const provider = binding.connector!.provider
+  if (!runtime.delegation) throw new Error('DELEGATED_IDENTITY_NOT_CONFIGURED')
+
+  const scope = runtime.delegation.scopeFor(provider)
+  if (!scope) throw new Error(`DELEGATED_IDENTITY_SCOPE_UNKNOWN:${provider}`)
+
+  const token = await runtime.delegation.exchange(runtime.delegation.subjectToken, scope)
+  validateCredentialExpiry(token.expiresAt)
+  return { value: token.accessToken, ...(token.expiresAt ? { expiresAt: token.expiresAt } : {}), source: 'DELEGATED' }
 }
 
 export async function discoverConnector(binding: SourceBinding, contractId: string, sourceName: string, runtime: ConnectorRuntime = {}): Promise<BindingPreview> {

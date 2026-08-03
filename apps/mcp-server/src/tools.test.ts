@@ -257,7 +257,7 @@ test('execution sends no authorization input and reports the receipt', async () 
         operationId: 'risk.exposure', principalId: 'service', status: 'SUCCESS',
         startedAt: '2026-08-02T00:00:00.000Z', completedAt: '2026-08-02T00:00:01.000Z',
         requiredPermissions: ['risk.read'], grantedPermissions: ['risk.read'], evidenceRefs: [],
-        bindingResults: [{ bindingId: 'b1', sourceSystem: 'Risk warehouse', mode: 'CONNECTOR', status: 'SUCCESS', durationMs: 4, rowCount: 1, truncated: false, rows: [{ rowIndex: 0, values: [{ sourcePath: '$.x', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.exposure', value: 42, disclosure: 'VALUE', classification: 'INTERNAL' }] }] }],
+        bindingResults: [{ bindingId: 'b1', sourceSystem: 'Risk warehouse', mode: 'CONNECTOR', status: 'SUCCESS', durationMs: 4, identityMode: 'DELEGATED', rowCount: 1, truncated: false, rows: [{ rowIndex: 0, values: [{ sourcePath: '$.x', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.exposure', value: 42, disclosure: 'VALUE', classification: 'INTERNAL' }] }] }],
         artifactDigest: 'sha256:receipt',
       },
     },
@@ -312,7 +312,7 @@ test('a classified value is never reconstructed for the model from its receipt',
         requiredPermissions: [], grantedPermissions: [], evidenceRefs: [],
         bindingResults: [{
           bindingId: 'b1', sourceSystem: 'CPNI ledger', mode: 'CONNECTOR', status: 'SUCCESS', durationMs: 3,
-          rowCount: 1, truncated: false,
+          identityMode: 'SERVICE', rowCount: 1, truncated: false,
           rows: [{ rowIndex: 0, values: [
             { sourcePath: '$.a', targetTypeId: 'customer_account', targetPropertyId: 'customer_account.number', disclosure: 'WITHHELD', classification: 'RESTRICTED', categories: ['CPNI'] },
             { sourcePath: '$.b', targetTypeId: 'privacy_authorization', targetPropertyId: 'privacy_authorization.method', valueDigest: 'sha256:abc', disclosure: 'DIGEST', classification: 'CONFIDENTIAL' },

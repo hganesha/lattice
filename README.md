@@ -71,6 +71,47 @@ so a plan signed before a rotation keeps verifying until it expires.
 checking signature, expiry, the subject it was issued to, and the contract release it is pinned
 to. See [packages/plan-verifier/README.md](packages/plan-verifier/README.md).
 
+### Running queries as the asking user
+
+By default a governed query runs as one shared service principal, which means Unity Catalog row
+filters and column masks, and Microsoft Fabric's own security, never see the person who asked.
+Set a binding's `identityMode` to `DELEGATED` and configure a token exchange to run it as them
+instead. Okta uses RFC 8693 token exchange; Microsoft Entra ID uses its on-behalf-of flow:
+
+```bash
+export LATTICE_DELEGATED_IDENTITY_PROVIDER=ENTRA          # or OKTA
+export LATTICE_DELEGATED_IDENTITY_TOKEN_ENDPOINT=https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token
+export LATTICE_DELEGATED_IDENTITY_CLIENT_ID=<application id>
+export LATTICE_DELEGATED_IDENTITY_CLIENT_SECRET=<client secret>
+# Optional per-platform overrides; Databricks and Fabric have sensible defaults
+export LATTICE_DELEGATION_SCOPE_DATABRICKS=2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default
+export LATTICE_DELEGATION_SCOPE_MICROSOFT_FABRIC=https://database.windows.net/.default
+```
+
+A `DELEGATED` binding **fails** rather than falling back to the service identity when no exchange
+is configured: quietly running as the service principal would apply none of the platform's
+controls while the receipt claimed the user's own entitlements had. Every execution receipt
+records which identity was used, and the MCP surface warns when a result was read as a service.
+
+### Federating classification from your data catalog
+
+Your catalog already decides which columns are sensitive. Point Lattice at it and discovered
+fields arrive pre-classified, so nobody re-decides it in the Studio:
+
+```bash
+export LATTICE_CATALOG_PROVIDER=purview                   # or unity-catalog, collibra
+export LATTICE_CATALOG_ENDPOINT=https://<account>.purview.azure.com
+export LATTICE_CATALOG_TOKEN=<read-only token>
+# Unity Catalog only: which tag key carries sensitivity (default `sensitivity`)
+export LATTICE_CATALOG_SENSITIVITY_TAG=sensitivity
+```
+
+Purview reads sensitivity labels and classification rules, Unity Catalog reads column tags, and
+Collibra reads asset attributes. All three normalize onto one assertion carrying the catalog it
+came from, and an unrecognized label is treated as confidential rather than ordinary. A catalog
+that cannot be read leaves fields unlabelled rather than blocking discovery — it is never
+reported as "nothing sensitive here".
+
 ### Optional semantic intent resolution
 
 The Context API always has a deterministic lexical resolver. To add vector-backed paraphrase resolution, configure an HTTPS embedding endpoint that accepts `{ model, input, encoding_format }` and returns indexed float vectors under `data`. Loopback HTTP is allowed for local models:
