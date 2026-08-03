@@ -204,10 +204,16 @@ key order: a positional query must declare `parameterOrder`, and both connector 
 the publish gate refuse a binding that does not, so adding a required entity type can no longer
 silently rebind a query.
 
-**Still open.** The read-only regex blocklist, the loopback-only HTTP mode, and source-key
-mapping — plan arguments still carry Lattice entity identifiers rather than the natural keys a
-real warehouse would filter on, which is the remaining half of making these connectors useful
-against production data.
+Source-key mapping closes the other half. A binding declares which governed property supplies
+each query parameter, and the value is read from the resolved entity at execution — so the
+warehouse is filtered on the LEI it recognizes rather than on `CP-0103`, which it has never seen.
+The key is declared per binding, not per entity, because the same counterparty is keyed
+differently in different systems. Resolution happens at execution rather than being pinned into
+the plan: these are natural keys — account numbers, subscriber identifiers — and the signed plan
+travels much further than a receipt does. Both the connector validation and the publish gate
+require the bound property to exist and to be marked as identifying.
+
+**Still open.** The read-only regex blocklist and the loopback-only HTTP mode.
 
 ### 2.12 Freshness is asserted at authoring time, not measured at read time — P1
 
@@ -364,7 +370,7 @@ Nine generated industry ontologies (16,488 lines) derived from 74 forms are an e
 
 7. KMS/HSM signing with `kid`-addressed JWKS, key history, and a standalone verification library (2.6, 3.4).
 8. User-identity propagation to the data platform — OBO/token exchange — so native row/column security applies (3.1).
-9. ~~Result sets and real parameter binding for every native provider (2.11).~~ **Done.** Source-key mapping, the read-only blocklist, and the loopback-only HTTP mode remain.
+9. ~~Result sets, real parameter binding, and source-key mapping (2.11).~~ **Done.** The read-only regex blocklist and the loopback-only HTTP mode remain.
 10. Measured freshness from the source system, replacing authoring-time `observedAt` (2.12).
 11. Per-contract reads, caching, and optimistic concurrency in the Supabase registry (2.9).
 12. ~~Classification-aware receipts: redaction for `mappedValues` (2.7).~~ **Done** — delivered ahead of P1 because the classification model in P2.17 is what it depends on. Retention and an encryption boundary remain open.

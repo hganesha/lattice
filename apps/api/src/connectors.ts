@@ -10,7 +10,7 @@ export interface ConnectorRows {
   rows: JsonObject[]
   truncated: boolean
 }
-type ConnectorArgument = { entityId: string } | string | number | boolean
+export type ConnectorArgument = { entityId: string } | string | number | boolean
 type PostgresRow = Record<string, unknown>
 
 interface PostgresClient {
@@ -82,6 +82,19 @@ export function validateConnectorBinding(binding: SourceBinding): ConnectorValid
       : orderDeclared
         ? `Positional arguments are bound in the declared order: ${binding.connector.parameterOrder!.join(', ')}.`
         : 'A positional query must declare parameterOrder, otherwise its markers depend on argument insertion order.',
+  })
+
+  const declaredParameters = binding.parameters ?? []
+  const parameterNames = new Set(declaredParameters.map((parameter) => parameter.name))
+  const orderCovered = !orderDeclared || binding.connector.parameterOrder!.every((name) => parameterNames.has(name))
+  checks.push({
+    id: 'source_keys',
+    status: declaredParameters.length > 0 ? (orderCovered ? 'PASS' : 'FAIL') : 'INFO',
+    message: declaredParameters.length === 0
+      ? 'No source keys are declared, so the query is bound with Lattice entity identifiers rather than keys this system recognizes.'
+      : orderCovered
+        ? `${declaredParameters.length} parameter(s) are bound from governed properties.`
+        : 'Every name in parameterOrder must have a declared source key.',
   })
 
   const gatewayAvailable = Boolean(process.env.LATTICE_CONNECTOR_GATEWAY_URL)

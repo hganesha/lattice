@@ -236,9 +236,26 @@ export interface SourceBinding {
   method?: string
   sourceChecksum?: string
   mappings?: BindingFieldMapping[]
+  /**
+   * Which governed property supplies each query parameter.
+   *
+   * Without this a query is bound with Lattice's own entity identifier, which the source system
+   * has never seen. The same entity is keyed differently in different systems — an LEI here, an
+   * internal account number there — so the key is declared per binding rather than per entity.
+   */
+  parameters?: BindingParameter[]
   healthStatus?: 'NOT_TESTED' | 'VALID' | 'WARNING' | 'INVALID'
   executionMode?: 'SIMULATED' | 'HTTP' | 'CONNECTOR'
   samplePayload?: Record<string, unknown>
+}
+
+export interface BindingParameter {
+  /** Name the query template uses, matching a `:name`/`@name` marker or an entry in parameterOrder. */
+  name: string
+  /** Entity type the compiler resolves to supply this parameter. */
+  targetTypeId: string
+  /** Property of that entity holding the key this source system recognizes. */
+  targetPropertyId: string
 }
 
 export interface ConnectorValidationRequest {
