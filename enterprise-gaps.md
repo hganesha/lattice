@@ -96,11 +96,27 @@ Fix: gate the bypass on the authenticator that produced the identity, not on a r
 
 **Fixed.** `RequestIdentity` carries `authenticationMode: 'DEVELOPMENT' | 'OIDC'`, set by the authenticator that produced it, and `hasOrganizationRole` keys the bypass off that. An OIDC identity carrying `roles: ['DEVELOPER']` and `scopes: ['lattice:*']` now fails every role gate, which `authorization.test.ts` asserts directly.
 
-### 2.4 Governance reviews have no separation of duties — P1
+### 2.4 Governance reviews have no separation of duties — P1 · FIXED
 
 `runtimeApprovalStore.decide` correctly refuses self-approval (`apps/api/src/runtimeApprovalStore.ts:66`). `ReviewStore.decide` (`reviewStore.ts:53-65`) does not: the same principal can submit a semantic type, source binding, or policy for review and approve it. Those approvals are exactly what unblocks publishing (`registry.ts:376, 401, 411`). An author with the `AUTHOR` + `REVIEWER` combination — or the `DEVELOPER` bypass above — can self-certify a contract to production.
 
 Also, "immutable digest-backed artifacts" is by convention only: the record is replaced in place in a mutable JSON array, with no hash chain, no append-only storage, and no anti-rollback. Deleting or editing `data/review-artifacts.json` leaves no trace.
+
+**Fixed.** `ReviewStore.decide` now refuses when the submitter is the decider, matching the rule
+runtime approvals always enforced.
+
+Tamper evidence landed for the two genuinely append-only ledgers, assurance runs and execution
+receipts: each artifact is chained to its predecessor, and the store refuses to load when the
+chain does not verify, so removal, reordering, insertion, or an edit is detectable rather than
+silent. Writing that check surfaced a hole in the first cut — chaining `artifactDigest` alone
+still let someone edit a field and leave the stale digest in place — so verification now
+recomputes the receipt's digest from its content.
+
+**Still open.** Reviews and runtime approvals mutate in place when decided, so chaining them
+needs an event-sourced redesign rather than a field. And this is tamper *evidence*, not
+resistance: anyone with write access can rewrite the whole chain. Making that impossible needs an
+external anchor — a signed head, a WORM store, or a witness — which belongs with the KMS work in
+P1.7.
 
 ### 2.5 Simulated sample data is signed as `EXACT`, `DIRECTLY_EVIDENCED` evidence — P1 · FIXED
 
@@ -120,13 +136,46 @@ Fix: propagate a `grounding: 'SIMULATED' | 'LIVE'` field into the plan and the c
 
 The deviation: synthetic evidence is capped at `STRONG`, not `WEAK`, and high-risk simulated plans are still signed rather than refused. Both reference packs set `minimumEvidenceStrength: 'STRONG'`, so either change would disable the shipped airline and telco demos, which are `OPERATIONAL_ACTION` by nature. The opt-in `runtimeMode` declaration is the substantive control — explicit, reviewable, and part of the published release and its digest. Revisit if reference packs stop being the demo centrepiece.
 
-### 2.6 Ephemeral in-process signing key and plan store — P1
+### 2.6 Ephemeral in-process signing key and plan store — P1 · FIXED
 
 `generateKeyPairSync('ed25519')` at module load (`server.ts:70`). This is listed as a known gap, but the operational blast radius is worth stating: on Vercel (a deployment target the README documents) every serverless instance mints its own key, so `/v1/keys/current` returns a key that cannot verify a plan issued by a sibling instance, and `/v1/plans/:id/verify` 404s for any plan issued by another instance. The system is single-instance-only today, and there is no `Cache-Control`, key history, or `kid`-addressed JWKS to grow into. `plans`, `planContractIds`, and `clarifications` are unbounded `Map`s that never expire — a slow memory leak and a store of live capabilities that survives long past `expiresAt`.
 
-### 2.7 Execution receipts persist raw source values — P1
+**Fixed.** The key comes from configuration, its identifier is the key's own RFC 7638 thumbprint
+so it cannot be reused for a different key, and retired keys are retained through a rotation so
+plans signed before it keep verifying until they expire. `GET /v1/keys` publishes the set. An
+unconfigured key still generates one for local development, but the server warns and refuses to
+start with `NODE_ENV=production`.
+
+`@lattice/plan-verifier` is the standalone library the review asked for: it verifies a plan from
+the JWKS alone with no call back to the API, and checks signature, expiry, the subject the plan
+was issued to, and the release it is pinned to — because a valid signature over an expired plan,
+or one issued to somebody else, is not a plan anyone should act on. Verified against a live
+server: a plan verified offline as its subject, failed for another principal, failed when
+tampered with, and the key identifier was unchanged across a restart.
+
+**Still open.** The private key is held in process memory rather than a KMS or HSM, and the plan
+and clarification stores are still per-process (bounded and expiring, but not shared). The
+`PlanSigner` interface is deliberately narrow — sign bytes, publish public keys — so a managed
+KMS is a drop-in without anything above it changing.
+
+### 2.7 Execution receipts persist raw source values — P1 · FIXED
 
 `BindingExecutionResult.mappedValues[].value` holds the actual value read from the source (`types.ts:832-846`), and receipts go to `data/execution-receipts.json` verbatim. Verified: the receipt contains `LT121`, `N121LT`, `DR-LT121-01`. The moment a binding reads a customer record, a CPNI field, or a passenger PNR — and the shipped telco pack has a `cpni_access` contract — the audit store becomes an uncontrolled, unclassified, unretained copy of production data. There is no classification model to know that, no redaction, no retention, and no encryption boundary.
+
+**Fixed.** `ClassificationAssertion` now sits on ontology properties and binding mappings, carrying
+the sensitivity, regime categories, and which catalog asserted it. Disclosure into a receipt is
+graded by that classification: PUBLIC and INTERNAL values are retained so receipts stay debuggable,
+CONFIDENTIAL values are reduced to a per-tenant salted digest that still proves two reads saw the
+same value, and RESTRICTED values are recorded as having been read and nothing more. Where the
+ontology and the source system disagree, the stricter assertion wins, and unclassified data
+defaults to INTERNAL rather than PUBLIC.
+
+Verified against the shipped telco CPNI contract: the subscriber account reference is `WITHHELD`,
+the authentication method is `DIGEST`, and the operational fields stay readable — with the raw
+receipt JSON containing neither protected value.
+
+**Still open.** Retention and an encryption boundary for the receipt store, which belong with the
+append-only ledger in 2.4/P1.13.
 
 ### 2.8 Multi-tenancy stops at the contract registry — P1 · FIXED
 
@@ -134,11 +183,25 @@ The deviation: synthetic evidence is capped at `STRONG`, not `WEAK`, and high-ri
 
 **Fixed.** Every one of those artifacts carries a `tenantId`, stamped from the authenticated identity on write and required to match on every read, decision, and resume. Cross-tenant reads and decisions are covered by tests in each store. Two caveats: this is filtering in the application, not a storage boundary — the durable fix is still the normalized Postgres cutover with RLS — and artifacts written before this change have no `tenantId`, so they are invisible to every tenant and need a one-time backfill if they matter.
 
-### 2.9 The whole registry is re-read from Postgres on every request — P1
+### 2.9 The whole registry is re-read from Postgres on every request — P1 · FIXED
 
 `server.ts:101` constructs a `SupabaseRegistryStorage` and calls `ContractRegistry.openStorage` **per request**, and `read()` (`supabaseRegistry.ts:89-131`) pulls *all* workspaces, *all* contract drafts, and *every release's full contract JSON* in four unpaginated PostgREST calls with a 5-second timeout, then runs the full hydrate/seed/repair pipeline over it (`registry.ts:50-68`). With nine seeded industry ontologies plus release history, a single `GET /health`-adjacent authenticated call moves megabytes. There is no per-contract read, no cache, no `limit` (PostgREST's default row cap will silently truncate at scale), and no ETag.
 
 Writes are read-modify-write with snapshot-diff upserts and **no optimistic concurrency** (`supabaseRegistry.ts:133-196`). The `writeQueue` that serialized writes for the file registry (`registry.ts:271`) is per-instance, and the instance now lives for one request — so concurrent draft saves silently clobber each other, cross-instance and even in-instance.
+
+**Fixed.** The runtime path — compile, clarify, and active-contract reads — now fetches only the
+release it needs, two targeted queries instead of four unbounded ones. Published releases are
+content-addressed and immutable, so they are served from a bounded LRU cache that can never go
+stale: a different release has a different digest and therefore a different key.
+
+Contract writes are conditional on the `updated_at` the request read, so a concurrent edit now
+raises `CONTRACT_MODIFIED_CONCURRENTLY` (409) instead of silently winning. Reads ask PostgREST
+for an exact count and refuse a short answer, because a registry quietly missing contracts is
+worse than one that fails loudly.
+
+**Still open.** The authoring routes continue to load the full document, and the file-registry
+fallback remains. The normalized per-contract cutover is a larger change to the registry
+abstraction than the runtime path required.
 
 ### 2.10 Intent resolution defects — P2 but safety-relevant
 
@@ -146,9 +209,24 @@ Writes are read-modify-write with snapshot-diff upserts and **no optimistic conc
 - **The semantic-confirmation gate is trivially defeated.** `confirmSemanticOnly` only triggers when `lexicalScore === 0` (`compiler.ts:102-104`). A weak lexical overlap of 0.45 plus a strong semantic score aggregates above 0.93 (`intentResolver.ts:61-63`) and is accepted with no confirmation.
 - **Every compile makes a synchronous embedding call** with a 10-second timeout (`intentResolver.ts:52`), and the first compile after any cold start embeds the entire contract's operation and question corpus inline (`intentResolver.ts:108-125`). The cache is an unbounded per-process `Map` keyed by contract digest (`intentResolver.ts:39`) — on serverless, that is a full re-embed per cold lambda, per contract, forever. There is no query cache, no bulk pre-warm, no cost ceiling.
 - **The pgvector work is not wired.** `supabase/migrations/20260728182130_contract_intent_embeddings.sql` builds a full release-scoped, organization-scoped, provider-pinned embedding store with pgmq/pg_cron/pg_net worker plumbing — 631 lines, plus a 353-line test — and nothing in `apps/api` or `packages/compiler-core` references it. `intentResolverFromEnvironment` (`embeddingProvider.ts:65`) only ever builds the in-memory hybrid resolver. Two divergent designs for the same capability now exist; one of them is dead.
+
+  **Resolved by wiring it, not deleting it.** The schema was the better design of the two: the
+  in-memory index re-embeds a contract's whole corpus on every cold start and every replica,
+  keeps an unbounded cache, and cannot pin the embedding profile to the release it describes.
+  `PersistedIntentResolver` now queries `match_contract_intents` under the caller's own token —
+  the function is `security invoker`, so RLS stays the data boundary — and only the question is
+  embedded at compile time. Scoring is shared with the in-memory path through
+  `combineIntentCandidates`, because two resolvers that scored differently would quietly mean two
+  different risk postures against the compiler's calibrated gates. A release whose index is not
+  ready, an unreachable index, and a failing embedding endpoint all degrade to lexical resolution
+  with a sanitized reason rather than failing the compile or leaking the question.
+
+  Verified with a stubbed PostgREST, the same way the Supabase registry is tested. The worker that
+  populates the vectors is an Edge Function deployment, and the migration header documents its
+  provisioning steps.
 - **Degradation is invisible.** When the embedding endpoint fails, resolution silently falls back to lexical and records `degradedReason` (`intentResolver.ts:88-95`) — which no Studio component reads. An operator cannot tell that semantic routing is down.
 
-### 2.11 The data plane can return exactly one row — P1
+### 2.11 The data plane can return exactly one row — P1 · FIXED
 
 Every native adapter returns a single row: `boundedQuery` wraps the template in `LIMIT 1` (`connectors.ts:609-612`), Postgres takes `result.rows[0]`, Fabric passes `maxRows: 1`, Databricks/Snowflake/BigQuery take `data_array[0]` / `rows[0]`, and `rowRecord` flattens one row to an object (`connectors.ts:651`). No aggregation, no result sets, no pagination, no streaming. "What is our exposure across all counterparties?" is not expressible. That is a large fraction of the analytical questions an enterprise will bring.
 
@@ -160,15 +238,57 @@ Related defects in the same layer:
 - **Read-only enforcement is a regex blocklist** (`connectors.ts:397-401`). Postgres gets a genuine `BEGIN READ ONLY`; Databricks, Snowflake, BigQuery, and Fabric get only the regex. A `SELECT` that calls a side-effecting UDF or stored procedure passes.
 - **`HTTP` execution mode is loopback-only** (`adapters.ts:42`), so the OpenAPI binding path — the most common enterprise integration — cannot reach any real service in a deployed environment.
 
+**Fixed, except the loopback restriction.** Bindings now return bounded result sets: a default
+ceiling of 50 rows, a hard cap of 1,000 that no contract can raise, and an honest `truncated`
+flag — the adapters ask for one row more than the ceiling precisely so a receipt can distinguish
+"exactly the limit" from "more than the limit". Receipts and the MCP surface are row-shaped
+rather than assuming a single record.
+
+Snowflake and BigQuery bind plan arguments — positionally via SQL API bindings and by name via
+`queryParameters` respectively — so all five native providers now answer the question the
+compiler actually resolved rather than a static template. Postgres no longer binds from object
+key order: a positional query must declare `parameterOrder`, and both connector validation and
+the publish gate refuse a binding that does not, so adding a required entity type can no longer
+silently rebind a query.
+
+Source-key mapping closes the other half. A binding declares which governed property supplies
+each query parameter, and the value is read from the resolved entity at execution — so the
+warehouse is filtered on the LEI it recognizes rather than on `CP-0103`, which it has never seen.
+The key is declared per binding, not per entity, because the same counterparty is keyed
+differently in different systems. Resolution happens at execution rather than being pinned into
+the plan: these are natural keys — account numbers, subscriber identifiers — and the signed plan
+travels much further than a receipt does. Both the connector validation and the publish gate
+require the bound property to exist and to be marked as identifying.
+
+**Also addressed.** The read-only check now strips comments before matching, so `/*;*/ DROP`
+cannot hide behind one, and rejects the function classes that read files, reach the network, or
+mutate behind a `SELECT`. It is still a blocklist and not a SQL parser — only PostgreSQL gets a
+real guarantee, from its `READ ONLY` transaction — and the code says so; the durable fix is a
+read-only role on the provider side. HTTP bindings can now reach an explicitly allowlisted host
+over HTTPS via `LATTICE_HTTP_SOURCE_HOSTS` rather than loopback only, which made the mode useless
+in any deployed environment; opening it unconditionally would have turned a governed binding into
+an SSRF primitive.
+
 ### 2.12 Freshness is asserted at authoring time, not measured at read time — P1
 
 The policy freshness gate compares `policy.maximumEvidenceAgeMinutes` against `evidence.observedAt` (`compiler.ts:227-236`), a field baked into the immutable release. Nothing reads the actual currency of the source: no Delta commit timestamp, no Snowflake `LAST_ALTERED`, no watermark column, no `connectorHealthStore` freshness signal (which exists, and is never consulted by the compiler). This is why the README's flagship demo now returns `STALE_CONTEXT` — the seed timestamps aged out. In production it fails the other way: a contract published six months ago with `observedAt: <publish time>` will happily claim freshness it does not have, or a genuinely live read will be rejected because the release's static timestamp is old.
 
-### 2.13 Assurance never executes anything — P2
+### 2.13 Assurance never executes anything — P2 · PARTIALLY ADDRESSED
 
 `apps/api/src/assurance.ts` is entirely static document validation: entity types exist, endpoints resolve, descriptions are non-empty, mappings resolve, policies cover risk tiers. It never compiles a competency question, never checks that the resolver routes it to the intended operation, never probes a binding, and never compares results to an expectation. `ContextTest` declares `DATA`, `AGENT`, `CHANGE`, and `ABSTENTION` types (`types.ts:394`) that nothing produces.
 
 The consequence for the newest feature is direct: intent resolution is now model-dependent (embedding provider, model version, thresholds), and there is **no golden-question regression suite** anywhere. Changing the embedding model, editing a keyword, or adding an operation can silently reroute production questions with nothing to catch it.
+
+**Fixed for routing.** Assurance now compiles every competency question the contract publishes and
+fails when one no longer routes to the operation its author linked it to — the drift that a
+retuned keyword, a changed threshold, or a swapped model actually causes. A refusal still counts
+as correct routing when it names the linked operation, because reaching the right decision and
+then being stopped by an evidence or approval gate is the system working. The gate is
+deliberately lexical-only: an assurance run must not depend on a network call to an embedding
+endpoint.
+
+**Still open.** Answer-level assertions, binding probes, and the `DATA`, `AGENT`, and `ABSTENTION`
+test types the model declares but nothing produces.
 
 ### 2.14 Engineering-maturity gaps
 
@@ -196,7 +316,7 @@ What enterprises expect instead: OAuth on-behalf-of / token exchange (Entra ID O
 
 This is the highest-value architectural change in this document. Everything else is smaller.
 
-### 3.2 Data catalog and glossary federation: absent
+### 3.2 Data catalog and glossary federation: absent — PARTIALLY ADDRESSED
 
 Every target enterprise already has Purview, Unity Catalog, Collibra, Alation, Atlan, or Dataplex, and each of those already owns: the business glossary, data classification, ownership/stewardship, lineage, and policy tags. Lattice today defines its own ontology from scratch and exports OWL RDF/XML and Turtle (`packages/exporter-core`). Discovery reads column names and types only (`connectors.ts:275-333`) — it drops tags, classifications, comments, constraints, and lineage.
 
@@ -208,6 +328,16 @@ What is needed:
 - **Classification propagation**: a sensitivity/classification field on properties and bindings, inherited from the catalog, enforced by policy (mask, refuse, require purpose) and honoured by receipts (finding 2.7).
 - **Export**: contracts and ontologies back to the catalog as governed assets — SKOS for the glossary, DCAT for the dataset, and OpenLineage events for compile/execute so lineage tools show "this agent decision consumed these tables".
 - **Ownership federation**: `owner` is a free-text string everywhere (`types.ts:48, 118, 390, 603`). It needs to resolve to a directory principal so approvals can route.
+
+**Landed.** Classification propagation is in: the model, the resolution rules, and enforcement at
+the one place governed data would otherwise be copied into an audit artifact (2.7). Assertions
+carry `source: 'CATALOG' | 'AUTHOR'` plus the catalog name and a locator, so a federated tag is
+distinguishable from a local guess and can be re-synchronized.
+
+**Still open.** The vendor adapters themselves — Purview, Collibra, Unity Catalog, Dataplex — plus
+glossary term import with `sameAs`/`closeMatch` mappings, SKOS/DCAT export, OpenLineage emission,
+and ownership federation. The classification assertion is the interface those adapters populate;
+nothing about it presumes a particular catalog.
 
 ### 3.3 The semantic layer already exists and Lattice re-derives it
 
@@ -243,11 +373,19 @@ issued the plan. It lands with KMS signing in P1.7. OpenTelemetry GenAI traces (
 recorded A2A delegation remain open, and the MCP server acts as a single service identity, so the
 data platform still sees a service principal rather than the asking user (3.1).
 
-### 3.5 Purpose limitation is declared but never enforced
+### 3.5 Purpose limitation is declared but never enforced — FIXED
 
 `CompileRequest.purpose` exists (`types.ts:680`) and is used for exactly one thing: enriching the embedding query string (`intentResolver.ts:49-51`). It is never validated against an allowed-purpose list, never pinned into the plan, never recorded in the receipt, and never consulted by any policy. `GuardrailPolicy` (`types.ts:381`) has no purpose, obligation, jurisdiction, residency, retention, or consent dimension.
 
 For GDPR/CPRA purpose limitation, for EU AI Act "intended purpose" documentation, and for HIPAA minimum-necessary, this is the field that regulators actually ask about. A product whose thesis is *governed* context needs purpose to be a policy input, an audit field, and a plan-level pin — not a prompt-engineering hint.
+
+**Fixed.** Contracts declare purposes with obligations, jurisdictions, and retention. A policy can
+require one and restrict a risk tier to a subset. The compiler fails closed on both an undeclared
+purpose and one the tier does not permit, and pins the declared purpose — with the caller's own
+free-text statement alongside it — into the signed plan and the execution receipt. The shipped
+CPNI contract declares the three uses 47 CFR 64.2005 distinguishes and permits only two at its
+operational tier. The purposes are discoverable through the MCP surface so an agent can name one
+rather than guess.
 
 ### 3.6 Deployment topology and scale
 
@@ -284,24 +422,24 @@ Nine generated industry ontologies (16,488 lines) derived from 74 forms are an e
 
 **P1 — required for a design-partner deployment.**
 
-7. KMS/HSM signing with `kid`-addressed JWKS, key history, and a standalone verification library (2.6, 3.4).
+7. ~~`kid`-addressed JWKS, key history, and a standalone verification library (2.6, 3.4).~~ **Done.** Moving the private key into a managed KMS or HSM remains, and is now a matter of implementing one narrow interface.
 8. User-identity propagation to the data platform — OBO/token exchange — so native row/column security applies (3.1).
-9. Result sets: pagination, aggregation, and real parameter binding for Snowflake and BigQuery; named rather than positional binding for Postgres; source-key mapping for arguments (2.11).
+9. ~~Result sets, real parameter binding, and source-key mapping (2.11).~~ **Done.** The read-only regex blocklist and the loopback-only HTTP mode remain.
 10. Measured freshness from the source system, replacing authoring-time `observedAt` (2.12).
-11. Per-contract reads, caching, and optimistic concurrency in the Supabase registry (2.9).
-12. Classification-aware receipts: redaction, retention, and encryption for `mappedValues` (2.7).
-13. Separation of duties on governance reviews; append-only, hash-chained artifact ledger (2.4).
-14. A golden-question regression suite executed by assurance, gating publish (2.13).
+11. ~~Per-contract reads, caching, and optimistic concurrency in the Supabase registry (2.9).~~ **Done** for the runtime path; the authoring routes still load the full document.
+12. ~~Classification-aware receipts: redaction for `mappedValues` (2.7).~~ **Done** — delivered ahead of P1 because the classification model in P2.17 is what it depends on. Retention and an encryption boundary remain open.
+13. ~~Separation of duties on governance reviews; append-only, hash-chained artifact ledger (2.4).~~ **Done** for reviews and the two append-only ledgers; in-place-mutating artifacts and an external anchor remain.
+14. ~~A golden-question regression suite executed by assurance, gating publish (2.13).~~ **Done** for routing; answer-level assertions remain.
 15. OpenTelemetry traces and metrics across compile, resolve, and execute (2.14).
 
 **P2 — required for enterprise GA.**
 
 16. ~~MCP server + OpenAPI document + tool-schema projection (3.4).~~ **Done**, except the offline verification library, which is blocked on KMS signing in P1.7.
-17. Catalog federation: glossary import, classification propagation, SKOS/DCAT export, OpenLineage emission (3.2).
+17. Catalog federation (3.2). **Classification propagation done**; glossary import, SKOS/DCAT export, OpenLineage emission, and the vendor adapters remain.
 18. Semantic-layer binding for metrics instead of a parallel metric registry (3.3).
-19. Purpose as a first-class policy input, plan pin, and audit field; obligations, residency, retention in `GuardrailPolicy` (3.5).
+19. ~~Purpose as a first-class policy input, plan pin, and audit field; obligations, residency, retention (3.5).~~ **Done.**
 20. Environment promotion, contracts-as-code, cross-contract impact analysis, deprecation lifecycle (3.7).
-21. Resolve the two competing embedding designs — wire the pgvector migration or delete it (2.10).
+21. ~~Resolve the two competing embedding designs (2.10).~~ **Done** — the pgvector index is wired and read; the in-memory index remains the fallback when Supabase is not configured.
 22. Self-hosted / air-gapped deployment profile (3.6).
 
 ---

@@ -56,3 +56,15 @@ export function connectorTemplate(id: ConnectorTemplate['id']): ConnectorTemplat
   if (!template) throw new Error(`UNKNOWN_CONNECTOR:${id}`)
   return template
 }
+
+/** Default row ceiling for a governed read. Enough for a decision, not enough for an extract. */
+export const DEFAULT_MAXIMUM_ROWS = 50
+
+/** Hard ceiling a binding cannot raise, so no contract can turn a read into a bulk export. */
+export const MAXIMUM_ROWS_CEILING = 1_000
+
+export function resolveMaximumRows(requested: number | undefined): number {
+  if (requested === undefined) return DEFAULT_MAXIMUM_ROWS
+  if (!Number.isInteger(requested) || requested < 1) return DEFAULT_MAXIMUM_ROWS
+  return Math.min(requested, MAXIMUM_ROWS_CEILING)
+}

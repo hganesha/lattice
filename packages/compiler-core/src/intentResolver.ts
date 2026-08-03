@@ -51,40 +51,13 @@ export class HybridIntentResolver implements IntentResolver {
         : request.question.trim()
       const [queryVector] = await this.embeddingProvider.embed([query])
       if (!queryVector || queryVector.length === 0) throw new Error('Embedding provider returned no query vector.')
-      const semanticByOperation = semanticCandidates(queryVector, index)
-      const lexicalByOperation = new Map(lexical.candidates.map((candidate) => [candidate.operationId, candidate]))
-      const candidates = contract.operations.map((operation) => {
-        const lexicalCandidate = lexicalByOperation.get(operation.id)
-        const semanticCandidate = semanticByOperation.get(operation.id)
-        const lexicalScore = lexicalCandidate?.lexicalScore ?? 0
-        const semanticScore = semanticCandidate?.score ?? 0
-        const aggregateScore = lexicalScore > 0
-          ? Math.max(lexicalScore, roundScore(semanticScore * 0.75 + lexicalScore * 0.25))
-          : semanticScore
-        const rationale = [
-          ...(lexicalCandidate?.rationale ?? []),
-          ...(semanticCandidate ? [`Semantic similarity ${semanticCandidate.score.toFixed(3)} using ${this.embeddingProvider.modelVersion}.`] : []),
-        ]
-        return {
-          operationId: operation.id,
-          matchedQuestionIds: [...new Set([
-            ...(lexicalCandidate?.matchedQuestionIds ?? []),
-            ...(semanticCandidate?.matchedQuestionIds ?? []),
-          ])],
-          lexicalScore,
-          semanticScore,
-          aggregateScore,
-          rationale,
-        } satisfies IntentCandidate
-      }).sort(compareCandidates).slice(0, 5)
-
-      return {
-        resolverVersion: 'hybrid-intent-v1',
-        method: 'HYBRID',
+      return combineIntentCandidates({
+        lexical,
+        contract,
+        semanticByOperation: semanticCandidates(queryVector, index),
         modelVersion: this.embeddingProvider.modelVersion,
         indexDigest: index.indexDigest,
-        candidates,
-      }
+      })
     } catch (error) {
       return {
         ...lexical,
@@ -122,6 +95,65 @@ export class HybridIntentResolver implements IntentResolver {
       documents,
       vectors,
     }
+  }
+}
+
+
+export interface SemanticCandidate {
+  score: number
+  matchedQuestionIds: string[]
+}
+
+/**
+ * Merges lexical and semantic candidates into one ranked resolution.
+ *
+ * Shared so an in-memory index and a persisted one produce identical scoring: the gates in the
+ * compiler are calibrated against these numbers, and two resolvers that scored differently would
+ * quietly mean two different risk postures.
+ *
+ * A lexical hit is never lowered by a weak semantic score — the deterministic signal is the one
+ * the contract's author controls — but a strong semantic score can raise it.
+ */
+export function combineIntentCandidates(input: {
+  lexical: IntentResolution
+  contract: ContextContract
+  semanticByOperation: Map<string, SemanticCandidate>
+  modelVersion: string
+  indexDigest: string
+  resolverVersion?: string
+}): IntentResolution {
+  const lexicalByOperation = new Map(input.lexical.candidates.map((candidate) => [candidate.operationId, candidate]))
+  const candidates = input.contract.operations.map((operation) => {
+    const lexicalCandidate = lexicalByOperation.get(operation.id)
+    const semanticCandidate = input.semanticByOperation.get(operation.id)
+    const lexicalScore = lexicalCandidate?.lexicalScore ?? 0
+    const semanticScore = semanticCandidate?.score ?? 0
+    const aggregateScore = lexicalScore > 0
+      ? Math.max(lexicalScore, roundScore(semanticScore * 0.75 + lexicalScore * 0.25))
+      : semanticScore
+    const rationale = [
+      ...(lexicalCandidate?.rationale ?? []),
+      ...(semanticCandidate ? [`Semantic similarity ${semanticCandidate.score.toFixed(3)} using ${input.modelVersion}.`] : []),
+    ]
+    return {
+      operationId: operation.id,
+      matchedQuestionIds: [...new Set([
+        ...(lexicalCandidate?.matchedQuestionIds ?? []),
+        ...(semanticCandidate?.matchedQuestionIds ?? []),
+      ])],
+      lexicalScore,
+      semanticScore,
+      aggregateScore,
+      rationale,
+    } satisfies IntentCandidate
+  }).sort(compareCandidates).slice(0, 5)
+
+  return {
+    resolverVersion: input.resolverVersion ?? 'hybrid-intent-v1',
+    method: 'HYBRID',
+    modelVersion: input.modelVersion,
+    indexDigest: input.indexDigest,
+    candidates,
   }
 }
 

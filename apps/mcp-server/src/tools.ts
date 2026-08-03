@@ -92,7 +92,7 @@ Args:
   - maximum_risk_tier ('INFORMATIONAL' | 'ANALYTICAL' | 'PLANNING_DECISION' | 'OPERATIONAL_ACTION'): withhold operations above this risk (optional)
   - response_format ('markdown' | 'json'): output format (default: 'markdown')
 
-Returns: per operation, the tool name, description, JSON Schema input, risk tier, required permissions, required governed entity types, whether a human approval is required, and the minimum evidence strength the policy accepts.
+Returns: the purposes the contract declares, then per operation the tool name, description, JSON Schema input, risk tier, required permissions, required governed entity types, whether a human approval is required, and the minimum evidence strength the policy accepts.
 
 Use when: planning which operation fits a task, or exposing a contract's capabilities to another planner.`,
       inputSchema: {
@@ -113,7 +113,20 @@ Use when: planning which operation fits a task, or exposing a contract's capabil
         return ok(`${contract.name} publishes no operations at or below ${maximum_risk_tier ?? 'any'} risk.`)
       }
 
-      const markdown = [`# ${contract.name} — governed operations`, '', `Contract \`${contract.id}\` v${contract.version}, digest \`${contract.digest}\`.`, ''].concat(
+      const purposeLines = (contract.purposes ?? []).length > 0
+        ? ['## Declared purposes', '', 'Pass one of these as `purpose_id` when compiling. A policy may require it and may permit only a subset.', '',
+            ...(contract.purposes ?? []).map((declared) => {
+              const detail = [
+                declared.description,
+                ...(declared.obligations?.length ? [`Obligations: ${declared.obligations.join('; ')}.`] : []),
+                ...(declared.jurisdictions?.length ? [`Lawful in: ${declared.jurisdictions.join(', ')}.`] : []),
+                ...(declared.retentionDays !== undefined ? [`Retain results for at most ${declared.retentionDays} days.`] : []),
+              ].join(' ')
+              return `- \`${declared.id}\` — ${declared.label}. ${detail}`
+            }), '']
+        : []
+
+      const markdown = [`# ${contract.name} — governed operations`, '', `Contract \`${contract.id}\` v${contract.version}, digest \`${contract.digest}\`.`, '', ...purposeLines].concat(
         tools.flatMap((tool) => [
           `## ${tool.name}`,
           `- **operationId**: \`${tool.governance.operationId}\``,
@@ -128,7 +141,7 @@ Use when: planning which operation fits a task, or exposing a contract's capabil
         ]),
       ).join('\n')
 
-      const structured = { contractId: contract.id, contractVersion: contract.version, contractDigest: contract.digest, tools }
+      const structured = { contractId: contract.id, contractVersion: contract.version, contractDigest: contract.digest, purposes: contract.purposes ?? [], tools }
       return ok(render(response_format, markdown, structured), structured)
     }),
   )
@@ -148,7 +161,8 @@ It never returns a free-text answer. It returns exactly one of four governed out
 Args:
   - question (string): the question, in the user's own words
   - contract_id (string): contract to compile against (optional; defaults to the reference contract)
-  - purpose (string): why the answer is needed, recorded with the decision (optional)
+  - purpose_id (string): a purpose the contract declares, from lattice_describe_operations (required where policy demands one)
+  - purpose (string): why the answer is needed, in your own words (optional)
   - confirm_operation_id (string): confirm a specific governed operation, as returned by lattice_describe_operations (optional)
   - selections (object): governed entity identifiers keyed by entity type, to skip disambiguation (optional)
   - response_format ('markdown' | 'json'): output format (default: 'markdown')
@@ -158,21 +172,25 @@ Returns: the decision, its reason codes, a plain-language explanation, whether t
 Use when: answering any question that must be grounded in governed enterprise data.
 Don't use when: you already hold an unexpired planId — call lattice_execute_plan instead.
 
-A SIMULATED grounding means the answer came from documented sample payloads. Never present that as a live answer.`,
+A SIMULATED grounding means the answer came from documented sample payloads. Never present that as a live answer.
+
+Regulated contracts refuse to compile without a declared purpose, and refuse a purpose their policy does not permit. Do not retry with a different purpose to get past a refusal — ask the user what the data is actually for.`,
       inputSchema: {
         question: z.string().min(1).max(4_000).describe("The question to compile, in the user's own words."),
         contract_id: z.string().optional().describe('Contract to compile against.'),
-        purpose: z.string().max(1_000).optional().describe('Why the answer is needed. Recorded with the decision.'),
+        purpose_id: z.string().optional().describe('Identifier of a purpose the contract declares. Required where policy demands one.'),
+        purpose: z.string().max(1_000).optional().describe('Why the answer is needed, in your own words. Recorded alongside the declared purpose.'),
         confirm_operation_id: z.string().optional().describe('Explicitly confirm a governed operation instead of letting the resolver choose.'),
         selections: z.record(z.string()).optional().describe('Governed entity identifiers keyed by entity type.'),
         response_format: responseFormat,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
-    async ({ question, contract_id, purpose, confirm_operation_id, selections, response_format }): Promise<ToolResult> => guarded(async () => {
+    async ({ question, contract_id, purpose_id, purpose, confirm_operation_id, selections, response_format }): Promise<ToolResult> => guarded(async () => {
       const result = await client.post<CompileResponse & { error?: string }>('/v1/compile', {
         question,
         ...(contract_id ? { contractId: contract_id } : {}),
+        ...(purpose_id ? { purposeId: purpose_id } : {}),
         ...(purpose ? { purpose } : {}),
         ...(selections ? { selections } : {}),
       })

@@ -69,7 +69,9 @@ test('sample adapter maps governed values and execution receipts prevent replay'
   const signed = plan()
   const results = await executeBindings(signed, contract)
   assert.equal(results[0]?.status, 'SUCCESS')
-  assert.equal(results[0]?.mappedValues[0]?.value, 'OUTAGE-NORTH-042')
+  assert.equal(results[0]?.rowCount, 1)
+  assert.equal(results[0]?.truncated, false)
+  assert.equal(results[0]?.rows[0]?.values[0]?.value, 'OUTAGE-NORTH-042')
 
   const directory = await mkdtemp(join(tmpdir(), 'lattice-execution-'))
   const store = await ExecutionStore.open(join(directory, 'receipts.json'))

@@ -77,6 +77,9 @@ const activeContract = {
     version: '1.0.0', owner: 'Risk', approvalStatus: 'APPROVED',
   }],
   tests: [],
+  purposes: [
+    { id: 'credit-risk-review', label: 'Credit risk review', description: 'Assess exposure.', obligations: ['Audit only'], jurisdictions: ['EU'], retentionDays: 90 },
+  ],
 }
 
 test('advertises the governed loop as MCP tools', async () => {
@@ -254,7 +257,7 @@ test('execution sends no authorization input and reports the receipt', async () 
         operationId: 'risk.exposure', principalId: 'service', status: 'SUCCESS',
         startedAt: '2026-08-02T00:00:00.000Z', completedAt: '2026-08-02T00:00:01.000Z',
         requiredPermissions: ['risk.read'], grantedPermissions: ['risk.read'], evidenceRefs: [],
-        bindingResults: [{ bindingId: 'b1', sourceSystem: 'Risk warehouse', mode: 'CONNECTOR', status: 'SUCCESS', durationMs: 4, mappedValues: [{ sourcePath: '$.x', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.exposure', value: 42 }] }],
+        bindingResults: [{ bindingId: 'b1', sourceSystem: 'Risk warehouse', mode: 'CONNECTOR', status: 'SUCCESS', durationMs: 4, rowCount: 1, truncated: false, rows: [{ rowIndex: 0, values: [{ sourcePath: '$.x', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.exposure', value: 42, disclosure: 'VALUE', classification: 'INTERNAL' }] }] }],
         artifactDigest: 'sha256:receipt',
       },
     },
@@ -296,4 +299,61 @@ test('resolving a clarification requires a choice', async () => {
   const result = await client.callTool({ name: 'lattice_resolve_clarification', arguments: { clarification_id: 'clar-1' } })
   assert.equal((result as { isError?: boolean }).isError, true)
   assert.match(textOf(result), /Provide entity_id .* or operation_id/)
+})
+
+test('a classified value is never reconstructed for the model from its receipt', async () => {
+  const { client } = await connect({
+    'POST /v1/plans/plan-1/execute': {
+      status: 200,
+      body: {
+        id: 'receipt-2', contractId: 'contract-demo', contractVersion: '1.0.0', planId: 'plan-1',
+        operationId: 'telco.assess_cpni_access', principalId: 'service', status: 'SUCCESS',
+        startedAt: '2026-08-02T00:00:00.000Z', completedAt: '2026-08-02T00:00:01.000Z',
+        requiredPermissions: [], grantedPermissions: [], evidenceRefs: [],
+        bindingResults: [{
+          bindingId: 'b1', sourceSystem: 'CPNI ledger', mode: 'CONNECTOR', status: 'SUCCESS', durationMs: 3,
+          rowCount: 1, truncated: false,
+          rows: [{ rowIndex: 0, values: [
+            { sourcePath: '$.a', targetTypeId: 'customer_account', targetPropertyId: 'customer_account.number', disclosure: 'WITHHELD', classification: 'RESTRICTED', categories: ['CPNI'] },
+            { sourcePath: '$.b', targetTypeId: 'privacy_authorization', targetPropertyId: 'privacy_authorization.method', valueDigest: 'sha256:abc', disclosure: 'DIGEST', classification: 'CONFIDENTIAL' },
+            { sourcePath: '$.c', targetTypeId: 'privacy_authorization', targetPropertyId: 'privacy_authorization.channel', value: 'ONLINE', disclosure: 'VALUE', classification: 'INTERNAL' },
+          ] }],
+        }],
+        artifactDigest: 'sha256:receipt',
+      },
+    },
+  })
+
+  const text = textOf(await client.callTool({ name: 'lattice_execute_plan', arguments: { plan_id: 'plan-1' } }))
+  assert.match(text, /withheld — RESTRICTED \[CPNI\]/)
+  assert.match(text, /sha256:abc \(digest — CONFIDENTIAL\)/)
+  assert.match(text, /"ONLINE"/)
+  assert.match(text, /2 value\(s\) were classified above internal/)
+  assert.equal(text.includes('undefined'), false)
+})
+
+test('declared purposes are discoverable so an agent can name one when compiling', async () => {
+  const { client } = await connect({ 'GET /v1/contracts/active': { status: 200, body: activeContract } })
+  const text = textOf(await client.callTool({ name: 'lattice_describe_operations', arguments: { contract_id: 'contract-demo' } }))
+
+  assert.match(text, /Declared purposes/)
+  assert.match(text, /`credit-risk-review` — Credit risk review/)
+  assert.match(text, /Obligations: Audit only/)
+  assert.match(text, /Retain results for at most 90 days/)
+})
+
+test('the declared purpose is sent through to the Context API', async () => {
+  const { client, calls } = await connect({
+    'POST /v1/compile': {
+      status: 200,
+      body: { resolutionId: 'r', decision: 'RESOLVED', reasonCodes: [], explanation: ['ok'], versions: activeContract.versions },
+    },
+  })
+
+  await client.callTool({
+    name: 'lattice_compile_question',
+    arguments: { question: 'Exposure?', purpose_id: 'credit-risk-review', purpose: 'Quarterly review' },
+  })
+  assert.equal((calls[0]?.body as { purposeId?: string }).purposeId, 'credit-risk-review')
+  assert.equal((calls[0]?.body as { purpose?: string }).purpose, 'Quarterly review')
 })

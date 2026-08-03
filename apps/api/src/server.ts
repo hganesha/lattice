@@ -1,9 +1,9 @@
-import { generateKeyPairSync, randomUUID, sign, verify } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { URL } from 'node:url'
-import { ContextCompiler } from '@lattice/compiler-core'
+import { ContextCompiler, type IntentResolver } from '@lattice/compiler-core'
 import { previewBindingSource, previewImport } from '@lattice/importer-core'
 import {
   connectorCatalog,
@@ -44,9 +44,11 @@ import { authenticatorFromEnvironment, type RequestIdentity } from './auth.js'
 import { applyTenantMembership, tenantMembershipResolverFromEnvironment } from './tenancy.js'
 import { hasOrganizationRole, missingPermissions, requiredOrganizationRoles, resolveGrantedPermissions } from './authorization.js'
 import { SubjectScopedStore, type Subject } from './planStore.js'
-import { SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
-import { intentResolverFromEnvironment } from './embeddingProvider.js'
+import { ContractRegistryConflictError, SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
+import { embeddingProviderFromEnvironment, intentResolverFromEnvironment } from './embeddingProvider.js'
+import { PersistedIntentResolver } from './persistedIntentIndex.js'
 import { openApiDocument } from './openapi.js'
+import { planSignerFromEnvironment } from './signing.js'
 
 const port = Number(process.env.PORT ?? 8787)
 const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
@@ -69,9 +71,15 @@ const clarificationRetentionMs = 30 * 60_000
 const expiredPlanGraceMs = 60 * 60_000
 const clarifications = new SubjectScopedStore<PendingClarification>(clarificationRetentionMs)
 const intentResolver = intentResolverFromEnvironment()
+const embeddingProvider = embeddingProviderFromEnvironment()
 const plans = new SubjectScopedStore<{ plan: SignedExecutionPlan; contractId: string }>(expiredPlanGraceMs)
-const keyId = 'lattice-dev-ed25519-1'
-const { privateKey, publicKey } = generateKeyPairSync('ed25519')
+const { signer: planSigner, ephemeral: ephemeralSigningKey } = planSignerFromEnvironment()
+if (ephemeralSigningKey && process.env.NODE_ENV === 'production') {
+  throw new Error('LATTICE_SIGNING_KEY is required in production: an ephemeral key cannot verify a plan across restarts or replicas.')
+}
+if (ephemeralSigningKey) {
+  process.stderr.write('[signing] No LATTICE_SIGNING_KEY configured; using an ephemeral development key. Plans will not verify across restarts.\n')
+}
 
 const server = createServer(async (request, response) => {
   setCors(response)
@@ -96,7 +104,7 @@ const server = createServer(async (request, response) => {
       return
     }
 
-    if (url.pathname.startsWith('/v1/') && url.pathname !== '/v1/keys/current') {
+    if (url.pathname.startsWith('/v1/') && !['/v1/keys/current', '/v1/keys'].includes(url.pathname)) {
       requestIdentity = await authenticate(request)
       if (!requestIdentity) {
         send(response, 401, { error: 'UNAUTHENTICATED_OR_UNAUTHORIZED', message: 'A valid user session and organization membership are required.' })
@@ -109,17 +117,28 @@ const server = createServer(async (request, response) => {
       }
     }
 
-    const registry = requestIdentity && supabaseRegistryConfig
-      ? await ContractRegistry.openStorage(
-          new SupabaseRegistryStorage(
-            supabaseRegistryConfig,
-            requiredTenantId(requestIdentity),
-            requestIdentity.principalId,
-            request.headers.authorization ?? '',
-          ),
-          counterpartyRiskContract,
-          { persistOnOpen: false },
+    const supabaseStorage = requestIdentity && supabaseRegistryConfig
+      ? new SupabaseRegistryStorage(
+          supabaseRegistryConfig,
+          requiredTenantId(requestIdentity),
+          requestIdentity.principalId,
+          request.headers.authorization ?? '',
         )
+      : undefined
+
+    /**
+     * Loading the organization's whole registry costs the same whether a route needs one
+     * contract or all of them, so the runtime path asks for just the release it compiles
+     * against and everything else falls back to the full document.
+     */
+    const publishedContract = async (contractId: string): Promise<ContextContract | undefined> => (
+      supabaseStorage
+        ? supabaseStorage.readPublishedContract(contractId)
+        : fileRegistry.latestPublished(contractId)
+    )
+
+    const registry = supabaseStorage
+      ? await ContractRegistry.openStorage(supabaseStorage, counterpartyRiskContract, { persistOnOpen: false })
       : fileRegistry
 
     if (request.method === 'GET' && url.pathname === '/v1/connectors') {
@@ -257,7 +276,7 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'GET' && url.pathname === '/v1/contracts/active') {
       const contractId = url.searchParams.get('contractId') ?? counterpartyRiskContract.id
-      const published = registry.latestPublished(contractId)
+      const published = await publishedContract(contractId)
       if (!published) {
         send(response, 404, { error: 'PUBLISHED_CONTRACT_NOT_FOUND' })
         return
@@ -639,11 +658,15 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/keys/current') {
-      send(response, 200, {
-        keyId,
-        algorithm: 'Ed25519',
-        publicKey: publicKey.export({ format: 'jwk' }),
-      })
+      const [active] = planSigner.publicKeys()
+      send(response, 200, { keyId: planSigner.activeKeyId, algorithm: 'Ed25519', publicKey: active })
+      return
+    }
+
+    // Every key a verifier should trust, so a plan signed before a rotation can still be checked
+    // offline for as long as it is valid.
+    if (request.method === 'GET' && url.pathname === '/v1/keys') {
+      send(response, 200, { keys: planSigner.publicKeys() })
       return
     }
 
@@ -695,13 +718,14 @@ const server = createServer(async (request, response) => {
       }
 
       const selectedContractId = body.contractId ?? counterpartyRiskContract.id
-      const selectedContract = registry.latestPublished(selectedContractId)
+      const selectedContract = await publishedContract(selectedContractId)
       if (!selectedContract) {
         send(response, 409, { error: 'CONTRACT_NOT_PUBLISHED', message: 'Publish this contract before compiling runtime questions.' })
         return
       }
       const runtimeContract = materializeSimulatedContext(selectedContract)
-      const intentResolution = await intentResolver.resolve(body, runtimeContract)
+      const resolver = resolverFor(principal, request)
+      const intentResolution = await resolver.resolve(body, runtimeContract)
       const result = await prepareCompile(
         new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) }),
         runtimeContract,
@@ -725,7 +749,7 @@ const server = createServer(async (request, response) => {
         return
       }
       const body = await readJson<{ entityId?: string; operationId?: string }>(request)
-      const selectedContract = registry.latestPublished(pending.request.contractId ?? counterpartyRiskContract.id)
+      const selectedContract = await publishedContract(pending.request.contractId ?? counterpartyRiskContract.id)
       if (!selectedContract) {
         send(response, 409, { error: 'CONTRACT_NOT_PUBLISHED' })
         return
@@ -902,7 +926,7 @@ const server = createServer(async (request, response) => {
         send(response, 403, { error: 'REQUIRED_PERMISSION_MISSING', missingPermissions: missing, receipt })
         return
       }
-      const bindingResults = await executeBindings(plan, activeContract)
+      const bindingResults = await executeBindings(plan, activeContract, principal.tenantId ? { digestSalt: principal.tenantId } : {})
       const receipt = await executionStore.append({
         ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
         contractId,
@@ -925,6 +949,10 @@ const server = createServer(async (request, response) => {
       send(response, 422, { error: error.message, issues: error.issues })
       return
     }
+    if (error instanceof ContractRegistryConflictError) {
+      send(response, 409, { error: 'CONTRACT_MODIFIED_CONCURRENTLY', message: error.message })
+      return
+    }
     const message = error instanceof Error ? error.message : 'Unknown error'
     send(response, message === 'INVALID_JSON' || message === 'PAYLOAD_TOO_LARGE' ? 400 : 500, {
       error: message,
@@ -935,6 +963,26 @@ const server = createServer(async (request, response) => {
 server.listen(port, '127.0.0.1', () => {
   process.stdout.write(`Lattice Context API listening at http://127.0.0.1:${port}\n`)
 })
+
+
+/**
+ * Chooses where semantic candidates come from for this request.
+ *
+ * The persisted index is release-scoped and read under the caller's own token, so it has to be
+ * built per request rather than once at startup. Without Supabase or without an embedding
+ * endpoint there is nothing to read, and the process-level resolver — lexical, or the in-memory
+ * hybrid — answers instead.
+ */
+function resolverFor(identity: RequestIdentity, request: IncomingMessage): IntentResolver {
+  if (!supabaseRegistryConfig || !embeddingProvider || !identity.tenantId) return intentResolver
+  return new PersistedIntentResolver({
+    projectUrl: supabaseRegistryConfig.projectUrl,
+    publishableKey: supabaseRegistryConfig.publishableKey,
+    organizationId: identity.tenantId,
+    authorization: request.headers.authorization ?? '',
+    embeddingProvider,
+  })
+}
 
 async function prepareCompile(result: CompileResponse, contract: ContextContract, principal: RequestIdentity): Promise<CompileResponse> {
   if (result.decision === 'APPROVAL_REQUIRED' && result.pendingPlan) {
@@ -1010,14 +1058,13 @@ function subjectOf(identity: RequestIdentity): Subject {
 }
 
 function signPlan(plan: UnsignedExecutionPlan): SignedExecutionPlan {
-  const payload = Buffer.from(JSON.stringify(plan))
-  const signature = sign(null, payload, privateKey).toString('base64url')
-  return { ...plan, keyId, signatureAlgorithm: 'Ed25519', signature }
+  const signature = planSigner.sign(Buffer.from(JSON.stringify(plan)))
+  return { ...plan, keyId: planSigner.activeKeyId, signatureAlgorithm: 'Ed25519', signature }
 }
 
 function verifyPlan(plan: SignedExecutionPlan): boolean {
-  const { keyId: _keyId, signatureAlgorithm: _algorithm, signature, ...unsigned } = plan
-  return verify(null, Buffer.from(JSON.stringify(unsigned)), publicKey, Buffer.from(signature, 'base64url'))
+  const { keyId, signatureAlgorithm: _algorithm, signature, ...unsigned } = plan
+  return planSigner.verify(Buffer.from(JSON.stringify(unsigned)), signature, keyId)
 }
 
 async function authenticate(request: IncomingMessage): Promise<RequestIdentity | undefined> {

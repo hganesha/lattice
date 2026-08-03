@@ -3,9 +3,22 @@ import test from 'node:test'
 import { counterpartyRiskContract, loadGridOutageExample, materializeSimulatedContext } from '@lattice/contracts'
 import { airlineExampleContracts } from '@lattice/contracts/airline-contracts'
 import { telecommunicationsExampleContracts } from '@lattice/contracts/telecommunications-contracts'
+import type { ContextContract } from '@lattice/contracts'
 import { ContextCompiler } from './compiler.js'
 
 const subject = { principalId: 'principal_test', tenantId: 'tenant_test' }
+
+/**
+ * Supplies a purpose for contracts whose policy demands one, so the seeded packs still compile
+ * to their approval gate rather than a purpose refusal.
+ */
+function permittedPurposeFor(contract: ContextContract): { purposeId?: string } {
+  const requiring = contract.policies.find((policy) => policy.purposeRequired)
+  if (!requiring) return {}
+  const permitted = requiring.permittedPurposeIds?.[0] ?? contract.purposes?.[0]?.id
+  return permitted ? { purposeId: permitted } : {}
+}
+
 
 function compiler() {
   let id = 0
@@ -86,7 +99,7 @@ test('compiles every seeded airline and telecommunications reference contract fr
     const result = new ContextCompiler(runtimeContract, {
       now: () => now,
       id: () => `${contract.id}-${++id}`,
-    }).compile({ question: contract.competencyQuestions[0]!.question }, subject)
+    }).compile({ question: contract.competencyQuestions[0]!.question, ...permittedPurposeFor(contract) }, subject)
 
     assert.equal(result.decision, 'APPROVAL_REQUIRED', `${contract.id} should compile to its human approval gate`)
     assert.ok(result.pendingPlan)
@@ -159,4 +172,83 @@ test('resolves required context through governed relationships', () => {
 
   assert.equal(result.decision, 'RESOLVED')
   assert.deepEqual(result.plan?.arguments.grid_asset, { entityId: 'ASSET-SUB-NORTH-01' })
+})
+
+function purposeContract(overrides: Partial<ContextContract> = {}): ContextContract {
+  const base = structuredClone(counterpartyRiskContract)
+  return {
+    ...base,
+    purposes: [
+      { id: 'credit-risk-review', label: 'Credit risk review', description: 'Assess counterparty exposure.', obligations: ['Retain for audit only'], jurisdictions: ['EU'], retentionDays: 90 },
+      { id: 'marketing', label: 'Marketing analytics', description: 'Campaign targeting.' },
+    ],
+    policies: base.policies.map((policy) => ({ ...policy, purposeRequired: true, permittedPurposeIds: ['credit-risk-review'] })),
+    ...overrides,
+  }
+}
+
+function purposeCompiler(contract: ContextContract) {
+  return new ContextCompiler(contract, { now: () => new Date('2026-07-19T00:00:00.000Z'), id: () => 'purpose' })
+}
+
+test('a policy that requires a purpose refuses to compile without one', () => {
+  const result = purposeCompiler(purposeContract()).compile({ question: 'Show Arcadia Capital exposure.' }, subject)
+
+  assert.equal(result.decision, 'DENIED')
+  assert.deepEqual(result.reasonCodes, ['PURPOSE_REQUIRED'])
+  assert.match(result.explanation[0] ?? '', /credit-risk-review/)
+})
+
+test('an undeclared purpose is refused rather than recorded', () => {
+  const result = purposeCompiler(purposeContract())
+    .compile({ question: 'Show Arcadia Capital exposure.', purposeId: 'debt-collection' }, subject)
+
+  assert.equal(result.decision, 'DENIED')
+  assert.deepEqual(result.reasonCodes, ['PURPOSE_NOT_DECLARED'])
+})
+
+test('a declared purpose the risk tier does not permit is refused', () => {
+  const result = purposeCompiler(purposeContract())
+    .compile({ question: 'Show Arcadia Capital exposure.', purposeId: 'marketing' }, subject)
+
+  assert.equal(result.decision, 'DENIED')
+  assert.deepEqual(result.reasonCodes, ['PURPOSE_NOT_PERMITTED_AT_RISK_TIER'])
+})
+
+test('a permitted purpose is pinned into the plan with its obligations', () => {
+  const result = purposeCompiler(purposeContract()).compile(
+    { question: 'Show Arcadia Capital exposure.', purposeId: 'credit-risk-review', purpose: 'Quarterly limit review' },
+    subject,
+  )
+
+  assert.equal(result.decision, 'RESOLVED')
+  assert.equal(result.plan?.purpose?.id, 'credit-risk-review')
+  assert.deepEqual(result.plan?.purpose?.obligations, ['Retain for audit only'])
+  assert.deepEqual(result.plan?.purpose?.jurisdictions, ['EU'])
+  assert.equal(result.plan?.purpose?.retentionDays, 90)
+  assert.equal(result.plan?.purpose?.statedPurpose, 'Quarterly limit review')
+})
+
+test('a contract without purpose requirements still pins one when the caller names it', () => {
+  const contract = purposeContract()
+  const relaxed: ContextContract = {
+    ...contract,
+    policies: contract.policies.map((policy) => ({ ...policy, purposeRequired: false, permittedPurposeIds: [] })),
+  }
+  const result = purposeCompiler(relaxed).compile({ question: 'Show Arcadia Capital exposure.', purposeId: 'marketing' }, subject)
+
+  assert.equal(result.decision, 'RESOLVED')
+  assert.equal(result.plan?.purpose?.id, 'marketing')
+})
+
+test('an unnamed purpose leaves the plan unpinned rather than inventing one', () => {
+  const contract = purposeContract()
+  const relaxed: ContextContract = {
+    ...contract,
+    policies: contract.policies.map((policy) => ({ ...policy, purposeRequired: false, permittedPurposeIds: [] })),
+  }
+  const result = purposeCompiler(relaxed).compile({ question: 'Show Arcadia Capital exposure.' }, subject)
+
+  assert.equal(result.decision, 'RESOLVED')
+  assert.equal(result.plan?.purpose, undefined)
 })

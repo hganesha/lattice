@@ -125,7 +125,7 @@ test('every internal $ref resolves to a declared component schema', () => {
 })
 
 test('protected routes inherit bearer security and the public ones opt out deliberately', () => {
-  const publicRoutes = new Set(['/health', '/openapi.json', '/v1/keys/current'])
+  const publicRoutes = new Set(['/health', '/openapi.json', '/v1/keys/current', '/v1/keys'])
   assert.deepEqual(openApiDocument.security, [{ bearerAuth: [] }])
 
   for (const [path, operations] of Object.entries(openApiDocument.paths)) {

@@ -108,12 +108,37 @@ export const openApiDocument: OpenApiDocument = {
         responses: { 200: jsonResponse('The OpenAPI 3.1 description of this API.', { type: 'object' }) },
       },
     },
+    '/v1/keys': {
+      get: {
+        tags: ['Service'],
+        operationId: 'listSigningKeys',
+        summary: 'Retrieve every plan-signing key a verifier should trust.',
+        description: 'A JWKS `keys` array, newest first. Retired keys are retained so a plan signed before a rotation can still be verified offline until it expires.',
+        security: [],
+        responses: {
+          200: jsonResponse('The signing key set.', {
+            type: 'object',
+            properties: {
+              keys: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: true,
+                  description: 'A public JWK carrying `kid`, `alg`, and `use`.',
+                },
+              },
+            },
+            required: ['keys'],
+          }),
+        },
+      },
+    },
     '/v1/keys/current': {
       get: {
         tags: ['Service'],
         operationId: 'getCurrentSigningKey',
         summary: 'Retrieve the current plan-signing public key.',
-        description: 'The key is currently ephemeral and per-process, so a plan cannot yet be verified offline or across instances.',
+        description: 'The active signing key. Use `GET /v1/keys` for the full set, which retains retired keys through a rotation.',
         security: [],
         responses: {
           200: jsonResponse('The active public signing key as a JWK.', {
@@ -756,7 +781,8 @@ export const openApiDocument: OpenApiDocument = {
           question: { type: 'string', minLength: 1, description: 'The natural-language question to compile.' },
           contractId: { type: 'string', description: 'Contract to compile against. Defaults to the reference counterparty contract.' },
           contractVersion: { type: 'string', description: 'Fail unless the active release matches this version.' },
-          purpose: { type: 'string', description: 'Why the answer is needed.' },
+          purposeId: { type: 'string', description: 'Identifier of a purpose the contract declares. Required where the governing policy demands one; an undeclared or impermissible purpose is refused.' },
+          purpose: { type: 'string', description: 'Free-text statement of why the answer is needed, recorded alongside the declared purpose.' },
           asOf: { type: 'string', format: 'date-time', description: 'Evaluate evidence validity and freshness as of this instant.' },
           selections: {
             type: 'object',
@@ -803,6 +829,7 @@ export const openApiDocument: OpenApiDocument = {
           principalId: { type: 'string', description: 'The only principal that may verify or execute this plan.' },
           tenantId: { type: 'string', description: 'The tenant the plan was issued within.' },
           grounding: { type: 'string', enum: ['LIVE', 'SIMULATED'] },
+          purpose: opaqueDocument('PinnedPurpose', 'The declared purpose this decision was compiled under, with its obligations, jurisdictions, and retention.'),
           operation: { type: 'string' },
           intent: opaqueDocument('IntentDecisionEvidence', 'Scores, thresholds, margin, and whether the operation was user-confirmed.'),
           arguments: { type: 'object', additionalProperties: true },
@@ -852,7 +879,7 @@ export const openApiDocument: OpenApiDocument = {
           evidenceRefs: { type: 'array', items: { type: 'string' } },
           bindingResults: {
             type: 'array',
-            items: opaqueDocument('BindingExecutionResult', 'Per-binding outcome, including whether it read a live source or a sample.'),
+            items: opaqueDocument('BindingExecutionResult', 'Per-binding outcome: the rows read, whether the result was truncated at the binding\'s row ceiling, and whether it read a live source or a sample. Each mapped value carries its classification and a disclosure of VALUE, DIGEST, or WITHHELD: confidential values are reduced to a salted digest and restricted values are recorded as read without being retained.'),
           },
           artifactDigest: { type: 'string' },
         },

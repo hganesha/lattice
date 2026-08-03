@@ -52,6 +52,25 @@ The API verifies the asymmetric signature, key ID, issuer, audience, token lifet
 
 Runtime authorization is derived entirely from that verified identity. The permissions a plan requires are checked against the caller's token scopes — a request body that asserts its own entitlements is rejected — and wildcard scopes are stripped, so an issuer cannot mint blanket authority. The blanket bypass used by the development identity mapper is keyed off the authenticator rather than a role name, so an external directory that happens to emit a group called `DEVELOPER` gains nothing. Signed plans carry the principal and tenant they were issued to, and verification and execution both fail closed for anyone else.
 
+### Plan signing and offline verification
+
+Execution plans are signed with Ed25519. Configure a persistent key so a plan stays verifiable
+across restarts and replicas; without one the server generates an ephemeral key, warns, and
+refuses to start at all when `NODE_ENV=production`:
+
+```bash
+export LATTICE_SIGNING_KEY="$(cat signing-key.pem)"          # PKCS#8 Ed25519, PEM or base64 PEM
+export LATTICE_SIGNING_KEYS_RETIRED="$(cat previous.pub.pem)" # comma-separated, kept through a rotation
+```
+
+The key identifier is the key's own RFC 7638 thumbprint, so it can never be reused for a
+different key. `GET /v1/keys` publishes every key a verifier should trust, retired ones included,
+so a plan signed before a rotation keeps verifying until it expires.
+
+`@lattice/plan-verifier` verifies a plan from that key set alone, with no call back to the API —
+checking signature, expiry, the subject it was issued to, and the contract release it is pinned
+to. See [packages/plan-verifier/README.md](packages/plan-verifier/README.md).
+
 ### Optional semantic intent resolution
 
 The Context API always has a deterministic lexical resolver. To add vector-backed paraphrase resolution, configure an HTTPS embedding endpoint that accepts `{ model, input, encoding_format }` and returns indexed float vectors under `data`. Loopback HTTP is allowed for local models:
@@ -62,7 +81,15 @@ export LATTICE_EMBEDDING_MODEL=governed-intent-embedding-v1
 export LATTICE_EMBEDDING_API_KEY=server-only-token # optional for local endpoints
 ```
 
-At runtime, the API embeds published operation descriptions and linked competency questions into a contract-release-scoped in-memory index. The index is cached by contract digest and model version. Semantic candidates never bypass the compiler: risk-tier-specific score, margin, and confirmation gates decide whether to continue, ask the user to choose an operation, or return `UNSUPPORTED`. Planning and operational actions require confirmation when selected only by semantic similarity. If the embedding endpoint is unavailable, resolution degrades to lexical candidates and records the sanitized degradation reason in `intentResolution`; questions and API keys are not logged.
+When Supabase is configured, the API reads the persisted, release-scoped index the
+`contract_intent_embeddings` migration provisions: vectors belong to one immutable release with
+the provider, model, and dimensions pinned alongside them, so a release can never mix vectors
+from two embedding spaces. Only the question is embedded at compile time; the corpus is embedded
+once when the release is published. The index is queried through `match_contract_intents` under
+the caller's own token, so RLS remains the data boundary. A release whose index is not yet ready
+resolves lexically rather than failing.
+
+Without Supabase, the API embeds published operation descriptions and linked competency questions into a contract-release-scoped in-memory index. The index is cached by contract digest and model version. Semantic candidates never bypass the compiler: risk-tier-specific score, margin, and confirmation gates decide whether to continue, ask the user to choose an operation, or return `UNSUPPORTED`. Planning and operational actions require confirmation when selected only by semantic similarity. If the embedding endpoint is unavailable, resolution degrades to lexical candidates and records the sanitized degradation reason in `intentResolution`; questions and API keys are not logged.
 
 ### Supabase production identity and tenancy
 
@@ -113,6 +140,14 @@ Within a workspace, drag types to arrange the canvas, draw between node handles 
 Open workspace-level **Ontology bindings** to map shared master or reference data once, or contract-level **Source bindings** for decision-specific sources. Both support Databricks, Microsoft Fabric, Snowflake, BigQuery, PostgreSQL, Kafka, S3/ADLS/OneLake, and OpenAPI. API bindings discover response fields from OpenAPI; Databricks, Microsoft Fabric, and PostgreSQL bindings can discover live provider metadata, while every data-platform binding can still ingest a declared row or event schema. Both flows suggest property mappings and stage the endpoint, read-only resource/query scope, external credential reference, freshness limit, permissions, and source checksum. Credential values are deliberately excluded.
 
 The Studio reads its connector catalog from the API and can validate endpoint shape, resource scope, query safety, credential resolution, and runtime-driver availability for every staged binding. Databricks uses built-in HTTPS adapters for Unity Catalog discovery and Statement Execution; Microsoft Fabric uses encrypted native TDS with a Microsoft Entra SQL access token for `INFORMATION_SCHEMA` discovery and bounded T-SQL execution; PostgreSQL uses a native wire-protocol adapter for `information_schema` discovery and read-only transactions. Snowflake and BigQuery retain built-in HTTPS dispatchers. Kafka and object-storage transports remain delegated to a separately operated local connector runtime configured with `LATTICE_CONNECTOR_GATEWAY_URL=http://127.0.0.1:<port>`; further native connector expansion is deferred.
+
+HTTP source bindings reach loopback by default. To let one reach a real service, allowlist its
+host explicitly — opening this up unconditionally would turn a governed binding into an SSRF
+primitive, so plaintext remains loopback-only regardless:
+
+```bash
+export LATTICE_HTTP_SOURCE_HOSTS=risk.internal,collateral.example.com
+```
 
 Credentials are resolved by a server-only chain. `env:VARIABLE_NAME` reads the process environment; vault, workload-identity, and managed-identity references can be handled by an injected runtime resolver or a credential broker configured with `LATTICE_CREDENTIAL_BROKER_URL` and optional `LATTICE_CREDENTIAL_BROKER_TOKEN`. Remote brokers must use HTTPS (loopback HTTP is allowed for local development) and implement `POST /v1/credentials/resolve`, accepting `{ reference, provider, resource }` and returning `{ value, expiresAt? }`. Empty, malformed, or expired responses are rejected. Secret values never enter contracts, browser responses, telemetry records, or logs.
 
@@ -208,6 +243,7 @@ apps/
   studio/              Human authoring, assurance, and runtime UI
 packages/
   compiler-core/       Pure deterministic compiler
+  plan-verifier/       Offline execution-plan verification
   contracts/           Shared contract and plan types
   exporter-core/       Deterministic RDF/XML and Turtle serializer
   importer-core/       OpenAPI/JSON Schema proposal engine

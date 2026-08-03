@@ -1,4 +1,4 @@
-import type { ContractRegistryEntry, ContractRelease, IndustryWorkspace, ReleaseControlEvent } from '@lattice/contracts'
+import type { ContextContract, ContractRegistryEntry, ContractRelease, IndustryWorkspace, ReleaseControlEvent } from '@lattice/contracts'
 import type { RegistryDocument, RegistryStorage } from './registry.js'
 
 interface SupabaseRegistryRowMetadata {
@@ -64,6 +64,8 @@ export class SupabaseRegistryStorage implements RegistryStorage {
   }
   private workspaceSnapshots = new Map<string, string>()
   private contractSnapshots = new Map<string, string>()
+  /** updated_at as it was when this instance read, used as the write precondition. */
+  private contractUpdatedAt = new Map<string, string>()
   private releaseKeys = new Set<string>()
   private releaseEventIds = new Set<string>()
 
@@ -124,6 +126,7 @@ export class SupabaseRegistryStorage implements RegistryStorage {
       }
       entries[row.id] = entry
       this.metadata.contractCreators.set(row.id, row.created_by)
+      this.contractUpdatedAt.set(row.id, row.updated_at)
       this.contractSnapshots.set(row.id, stableJson(contractPayload(this.organizationId, entry, workspaceIdFor(entry, workspaces), row.created_by, this.principalId)))
     }
 
@@ -147,7 +150,7 @@ export class SupabaseRegistryStorage implements RegistryStorage {
     )).filter((row) => this.contractSnapshots.get(row.id) !== stableJson(row))
 
     if (workspaceRows.length > 0) await this.upsert('workspaces', 'organization_id,id', workspaceRows)
-    if (contractRows.length > 0) await this.upsert('contracts', 'organization_id,id', contractRows)
+    for (const row of contractRows) await this.writeContractRow(row)
 
     const releaseRows = Object.values(document.entries).flatMap((entry) => entry.releases
       .filter((release) => !this.releaseKeys.has(releaseKey(entry.contractId, release.digest)))
@@ -195,14 +198,99 @@ export class SupabaseRegistryStorage implements RegistryStorage {
     }
   }
 
+  /**
+   * Reads rows, refusing to return a silently short answer.
+   *
+   * PostgREST applies its own maximum-rows setting, so a large registry would come back
+   * truncated with no error and the API would serve a registry that is quietly missing
+   * contracts. Asking for an exact count and comparing it to what arrived turns that into a
+   * loud failure.
+   */
   private async select<T>(table: string, fields: string, filters: Record<string, string> = {}): Promise<T[]> {
     const url = this.tableUrl(table)
     url.searchParams.set('organization_id', `eq.${this.organizationId}`)
     url.searchParams.set('select', fields)
     for (const [key, value] of Object.entries(filters)) url.searchParams.set(key, value)
-    const response = await this.fetcher(url, { headers: this.headers, signal: AbortSignal.timeout(5_000) })
+    const response = await this.fetcher(url, {
+      headers: { ...this.headers, Prefer: 'count=exact' },
+      signal: AbortSignal.timeout(5_000),
+    })
     if (!response.ok) throw new Error(`SUPABASE_REGISTRY_READ_FAILED:${table}:${response.status}`)
-    return await response.json() as T[]
+    const rows = await response.json() as T[]
+
+    const total = totalFromContentRange(response.headers.get('content-range'))
+    if (total !== undefined && total > rows.length) {
+      throw new Error(`SUPABASE_REGISTRY_READ_TRUNCATED:${table}:${rows.length}/${total}`)
+    }
+    return rows
+  }
+
+  /**
+   * Reads one published release without loading the organization's whole registry.
+   *
+   * The runtime path only ever needs a single active contract, and pulling every workspace,
+   * draft, and release to answer one question is the difference between a request that scales
+   * and one that does not.
+   */
+  async readPublishedContract(contractId: string): Promise<ContextContract | undefined> {
+    const [contractRow] = await this.select<{ runtime_status: string; active_release_digest?: string | null }>(
+      'contracts',
+      'runtime_status,active_release_digest',
+      { id: `eq.${contractId}` },
+    )
+    if (!contractRow || contractRow.runtime_status !== 'ACTIVE') return undefined
+
+    const cacheKey = `${this.organizationId}:${contractId}:${contractRow.active_release_digest ?? 'latest'}`
+    const cached = publishedReleaseCache.get(cacheKey)
+    if (cached) return structuredClone(cached)
+
+    const releases = await this.select<{ contract: ContextContract }>(
+      'contract_releases',
+      'contract,digest,published_at',
+      contractRow.active_release_digest
+        ? { contract_id: `eq.${contractId}`, digest: `eq.${contractRow.active_release_digest}` }
+        : { contract_id: `eq.${contractId}`, order: 'published_at.desc', limit: '1' },
+    )
+    const contract = releases[0]?.contract
+    if (!contract) return undefined
+
+    // Releases are immutable and content-addressed, so caching one can never serve stale data.
+    publishedReleaseCache.set(cacheKey, contract)
+    return structuredClone(contract)
+  }
+
+
+  /**
+   * Writes one contract row, refusing to overwrite a concurrent edit.
+   *
+   * The registry is read, modified, and written back on every request, so a plain upsert makes
+   * the last writer win silently: two authors editing the same draft would see one change
+   * vanish with no error. A row that existed when this instance read is updated only while its
+   * updated_at still matches what was read; anything else is a conflict the caller must resolve
+   * by re-reading.
+   */
+  private async writeContractRow(row: ReturnType<typeof contractPayload>): Promise<void> {
+    const seenAt = this.contractUpdatedAt.get(row.id)
+    if (seenAt === undefined) {
+      await this.upsert('contracts', 'organization_id,id', [row])
+      return
+    }
+
+    const url = this.tableUrl('contracts')
+    url.searchParams.set('organization_id', `eq.${this.organizationId}`)
+    url.searchParams.set('id', `eq.${row.id}`)
+    url.searchParams.set('updated_at', `eq.${seenAt}`)
+    const response = await this.fetcher(url, {
+      method: 'PATCH',
+      headers: { ...this.headers, Prefer: 'return=representation' },
+      body: JSON.stringify(row),
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!response.ok) throw new Error(`SUPABASE_REGISTRY_WRITE_FAILED:contracts:${response.status}`)
+
+    const updated = await response.json() as unknown[]
+    if (updated.length === 0) throw new ContractRegistryConflictError(row.id)
+    this.contractUpdatedAt.set(row.id, row.updated_at)
   }
 
   private async upsert(table: string, conflictColumns: string, rows: object[], prefer = 'resolution=merge-duplicates,return=minimal'): Promise<void> {
@@ -292,4 +380,52 @@ function secureProjectUrl(value: string): URL {
 
 function validUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
+export class ContractRegistryConflictError extends Error {
+  constructor(readonly contractId: string) {
+    super(`${contractId} was modified by another writer since this request read it. Re-read and reapply the change.`)
+    this.name = 'ContractRegistryConflictError'
+  }
+}
+
+/**
+ * Immutable published releases, keyed by content digest.
+ *
+ * Bounded so a long-lived process cannot accumulate every release an organization has ever
+ * published. Entries can never go stale: a different release has a different digest and
+ * therefore a different key.
+ */
+class ReleaseCache {
+  private readonly entries = new Map<string, ContextContract>()
+
+  constructor(private readonly maximumEntries: number) {}
+
+  get(key: string): ContextContract | undefined {
+    const value = this.entries.get(key)
+    if (!value) return undefined
+    // Refresh recency so the eviction order is least-recently-used.
+    this.entries.delete(key)
+    this.entries.set(key, value)
+    return value
+  }
+
+  set(key: string, value: ContextContract): void {
+    this.entries.set(key, value)
+    while (this.entries.size > this.maximumEntries) {
+      const oldest = this.entries.keys().next().value
+      if (oldest === undefined) break
+      this.entries.delete(oldest)
+    }
+  }
+}
+
+const publishedReleaseCache = new ReleaseCache(200)
+
+/** PostgREST reports `items 0-24/1234`; the total is what follows the slash. */
+export function totalFromContentRange(header: string | null): number | undefined {
+  const total = header?.split('/')[1]
+  if (!total || total === '*') return undefined
+  const parsed = Number(total)
+  return Number.isInteger(parsed) ? parsed : undefined
 }

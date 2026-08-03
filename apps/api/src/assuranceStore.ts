@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { AssuranceRun } from '@lattice/contracts'
+import { ArtifactChainBrokenError, linkArtifact, nextChainState, verifyChain } from './hashChain.js'
 
 interface AssuranceDocument {
   schemaVersion: '1.0'
@@ -14,7 +15,13 @@ export class AssuranceStore {
 
   static async open(filePath: string): Promise<AssuranceStore> {
     try {
-      return new AssuranceStore(filePath, JSON.parse(await readFile(filePath, 'utf8')) as AssuranceDocument)
+      const document = JSON.parse(await readFile(filePath, 'utf8')) as AssuranceDocument
+      // The assurance digest is computed by runAssurance over its own unsigned payload, so the
+      // store cannot recompute it here; the chain still detects removal, reordering, and any
+      // edit to the recorded digest itself.
+      const verification = verifyChain(document.runs)
+      if (!verification.valid) throw new ArtifactChainBrokenError('Assurance', verification)
+      return new AssuranceStore(filePath, document)
     } catch (error) {
       const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
       if (!missing) throw error
@@ -38,7 +45,12 @@ export class AssuranceStore {
 
   async append(run: AssuranceRun, tenantId: string | undefined): Promise<AssuranceRun> {
     if (this.document.runs.some((candidate) => candidate.id === run.id)) throw new Error('ASSURANCE_RUN_IMMUTABLE')
-    const owned: AssuranceRun = { ...structuredClone(run), ...(tenantId ? { tenantId } : {}) }
+    const { previousDigest, sequence } = nextChainState(this.document.runs)
+    const owned: AssuranceRun = {
+      ...structuredClone(run),
+      ...(tenantId ? { tenantId } : {}),
+      chain: linkArtifact(previousDigest, run.artifactDigest, sequence),
+    }
     this.document.runs.push(owned)
     await this.persist()
     return structuredClone(owned)

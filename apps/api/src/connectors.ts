@@ -1,10 +1,16 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { Client, type ClientConfig, type QueryResult } from 'pg'
 import { Connection, Request, TYPES, type ConnectionConfiguration } from 'tedious'
-import { connectorTemplate, type BindingPreview, type BindingSourceField, type ConnectorHealthRecord, type ConnectorValidationResult, type SourceBinding } from '@lattice/contracts'
+import { connectorTemplate, resolveMaximumRows, type BindingPreview, type BindingSourceField, type ConnectorHealthRecord, type ConnectorValidationResult, type SourceBinding } from '@lattice/contracts'
 
 type JsonObject = Record<string, unknown>
-type ConnectorArgument = { entityId: string } | string | number | boolean
+
+/** A bounded result set from one governed read. */
+export interface ConnectorRows {
+  rows: JsonObject[]
+  truncated: boolean
+}
+export type ConnectorArgument = { entityId: string } | string | number | boolean
 type PostgresRow = Record<string, unknown>
 
 interface PostgresClient {
@@ -65,6 +71,32 @@ export function validateConnectorBinding(binding: SourceBinding): ConnectorValid
   checks.push({ id: 'query', status: queryValid ? 'PASS' : 'FAIL', message: queryValid ? 'The operation is constrained to a read-only query or selector.' : 'Query bindings must contain one read-only SELECT or WITH statement.' })
   const credentialState = credentialStateFor(binding.connector.credentialRef)
   checks.push({ id: 'credential', status: credentialState === 'MISSING' ? 'FAIL' : credentialState === 'AVAILABLE' ? 'PASS' : 'INFO', message: credentialState === 'AVAILABLE' ? 'A credential resolver is configured in this runtime.' : credentialState === 'EXTERNAL' ? 'Credential reference is delegated to the external connector runtime.' : 'Credential reference is missing or unresolved.' })
+  const positional = template.parameterStyle === 'POSITIONAL'
+  const orderDeclared = (binding.connector.parameterOrder ?? []).length > 0
+  const orderNeeded = positional && hasPositionalMarkers(binding.connector.provider, binding.connector.queryTemplate)
+  checks.push({
+    id: 'parameters',
+    status: !orderNeeded || orderDeclared ? 'PASS' : 'FAIL',
+    message: !orderNeeded
+      ? 'This provider binds arguments by name.'
+      : orderDeclared
+        ? `Positional arguments are bound in the declared order: ${binding.connector.parameterOrder!.join(', ')}.`
+        : 'A positional query must declare parameterOrder, otherwise its markers depend on argument insertion order.',
+  })
+
+  const declaredParameters = binding.parameters ?? []
+  const parameterNames = new Set(declaredParameters.map((parameter) => parameter.name))
+  const orderCovered = !orderDeclared || binding.connector.parameterOrder!.every((name) => parameterNames.has(name))
+  checks.push({
+    id: 'source_keys',
+    status: declaredParameters.length > 0 ? (orderCovered ? 'PASS' : 'FAIL') : 'INFO',
+    message: declaredParameters.length === 0
+      ? 'No source keys are declared, so the query is bound with Lattice entity identifiers rather than keys this system recognizes.'
+      : orderCovered
+        ? `${declaredParameters.length} parameter(s) are bound from governed properties.`
+        : 'Every name in parameterOrder must have a declared source key.',
+  })
+
   const gatewayAvailable = Boolean(process.env.LATTICE_CONNECTOR_GATEWAY_URL)
   const driver: ConnectorValidationResult['driver'] = builtInHttpProviders.has(binding.connector.provider) ? 'BUILT_IN_HTTP' : builtInNativeProviders.has(binding.connector.provider) ? 'BUILT_IN_NATIVE' : gatewayAvailable ? 'EXTERNAL_GATEWAY' : 'NOT_AVAILABLE'
   checks.push({ id: 'driver', status: driver === 'NOT_AVAILABLE' ? 'INFO' : 'PASS', message: driver === 'BUILT_IN_HTTP' ? 'A built-in HTTPS driver is available.' : driver === 'BUILT_IN_NATIVE' ? 'A built-in native driver is available.' : driver === 'EXTERNAL_GATEWAY' ? 'The external connector gateway is configured.' : 'This transport requires LATTICE_CONNECTOR_GATEWAY_URL at execution time.' })
@@ -73,7 +105,7 @@ export function validateConnectorBinding(binding: SourceBinding): ConnectorValid
   return { provider: binding.connector.provider, status: invalid ? 'INVALID' : executable ? 'READY' : 'CONFIGURED', driver, credentialState, checks }
 }
 
-export async function executeConnector(binding: SourceBinding, parameters: Record<string, ConnectorArgument> = {}, runtime: ConnectorRuntime = {}): Promise<JsonObject> {
+export async function executeConnector(binding: SourceBinding, parameters: Record<string, ConnectorArgument> = {}, runtime: ConnectorRuntime = {}): Promise<ConnectorRows> {
   if (!binding.connector) throw new Error('CONNECTOR_CONFIG_REQUIRED')
   const validation = validateConnectorBinding(binding)
   if (validation.status === 'INVALID') throw new Error('CONNECTOR_CONFIG_INVALID')
@@ -83,8 +115,8 @@ export async function executeConnector(binding: SourceBinding, parameters: Recor
   const token = resolved?.value
   if (token && builtInHttpProviders.has(binding.connector.provider)) {
     if (binding.connector.provider === 'DATABRICKS') return executeDatabricks(binding, token, parameters, runtime)
-    if (binding.connector.provider === 'SNOWFLAKE') return executeSnowflake(binding, token, runtime)
-    if (binding.connector.provider === 'BIGQUERY') return executeBigQuery(binding, token, runtime)
+    if (binding.connector.provider === 'SNOWFLAKE') return executeSnowflake(binding, token, parameters, runtime)
+    if (binding.connector.provider === 'BIGQUERY') return executeBigQuery(binding, token, parameters, runtime)
   }
   if (token && binding.connector.provider === 'POSTGRESQL') return executePostgresql(binding, token, parameters, runtime)
   if (token && binding.connector.provider === 'MICROSOFT_FABRIC') return executeFabric(binding, token, parameters, runtime)
@@ -192,14 +224,15 @@ export async function probeConnectorHealth(binding: SourceBinding, runtime: Conn
   }
 }
 
-async function executeDatabricks(binding: SourceBinding, token: string, parameters: Record<string, ConnectorArgument>, runtime: ConnectorRuntime): Promise<JsonObject> {
+async function executeDatabricks(binding: SourceBinding, token: string, parameters: Record<string, ConnectorArgument>, runtime: ConnectorRuntime): Promise<ConnectorRows> {
   const connector = binding.connector!
+  const maximumRows = resolveMaximumRows(connector.maximumRows)
   const endpoint = providerUrl(binding, '/api/2.0/sql/statements', ['databricks.com', 'azuredatabricks.net'])
   const payload = await postJson(endpoint, token, {
     warehouse_id: connector.resource.warehouse,
     catalog: connector.resource.catalog,
     schema: connector.resource.schema,
-    statement: boundedQuery(connector.queryTemplate),
+    statement: boundedQuery(connector.queryTemplate, maximumRows),
     parameters: Object.entries(parameters).map(([name, value]) => ({ name, value: String(argumentValue(value)) })),
     wait_timeout: '10s',
     on_wait_timeout: 'CANCEL',
@@ -209,48 +242,82 @@ async function executeDatabricks(binding: SourceBinding, token: string, paramete
   const status = objectValue(payload.status)?.state
   if (status && status !== 'SUCCEEDED') throw new Error(`DATABRICKS_STATEMENT_${String(status)}`)
   const columns = arrayValue(objectValue(objectValue(payload.manifest)?.schema)?.columns).map((column) => String(objectValue(column)?.name ?? ''))
-  const row = arrayValue(objectValue(payload.result)?.data_array)[0]
-  return rowRecord(columns, arrayValue(row))
+  const { rows, truncated } = takeRows(arrayValue(objectValue(payload.result)?.data_array), maximumRows)
+  return { rows: rows.map((row) => rowRecord(columns, arrayValue(row))), truncated }
 }
 
-async function executeSnowflake(binding: SourceBinding, token: string, runtime: ConnectorRuntime): Promise<JsonObject> {
+async function executeSnowflake(binding: SourceBinding, token: string, parameters: Record<string, ConnectorArgument>, runtime: ConnectorRuntime): Promise<ConnectorRows> {
   const connector = binding.connector!
+  const maximumRows = resolveMaximumRows(connector.maximumRows)
   const endpoint = providerUrl(binding, '/api/v2/statements', ['snowflakecomputing.com'])
+  // The SQL API binds positionally: markers are `?` and bindings are keyed "1", "2", ...
+  const values = orderedParameterValues(binding, parameters)
+  const bindings = Object.fromEntries(values.map((value, index) => [
+    String(index + 1),
+    { type: snowflakeBindType(value), value: String(value) },
+  ]))
   const payload = await postJson(endpoint, token, {
-    statement: connector.queryTemplate,
+    statement: boundedQuery(connector.queryTemplate, maximumRows),
     warehouse: connector.resource.warehouse,
     database: connector.resource.database,
     schema: connector.resource.schema,
+    ...(values.length > 0 ? { bindings } : {}),
     timeout: 30,
   }, runtime)
   const columns = arrayValue(objectValue(payload.resultSetMetaData)?.rowType).map((column) => String(objectValue(column)?.name ?? ''))
-  const row = arrayValue(payload.data)[0]
-  return rowRecord(columns, arrayValue(row))
+  const { rows, truncated } = takeRows(arrayValue(payload.data), maximumRows)
+  return { rows: rows.map((row) => rowRecord(columns, arrayValue(row))), truncated }
 }
 
-async function executeBigQuery(binding: SourceBinding, token: string, runtime: ConnectorRuntime): Promise<JsonObject> {
+function snowflakeBindType(value: string | number | boolean): string {
+  if (typeof value === 'number') return 'REAL'
+  if (typeof value === 'boolean') return 'BOOLEAN'
+  return 'TEXT'
+}
+
+async function executeBigQuery(binding: SourceBinding, token: string, parameters: Record<string, ConnectorArgument>, runtime: ConnectorRuntime): Promise<ConnectorRows> {
   const connector = binding.connector!
+  const maximumRows = resolveMaximumRows(connector.maximumRows)
   const project = encodeURIComponent(connector.resource.project ?? '')
   const endpoint = new URL(`/bigquery/v2/projects/${project}/queries`, providerUrl(binding, '', ['bigquery.googleapis.com']))
-  const payload = await postJson(endpoint, token, { query: connector.queryTemplate, useLegacySql: false }, runtime)
+  const queryParameters = Object.entries(parameters).map(([name, value]) => ({
+    name,
+    parameterType: { type: bigQueryParameterType(argumentValue(value)) },
+    parameterValue: { value: String(argumentValue(value)) },
+  }))
+  const payload = await postJson(endpoint, token, {
+    query: connector.queryTemplate,
+    useLegacySql: false,
+    maxResults: maximumRows + 1,
+    ...(queryParameters.length > 0 ? { parameterMode: 'NAMED', queryParameters } : {}),
+  }, runtime)
   const columns = arrayValue(objectValue(payload.schema)?.fields).map((field) => String(objectValue(field)?.name ?? ''))
-  const firstRow = objectValue(arrayValue(payload.rows)[0])
-  const cells = arrayValue(firstRow?.f).map((cell) => objectValue(cell)?.v)
-  return rowRecord(columns, cells)
+  const { rows, truncated } = takeRows(arrayValue(payload.rows), maximumRows)
+  return {
+    rows: rows.map((row) => rowRecord(columns, arrayValue(objectValue(row)?.f).map((cell) => objectValue(cell)?.v))),
+    truncated,
+  }
 }
 
-async function executePostgresql(binding: SourceBinding, connectionString: string, parameters: Record<string, ConnectorArgument>, runtime: ConnectorRuntime): Promise<JsonObject> {
+function bigQueryParameterType(value: string | number | boolean): string {
+  if (typeof value === 'number') return Number.isInteger(value) ? 'INT64' : 'FLOAT64'
+  if (typeof value === 'boolean') return 'BOOL'
+  return 'STRING'
+}
+
+async function executePostgresql(binding: SourceBinding, connectionString: string, parameters: Record<string, ConnectorArgument>, runtime: ConnectorRuntime): Promise<ConnectorRows> {
   validatePostgresScope(binding, connectionString)
+  const maximumRows = resolveMaximumRows(binding.connector?.maximumRows)
   const client = createPostgresClient(connectionString, runtime)
   await client.connect()
   let transactionStarted = false
   try {
     await client.query('BEGIN READ ONLY')
     transactionStarted = true
-    const values = Object.values(parameters).map(argumentValue)
-    const result = await client.query({ text: boundedQuery(binding.connector?.queryTemplate), values })
-    if (!result.rows[0]) throw new Error('CONNECTOR_RESULT_EMPTY')
-    return result.rows[0]
+    const values = orderedParameterValues(binding, parameters)
+    const result = await client.query({ text: boundedQuery(binding.connector?.queryTemplate, maximumRows), values })
+    const bounded = takeRows(result.rows, maximumRows)
+    return { rows: bounded.rows, truncated: bounded.truncated }
   } finally {
     if (transactionStarted) {
       try { await client.query('ROLLBACK') } finally { await client.end() }
@@ -260,13 +327,14 @@ async function executePostgresql(binding: SourceBinding, connectionString: strin
   }
 }
 
-async function executeFabric(binding: SourceBinding, token: string, parameters: Record<string, ConnectorArgument>, runtime: ConnectorRuntime): Promise<JsonObject> {
+async function executeFabric(binding: SourceBinding, token: string, parameters: Record<string, ConnectorArgument>, runtime: ConnectorRuntime): Promise<ConnectorRows> {
+  const maximumRows = resolveMaximumRows(binding.connector?.maximumRows)
   const client = createFabricClient(binding, token, runtime)
   try {
     await client.connect()
-    const result = await client.query(readOnlyTsqlQuery(binding.connector?.queryTemplate), fabricParameters(parameters), 1)
-    if (!result[0]) throw new Error('CONNECTOR_RESULT_EMPTY')
-    return result[0]
+    const result = await client.query(readOnlyTsqlQuery(binding.connector?.queryTemplate), fabricParameters(parameters), maximumRows + 1)
+    const bounded = takeRows(result, maximumRows)
+    return { rows: bounded.rows, truncated: bounded.truncated }
   } finally {
     client.close()
   }
@@ -331,10 +399,16 @@ ORDER BY ORDINAL_POSITION`, { database: resource.database ?? '', schema: resourc
   }
 }
 
-async function executeGateway(gateway: string, binding: SourceBinding, parameters: Record<string, ConnectorArgument>, runtime: ConnectorRuntime): Promise<JsonObject> {
+async function executeGateway(gateway: string, binding: SourceBinding, parameters: Record<string, ConnectorArgument>, runtime: ConnectorRuntime): Promise<ConnectorRows> {
   const endpoint = new URL('/v1/execute', gateway)
   if (!['127.0.0.1', 'localhost'].includes(endpoint.hostname)) throw new Error('CONNECTOR_GATEWAY_HOST_NOT_ALLOWLISTED')
-  return postJson(endpoint, undefined, { binding, parameters }, runtime)
+  const maximumRows = resolveMaximumRows(binding.connector?.maximumRows)
+  const payload = await postJson(endpoint, undefined, { binding, parameters, maximumRows }, runtime)
+  // A gateway predating row-aware execution answers with a single object; treat it as one row
+  // rather than failing, but never trust it to have applied the ceiling itself.
+  const rows = Array.isArray(payload.rows) ? payload.rows.filter(isJsonObject) : [payload]
+  const bounded = takeRows(rows, maximumRows)
+  return { rows: bounded.rows, truncated: Boolean(payload.truncated) || bounded.truncated }
 }
 
 async function discoverGateway(gateway: string, binding: SourceBinding, contractId: string, sourceName: string, runtime: ConnectorRuntime): Promise<BindingPreview> {
@@ -394,10 +468,33 @@ function validEndpoint(endpoint: string | undefined, transport: string): boolean
   return !/\s/.test(endpoint)
 }
 
+/**
+ * Rejects anything that is not a single, plainly read-only statement.
+ *
+ * A blocklist over keywords is not a SQL parser and should not be mistaken for one: comments
+ * can smuggle text past it, and a bare SELECT can still invoke a side-effecting function. Only
+ * PostgreSQL gets a real guarantee, from its READ ONLY transaction. This narrows the gap by
+ * stripping comments before matching — so `/*;*\/ DROP` cannot hide behind a comment — and by
+ * refusing the function classes that read files, reach the network, or mutate through a SELECT.
+ *
+ * The durable fix is provider-side: a read-only role, or a read-only warehouse.
+ */
 function isReadOnlyQuery(query: string | undefined): boolean {
   if (!query?.trim()) return false
-  const normalized = query.trim().replace(/;\s*$/, '')
-  return /^(select|with)\b/i.test(normalized) && !/;/.test(normalized) && !/\b(insert|update|delete|merge|drop|alter|create|truncate|grant|revoke|call|execute|into)\b/i.test(normalized)
+
+  const withoutComments = query
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/--[^\n]*/g, ' ')
+    .trim()
+    .replace(/;\s*$/, '')
+
+  if (!withoutComments) return false
+  if (!/^(select|with)\b/i.test(withoutComments)) return false
+  if (/;/.test(withoutComments)) return false
+  if (/\b(insert|update|delete|merge|drop|alter|create|truncate|grant|revoke|call|execute|exec|into|copy|vacuum|analyze|lock|listen|notify|do|prepare|deallocate|set|reset|begin|commit|rollback|savepoint)\b/i.test(withoutComments)) return false
+  // Functions that read the filesystem, reach the network, or mutate behind a SELECT.
+  if (/\b(pg_read_file|pg_read_binary_file|pg_ls_dir|lo_import|lo_export|dblink|pg_sleep|pg_terminate_backend|pg_reload_conf|xp_cmdshell|openrowset|opendatasource|external_query|system\$)/i.test(withoutComments)) return false
+  return true
 }
 
 function credentialStateFor(reference: string): ConnectorValidationResult['credentialState'] {
@@ -606,9 +703,47 @@ function normalizedPort(url: URL): string {
   return url.port || '5432'
 }
 
-function boundedQuery(query: string | undefined): string {
+/**
+ * Wraps a governed query in its row ceiling.
+ *
+ * One row over the limit is requested deliberately: it is the only way to tell "exactly the
+ * limit" from "more than the limit", so a receipt can say honestly whether it saw everything.
+ */
+function boundedQuery(query: string | undefined, maximumRows: number): string {
   if (!query || !isReadOnlyQuery(query)) throw new Error('CONNECTOR_QUERY_NOT_READ_ONLY')
-  return `SELECT * FROM (${query.trim().replace(/;\s*$/, '')}) AS lattice_source LIMIT 1`
+  return `SELECT * FROM (${query.trim().replace(/;\s*$/, '')}) AS lattice_source LIMIT ${maximumRows + 1}`
+}
+
+/**
+ * Values for a positional query's markers, in the order the binding declares.
+ *
+ * Reading them from object key order would make the binding depend on the insertion order of
+ * the plan's arguments, so adding a required entity type would silently rebind the query.
+ */
+function orderedParameterValues(
+  binding: SourceBinding,
+  parameters: Record<string, ConnectorArgument>,
+): Array<string | number | boolean> {
+  const names = Object.keys(parameters)
+  if (names.length === 0) return []
+
+  const declared = binding.connector?.parameterOrder
+  if (!declared) throw new Error('CONNECTOR_PARAMETER_ORDER_REQUIRED')
+
+  return declared.map((name) => {
+    if (!(name in parameters)) throw new Error(`CONNECTOR_PARAMETER_MISSING:${name}`)
+    return argumentValue(parameters[name]!)
+  })
+}
+
+/** True when a positional template carries markers this provider would need bound. */
+function hasPositionalMarkers(provider: string, query: string | undefined): boolean {
+  if (!query) return false
+  return provider === 'POSTGRESQL' ? /\$\d/.test(query) : /\?/.test(query)
+}
+
+function takeRows<T>(rows: T[], maximumRows: number): { rows: T[]; truncated: boolean } {
+  return { rows: rows.slice(0, maximumRows), truncated: rows.length > maximumRows }
 }
 
 function readOnlyTsqlQuery(query: string | undefined): string {
@@ -651,6 +786,10 @@ function digest(value: unknown): string {
 function rowRecord(columns: string[], values: unknown[]): JsonObject {
   if (columns.length === 0 || values.length === 0) throw new Error('CONNECTOR_RESULT_EMPTY')
   return Object.fromEntries(columns.map((column, index) => [column, values[index]]))
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function objectValue(value: unknown): JsonObject | undefined {

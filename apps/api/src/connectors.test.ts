@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { SourceBinding } from '@lattice/contracts'
+import { resolveMaximumRows } from '@lattice/contracts'
 import { discoverConnector, executeConnector, probeConnectorHealth, validateConnectorBinding } from './connectors.js'
 
 function databricksBinding(queryTemplate = 'SELECT id, status FROM governed.counterparty WHERE id = :id'): SourceBinding {
@@ -79,6 +80,7 @@ function postgresqlBinding(): SourceBinding {
       credentialRef: 'env:LATTICE_TEST_POSTGRES_URL',
       resource: { database: 'governed', schema: 'public', object: 'counterparty' },
       queryTemplate: 'SELECT id, status FROM public.counterparty WHERE id = $1',
+      parameterOrder: ['id'],
       parameterStyle: 'POSITIONAL',
       readOnly: true,
     },
@@ -119,8 +121,8 @@ test('discovers Databricks Unity Catalog columns and binds plan arguments during
 
     assert.equal(requests[0]?.url, 'https://workspace.cloud.databricks.com/api/2.1/unity-catalog/tables/risk.governed.counterparty')
     assert.deepEqual(preview.operations[0]?.fields.map((field) => [field.path, field.dataType, field.required]), [['$.id', 'string', true], ['$.limit_amount', 'number', false]])
-    assert.deepEqual(payload, { id: 'cp-42', status: 'approved' })
-    assert.match(String(requests[1]?.body?.statement), /LIMIT 1$/)
+    assert.deepEqual(payload, { rows: [{ id: 'cp-42', status: 'approved' }], truncated: false })
+    assert.match(String(requests[1]?.body?.statement), /LIMIT 51$/)
     assert.deepEqual(requests[1]?.body?.parameters, [{ name: 'id', value: 'cp-42' }])
   } finally {
     delete process.env.LATTICE_TEST_DATABRICKS_TOKEN
@@ -164,11 +166,11 @@ test('uses the native PostgreSQL driver for catalog discovery and bounded parame
     assert.deepEqual(preview.operations[0]?.fields.map((field) => [field.path, field.dataType, field.required]), [['$.id', 'string', true], ['$.exposure', 'number', false]])
     assert.equal(discoveryEnded, true)
     assert.equal(executionQueries[0], 'BEGIN READ ONLY')
-    assert.match((executionQueries[1] as { text: string }).text, /LIMIT 1$/)
+    assert.match((executionQueries[1] as { text: string }).text, /LIMIT 51$/)
     assert.deepEqual((executionQueries[1] as { values: unknown[] }).values, ['cp-42'])
     assert.equal(executionQueries[2], 'ROLLBACK')
     assert.equal(executionEnded, true)
-    assert.deepEqual(payload, { id: 'cp-42', status: 'approved' })
+    assert.deepEqual(payload, { rows: [{ id: 'cp-42', status: 'approved' }], truncated: false })
   } finally {
     delete process.env.LATTICE_TEST_POSTGRES_URL
   }
@@ -206,8 +208,8 @@ test('uses native Fabric TDS for information schema discovery and bounded parame
     assert.deepEqual(preview.operations[0]?.fields.map((field) => [field.path, field.dataType, field.required]), [['$.id', 'string', true], ['$.exposure', 'number', false]])
     assert.equal(queries[1]?.text, 'SELECT id, status FROM dbo.counterparty WHERE id = @id')
     assert.deepEqual(queries[1]?.parameters, { id: 'cp-42' })
-    assert.equal(queries[1]?.maxRows, 1)
-    assert.deepEqual(payload, { id: 'cp-42', status: 'approved' })
+    assert.equal(queries[1]?.maxRows, 51)
+    assert.deepEqual(payload, { rows: [{ id: 'cp-42', status: 'approved' }], truncated: false })
     assert.equal(closeCount, 2)
   } finally {
     delete process.env.LATTICE_TEST_FABRIC_TOKEN
@@ -234,13 +236,13 @@ test('preserves Fabric CTE syntax and closes the TDS client when connection fail
         connect: async () => undefined,
         query: async (text, _parameters, maxRows) => {
           executedQuery = text
-          assert.equal(maxRows, 1)
+          assert.equal(maxRows, 51)
           return [{ id: 'cp-42' }]
         },
         close: () => { executionClosed = true },
       }),
     })
-    assert.deepEqual(payload, { id: 'cp-42' })
+    assert.deepEqual(payload, { rows: [{ id: 'cp-42' }], truncated: false })
     assert.equal(executedQuery, cte)
     assert.equal(executionClosed, true)
 
@@ -358,9 +360,159 @@ test('dispatches external transports through the local connector gateway', async
     const validation = validateConnectorBinding(kafkaBinding())
     assert.equal(validation.status, 'READY')
     assert.equal(validation.driver, 'EXTERNAL_GATEWAY')
-    assert.deepEqual(await executeConnector(kafkaBinding()), { id: 'cp-42', status: 'approved' })
+    assert.deepEqual(await executeConnector(kafkaBinding()), { rows: [{ id: 'cp-42', status: 'approved' }], truncated: false })
   } finally {
     delete process.env.LATTICE_CONNECTOR_GATEWAY_URL
     globalThis.fetch = originalFetch
+  }
+})
+
+test('Snowflake binds plan arguments instead of sending a static template', async () => {
+  process.env.LATTICE_TEST_SNOWFLAKE_TOKEN = 'test-token'
+  const requests: Array<{ body?: Record<string, unknown> }> = []
+  const binding: SourceBinding = {
+    ...postgresqlBinding(),
+    endpoint: 'https://account.snowflakecomputing.com',
+    connector: {
+      provider: 'SNOWFLAKE', transport: 'HTTPS', credentialRef: 'env:LATTICE_TEST_SNOWFLAKE_TOKEN',
+      resource: { warehouse: 'wh', database: 'governed', schema: 'public', object: 'counterparty' },
+      queryTemplate: 'SELECT id, status FROM governed.public.counterparty WHERE id = ?',
+      parameterOrder: ['id'], parameterStyle: 'POSITIONAL', readOnly: true,
+    },
+  }
+  const runtime = {
+    fetch: async (_input: string | URL | Request, init?: RequestInit) => {
+      requests.push({ ...(init?.body ? { body: JSON.parse(String(init.body)) as Record<string, unknown> } : {}) })
+      return new Response(JSON.stringify({
+        resultSetMetaData: { rowType: [{ name: 'id' }, { name: 'status' }] },
+        data: [['cp-42', 'approved'], ['cp-43', 'pending']],
+      }), { status: 200 })
+    },
+  }
+  try {
+    const payload = await executeConnector(binding, { id: { entityId: 'cp-42' } }, runtime)
+
+    assert.deepEqual(requests[0]?.body?.bindings, { 1: { type: 'TEXT', value: 'cp-42' } })
+    assert.match(String(requests[0]?.body?.statement), /LIMIT 51$/)
+    assert.deepEqual(payload.rows, [{ id: 'cp-42', status: 'approved' }, { id: 'cp-43', status: 'pending' }])
+  } finally {
+    delete process.env.LATTICE_TEST_SNOWFLAKE_TOKEN
+  }
+})
+
+test('BigQuery binds named plan arguments', async () => {
+  process.env.LATTICE_TEST_BIGQUERY_TOKEN = 'test-token'
+  const requests: Array<{ body?: Record<string, unknown> }> = []
+  const binding: SourceBinding = {
+    ...postgresqlBinding(),
+    endpoint: 'https://bigquery.googleapis.com',
+    connector: {
+      provider: 'BIGQUERY', transport: 'HTTPS', credentialRef: 'env:LATTICE_TEST_BIGQUERY_TOKEN',
+      resource: { project: 'risk-project', schema: 'governed', object: 'counterparty' },
+      queryTemplate: 'SELECT id FROM governed.counterparty WHERE id = @id',
+      parameterStyle: 'NAMED', readOnly: true,
+    },
+  }
+  const runtime = {
+    fetch: async (_input: string | URL | Request, init?: RequestInit) => {
+      requests.push({ ...(init?.body ? { body: JSON.parse(String(init.body)) as Record<string, unknown> } : {}) })
+      return new Response(JSON.stringify({ schema: { fields: [{ name: 'id' }] }, rows: [{ f: [{ v: 'cp-42' }] }] }), { status: 200 })
+    },
+  }
+  try {
+    const payload = await executeConnector(binding, { id: { entityId: 'cp-42' } }, runtime)
+
+    assert.equal(requests[0]?.body?.parameterMode, 'NAMED')
+    assert.deepEqual(requests[0]?.body?.queryParameters, [
+      { name: 'id', parameterType: { type: 'STRING' }, parameterValue: { value: 'cp-42' } },
+    ])
+    assert.deepEqual(payload.rows, [{ id: 'cp-42' }])
+  } finally {
+    delete process.env.LATTICE_TEST_BIGQUERY_TOKEN
+  }
+})
+
+test('a positional binding without a declared parameter order fails rather than guessing', async () => {
+  process.env.LATTICE_TEST_POSTGRES_URL = 'postgresql://context_reader:secret@db.example.internal:5432/governed'
+  const binding = postgresqlBinding()
+  const { parameterOrder: _dropped, ...connector } = binding.connector!
+  const unordered = { ...binding, connector }
+  try {
+    // Caught at validation, before anything reaches the database.
+    const validation = validateConnectorBinding(unordered)
+    assert.equal(validation.status, 'INVALID')
+    assert.equal(validation.checks.find((check) => check.id === 'parameters')?.status, 'FAIL')
+
+    await assert.rejects(
+      () => executeConnector(unordered, { id: { entityId: 'cp-42' } }, {
+        createPostgresClient: () => ({ connect: async () => undefined, query: async () => ({ rows: [] }) as never, end: async () => undefined }),
+      }),
+      /CONNECTOR_CONFIG_INVALID/,
+    )
+    assert.equal(validateConnectorBinding(binding).checks.find((check) => check.id === 'parameters')?.status, 'PASS')
+  } finally {
+    delete process.env.LATTICE_TEST_POSTGRES_URL
+  }
+})
+
+test('a result set larger than the binding allows is truncated and says so', async () => {
+  process.env.LATTICE_TEST_POSTGRES_URL = 'postgresql://context_reader:secret@db.example.internal:5432/governed'
+  const binding = postgresqlBinding()
+  const limited: SourceBinding = { ...binding, connector: { ...binding.connector!, maximumRows: 2 } }
+  try {
+    const payload = await executeConnector(limited, { id: { entityId: 'cp-42' } }, {
+      createPostgresClient: () => ({
+        connect: async () => undefined,
+        // The adapter asks for one more than the limit precisely so it can detect this.
+        query: async (query) => (typeof query === 'string' ? { rows: [] } : { rows: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] }) as never,
+        end: async () => undefined,
+      }),
+    })
+
+    assert.equal(payload.rows.length, 2)
+    assert.equal(payload.truncated, true)
+  } finally {
+    delete process.env.LATTICE_TEST_POSTGRES_URL
+  }
+})
+
+test('a binding cannot raise its row ceiling beyond the hard cap', () => {
+  assert.equal(resolveMaximumRows(undefined), 50)
+  assert.equal(resolveMaximumRows(10), 10)
+  assert.equal(resolveMaximumRows(100_000), 1_000)
+  assert.equal(resolveMaximumRows(0), 50)
+  assert.equal(resolveMaximumRows(-5), 50)
+})
+
+test('the read-only check is not fooled by comments or side-effecting functions', () => {
+  const rejected = [
+    'SELECT 1; DROP TABLE governed.counterparty',
+    'SELECT 1 /*;*/ ; DELETE FROM governed.counterparty',
+    'SELECT pg_read_file(\'/etc/passwd\')',
+    'SELECT * FROM dblink(\'host=attacker\', \'SELECT 1\') AS t(x text)',
+    'SELECT pg_sleep(60)',
+    'WITH x AS (SELECT 1) INSERT INTO governed.counterparty SELECT * FROM x',
+    'SELECT * INTO governed.copy FROM governed.counterparty',
+    '-- SELECT 1\nDROP TABLE governed.counterparty',
+  ]
+  for (const query of rejected) {
+    assert.equal(
+      validateConnectorBinding(databricksBinding(query)).checks.find((check) => check.id === 'query')?.status,
+      'FAIL',
+      `expected to reject: ${query}`,
+    )
+  }
+
+  const accepted = [
+    'SELECT id, status FROM governed.counterparty WHERE id = :id',
+    'WITH recent AS (SELECT id FROM governed.counterparty) SELECT * FROM recent',
+    'SELECT id FROM governed.counterparty -- only the identifier',
+  ]
+  for (const query of accepted) {
+    assert.equal(
+      validateConnectorBinding(databricksBinding(query)).checks.find((check) => check.id === 'query')?.status,
+      'PASS',
+      `expected to accept: ${query}`,
+    )
   }
 })

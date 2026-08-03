@@ -55,6 +55,28 @@ export interface CompetencyQuestion {
   operationId: string
 }
 
+/**
+ * How sensitive the values behind a governed property are.
+ *
+ * Ordered from least to most restricted. Enterprises already hold this judgement in Purview,
+ * Collibra, Unity Catalog, or Dataplex, so it is modelled as an assertion carrying its source
+ * rather than a field an author invents locally.
+ */
+export type DataClassification = 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'RESTRICTED'
+
+export interface ClassificationAssertion {
+  sensitivity: DataClassification
+  /** Regime labels the owning catalog applies, for example PII, PHI, PCI, or CPNI. */
+  categories?: string[]
+  /** CATALOG when federated from a data catalog; AUTHOR when asserted in the Studio. */
+  source: 'CATALOG' | 'AUTHOR'
+  /** Which catalog asserted it, for example `purview` or `unity-catalog`. */
+  catalog?: string
+  /** Where the assertion came from, so it can be traced back and re-synchronized. */
+  locator?: string
+  assertedAt?: string
+}
+
 export interface PropertyDefinition {
   id: string
   name: string
@@ -64,6 +86,8 @@ export interface PropertyDefinition {
   identifier?: boolean
   allowedValues?: string[]
   unit?: string
+  /** Sensitivity of the values this property carries. Absent means the workspace default applies. */
+  classification?: ClassificationAssertion
 }
 
 export interface EntityTypeDefinition {
@@ -160,6 +184,19 @@ export interface BindingConnectorConfig {
   resource: ConnectorResource
   queryTemplate?: string
   parameterStyle?: 'NAMED' | 'POSITIONAL' | 'NONE'
+  /**
+   * Argument names in the order the query's positional markers expect them.
+   *
+   * Required for positional providers whose template carries markers. Without it the binding
+   * would depend on JavaScript object key order, so adding a required entity type would
+   * silently rebind every parameter in the query.
+   */
+  parameterOrder?: string[]
+  /**
+   * Most rows this binding may return. Defaults to DEFAULT_MAXIMUM_ROWS and is capped at
+   * MAXIMUM_ROWS_CEILING, so a governed read cannot become an unbounded extract.
+   */
+  maximumRows?: number
   readOnly: boolean
 }
 
@@ -199,9 +236,26 @@ export interface SourceBinding {
   method?: string
   sourceChecksum?: string
   mappings?: BindingFieldMapping[]
+  /**
+   * Which governed property supplies each query parameter.
+   *
+   * Without this a query is bound with Lattice's own entity identifier, which the source system
+   * has never seen. The same entity is keyed differently in different systems — an LEI here, an
+   * internal account number there — so the key is declared per binding rather than per entity.
+   */
+  parameters?: BindingParameter[]
   healthStatus?: 'NOT_TESTED' | 'VALID' | 'WARNING' | 'INVALID'
   executionMode?: 'SIMULATED' | 'HTTP' | 'CONNECTOR'
   samplePayload?: Record<string, unknown>
+}
+
+export interface BindingParameter {
+  /** Name the query template uses, matching a `:name`/`@name` marker or an entry in parameterOrder. */
+  name: string
+  /** Entity type the compiler resolves to supply this parameter. */
+  targetTypeId: string
+  /** Property of that entity holding the key this source system recognizes. */
+  targetPropertyId: string
 }
 
 export interface ConnectorValidationRequest {
@@ -253,6 +307,12 @@ export interface BindingFieldMapping {
   targetPropertyId: string
   sourceDataType: string
   confidence: 'EXACT' | 'SUGGESTED' | 'MANUAL'
+  /**
+   * Sensitivity asserted by the source system for this specific column, which overrides the
+   * target property's classification. A column tagged RESTRICTED in Unity Catalog stays
+   * restricted even when the ontology property it maps to is modelled as merely confidential.
+   */
+  classification?: ClassificationAssertion
 }
 
 export interface BindingSourceField {
@@ -292,7 +352,7 @@ export interface BindingPreviewRequest {
   operationLabel?: string
 }
 
-export type AssuranceCheckCategory = 'STRUCTURAL' | 'QUESTION' | 'MAPPING' | 'POLICY' | 'RELEASE'
+export type AssuranceCheckCategory = 'STRUCTURAL' | 'QUESTION' | 'MAPPING' | 'POLICY' | 'RELEASE' | 'RESOLUTION'
 export type AssuranceCheckStatus = 'PASS' | 'FAIL' | 'WARNING'
 
 export interface AssuranceCheckResult {
@@ -302,6 +362,16 @@ export interface AssuranceCheckResult {
   status: AssuranceCheckStatus
   message: string
   affectedClaimIds: string[]
+}
+
+/**
+ * Links one append-only artifact to its predecessor, so removing, reordering, or inserting a
+ * record breaks every link after it.
+ */
+export interface ArtifactChainLink {
+  sequence: number
+  previousDigest: string
+  chainDigest: string
 }
 
 export interface AssuranceRun {
@@ -316,6 +386,8 @@ export interface AssuranceRun {
   status: AssuranceCheckStatus
   score: number
   artifactDigest: string
+  /** Position in the append-only assurance ledger. */
+  chain?: ArtifactChainLink
   checks: AssuranceCheckResult[]
   summary: {
     passed: number
@@ -389,6 +461,36 @@ export interface OperationDefinition {
   expectedResultSchema: string
 }
 
+/**
+ * A purpose a contract permits its context to be used for.
+ *
+ * Purpose limitation is the question regulators actually ask — GDPR and CPRA name it directly,
+ * and the EU AI Act asks for an intended purpose — so it is a declared, reviewable part of the
+ * contract rather than free text a caller supplies at runtime.
+ */
+/** The purpose a decision was compiled under, copied into the plan and the receipt. */
+export interface PinnedPurpose {
+  id: string
+  label: string
+  obligations?: string[]
+  jurisdictions?: string[]
+  retentionDays?: number
+  /** Free text the caller supplied alongside the declared purpose, for the audit trail. */
+  statedPurpose?: string
+}
+
+export interface DeclaredPurpose {
+  id: string
+  label: string
+  description: string
+  /** Obligations a caller accepts by compiling under this purpose, recorded with the decision. */
+  obligations?: string[]
+  /** Jurisdictions this purpose is lawful in, for example `EU` or `US-CA`. */
+  jurisdictions?: string[]
+  /** How long a result compiled under this purpose may be retained downstream. */
+  retentionDays?: number
+}
+
 export interface GuardrailPolicy {
   id: string
   label: string
@@ -400,6 +502,13 @@ export interface GuardrailPolicy {
   version: string
   owner: string
   approvalStatus: ApprovalStatus
+  /**
+   * Refuse to compile at this risk tier unless the caller names a declared purpose. Off by
+   * default so existing contracts keep working; enable it wherever the data is regulated.
+   */
+  purposeRequired?: boolean
+  /** Restricts this tier to a subset of the contract's declared purposes. Empty means all. */
+  permittedPurposeIds?: string[]
 }
 
 export interface ContextTest {
@@ -515,6 +624,8 @@ export interface ContextContract {
    * simulated bindings, so a leftover sample payload can never silently ground a decision.
    */
   runtimeMode?: 'LIVE' | 'REFERENCE'
+  /** Purposes this contract's context may lawfully be used for. */
+  purposes?: DeclaredPurpose[]
   competencyQuestions: CompetencyQuestion[]
   /** Reference to the workspace ontology. Embedded schema fields remain a runtime snapshot during migration. */
   ontologyRef?: OntologyReference
@@ -694,6 +805,9 @@ export interface CompileRequest {
   question: string
   contractId?: string
   contractVersion?: string
+  /** Identifier of a purpose the contract declares. Required where policy demands one. */
+  purposeId?: string
+  /** Free-text statement of why the answer is needed, recorded alongside the declared purpose. */
   purpose?: string
   asOf?: string
   selections?: Record<string, string>
@@ -783,6 +897,8 @@ export interface UnsignedExecutionPlan {
   tenantId?: string
   /** Whether the resolved context came from live source reads or documented samples. */
   grounding: ContextGrounding
+  /** The declared purpose this decision was compiled under, pinned so it is auditable. */
+  purpose?: PinnedPurpose
   operation: string
   intent: IntentDecisionEvidence
   arguments: Record<string, { entityId: string } | string | number | boolean>
@@ -863,13 +979,40 @@ export interface BindingExecutionResult {
   status: 'SUCCESS' | 'FAILED'
   durationMs: number
   responseDigest?: string
-  mappedValues: Array<{
-    sourcePath: string
-    targetTypeId: string
-    targetPropertyId: string
-    value: unknown
-  }>
+  /** Rows the binding returned, each mapped onto governed properties. */
+  rows: MappedRow[]
+  rowCount: number
+  /** True when the source had more rows than the binding's row limit allowed. */
+  truncated: boolean
   error?: string
+}
+
+export interface MappedRow {
+  rowIndex: number
+  values: MappedValueRecord[]
+}
+
+/**
+ * What a receipt is allowed to retain about one mapped value.
+ *
+ * An audit trail has to prove what was read without becoming an uncontrolled second copy of
+ * production data, so disclosure is graded by the value's classification rather than storing
+ * everything verbatim.
+ */
+export type ValueDisclosure = 'VALUE' | 'DIGEST' | 'WITHHELD'
+
+export interface MappedValueRecord {
+  sourcePath: string
+  targetTypeId: string
+  targetPropertyId: string
+  /** Present only when disclosure is VALUE. */
+  value?: unknown
+  /** Salted digest of the value when disclosure is DIGEST: comparable across runs, not readable. */
+  valueDigest?: string
+  disclosure: ValueDisclosure
+  classification: DataClassification
+  /** Regime labels that drove the disclosure decision, for example PII or CPNI. */
+  categories?: string[]
 }
 
 export interface ExecutionReceipt {
@@ -881,6 +1024,8 @@ export interface ExecutionReceipt {
   contractDigest: string
   planId: string
   operationId: string
+  /** The declared purpose the executed plan was compiled under. */
+  purpose?: PinnedPurpose
   principalId: string
   status: 'SUCCESS' | 'FAILED' | 'DENIED'
   startedAt: string
@@ -890,6 +1035,8 @@ export interface ExecutionReceipt {
   evidenceRefs: string[]
   bindingResults: BindingExecutionResult[]
   artifactDigest: string
+  /** Position in the append-only execution ledger. */
+  chain?: ArtifactChainLink
 }
 
 /**

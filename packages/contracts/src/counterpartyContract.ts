@@ -115,7 +115,10 @@ export const counterpartyRiskContract: ContextContract = {
     { id: 'ev-regulatory-catalog', type: 'TEMPLATE', title: 'Regulatory report applicability map', source: 'Financial Services Pack', locator: 'reports/ffiec-009', checksum: 'sha256:report', observedAt: '2026-07-01T00:00:00.000Z', validFrom: '2026-01-01T00:00:00.000Z', status: 'TEMPLATE_DERIVED' },
   ],
   bindings: [
-    { id: 'binding-risk-warehouse@1', sourceSystem: 'Risk Warehouse', operationId: 'risk.counterparty_exposure_assessment', environment: 'production', freshnessMinutes: 1440, requiredPermissions: ['risk.exposure.read'], expectedResultSchema: 'counterparty_exposure_assessment@1', version: '1.0.0', approvalStatus: approved, adapterType: 'OPENAPI', endpoint: 'https://risk.internal/v1/counterparty-exposure', method: 'GET', healthStatus: 'VALID', mappings: [
+    { id: 'binding-risk-warehouse@1', sourceSystem: 'Risk Warehouse', operationId: 'risk.counterparty_exposure_assessment', environment: 'production', freshnessMinutes: 1440, requiredPermissions: ['risk.exposure.read'], expectedResultSchema: 'counterparty_exposure_assessment@1', version: '1.0.0', approvalStatus: approved, adapterType: 'OPENAPI', endpoint: 'https://risk.internal/v1/counterparty-exposure', method: 'GET', healthStatus: 'VALID', parameters: [
+      // The warehouse keys on the LEI, not on Lattice's own CP-0103 identifier.
+      { name: 'counterparty_lei', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.lei' },
+    ], mappings: [
       { sourcePath: '$.counterparty.lei', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.lei', sourceDataType: 'string', confidence: 'EXACT' },
       { sourcePath: '$.counterparty.rating', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.rating', sourceDataType: 'string', confidence: 'EXACT' },
       { sourcePath: '$.position.notional', targetTypeId: 'position', targetPropertyId: 'position.notional', sourceDataType: 'number', confidence: 'EXACT' },

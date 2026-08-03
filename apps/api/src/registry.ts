@@ -397,6 +397,23 @@ export function validateContract(contract: ContextContract): string[] {
       const template = connectorTemplate(binding.connector.provider)
       const resourceComplete = template.resourceFields.every((field) => binding.connector?.resource[field]?.trim())
       if (!binding.connector.credentialRef.trim() || !binding.connector.readOnly || !resourceComplete) issues.push(`${binding.sourceSystem} must use a complete read-only resource scope and an external credential reference.`)
+      const positionalMarkers = binding.connector.provider === 'POSTGRESQL'
+        ? /\$\d/.test(binding.connector.queryTemplate ?? '')
+        : template.parameterStyle === 'POSITIONAL' && /\?/.test(binding.connector.queryTemplate ?? '')
+      if (positionalMarkers && (binding.connector.parameterOrder ?? []).length === 0) {
+        issues.push(`${binding.sourceSystem} uses positional query parameters, so it must declare the order they are bound in.`)
+      }
+      // A connector-backed query bound with Lattice's own entity identifiers filters on a value
+      // the source system has never seen, so it must say which governed property keys it.
+      for (const parameter of binding.parameters ?? []) {
+        const targetType = contract.entityTypes.find((type) => type.id === parameter.targetTypeId)
+        const targetProperty = targetType?.properties.find((property) => property.id === parameter.targetPropertyId)
+        if (!targetProperty) {
+          issues.push(`${binding.sourceSystem} binds ${parameter.name} to ${parameter.targetPropertyId}, which is not a property of ${parameter.targetTypeId}.`)
+        } else if (!targetProperty.identifier) {
+          issues.push(`${binding.sourceSystem} binds ${parameter.name} to ${parameter.targetPropertyId}, which is not marked as an identifying property.`)
+        }
+      }
     }
     if (binding.approvalStatus !== 'APPROVED' && binding.approvalStatus !== 'APPROVED_WITH_EXCEPTION') issues.push(`${binding.sourceSystem} must be approved before publishing.`)
     if (binding.executionMode === 'SIMULATED' && contract.runtimeMode !== 'REFERENCE') {

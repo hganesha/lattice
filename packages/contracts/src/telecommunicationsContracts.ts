@@ -1,9 +1,12 @@
 import { generatedIndustryOntologyCatalog } from './generatedIndustryOntologies.js'
 import type {
   ApprovalStatus,
+  ClassificationAssertion,
   CompetencyQuestion,
   ContextContract,
   ContextTest,
+  DataClassification,
+  DeclaredPurpose,
   EvidenceRecord,
   GuardrailPolicy,
   OperationDefinition,
@@ -12,6 +15,14 @@ import type {
 } from './types.js'
 
 const approved: ApprovalStatus = 'APPROVED'
+
+/**
+ * Customer proprietary network information under 47 CFR 64.2001 et seq. Asserted here as a
+ * stand-in for what a real deployment federates from its data catalog.
+ */
+function cpni(sensitivity: DataClassification): ClassificationAssertion {
+  return { sensitivity, categories: ['CPNI', 'PII'], source: 'CATALOG', catalog: 'reference', locator: '47 CFR 64.2001' }
+}
 const publishedAt = '2026-07-27T22:00:00.000Z'
 const artifact = generatedIndustryOntologyCatalog.find((item) => item.ontology.domain === 'telecommunications')
 
@@ -162,6 +173,13 @@ export const telecommunicationsOutageReportingContract: ContextContract = contra
 
 export const telecommunicationsCpniContract: ContextContract = contract({
   id: 'contract-telco-cpni-access',
+  // 47 CFR 64.2005 permits some uses without approval and requires it for others, so the
+  // permitted purposes are part of the published contract rather than caller free text.
+  purposes: [
+    { id: 'service-provisioning', label: 'Service provisioning', description: 'Provision, maintain, or repair the service the customer subscribes to.', obligations: ['Use only the minimum necessary context'], jurisdictions: ['US'], retentionDays: 365 },
+    { id: 'customer-initiated-support', label: 'Customer-initiated support', description: 'Answer a request the customer themselves initiated on an authenticated channel.', obligations: ['Authenticate the customer before disclosure'], jurisdictions: ['US'], retentionDays: 365 },
+    { id: 'marketing', label: 'Marketing', description: 'Market services outside the existing service relationship.', obligations: ['Requires documented opt-in approval'], jurisdictions: ['US'], retentionDays: 90 },
+  ],
   name: 'CPNI Access & Use Assurance',
   description: 'Privacy-minimized decision support for determining whether proposed access, use, disclosure, or marketing use of customer proprietary network information is permitted and properly authenticated. It never discloses CPNI or grants access itself.',
   workflow: 'cpni_access_and_use',
@@ -186,10 +204,14 @@ export const telecommunicationsCpniContract: ContextContract = contract({
       ['$.authorization.id', 'privacy_authorization', 'privacy_authorization.privacy_authorization_id', 'string'],
       ['$.authorization.action', 'privacy_authorization', 'privacy_authorization.privacy_cpni_action', 'string'],
       ['$.authorization.approvalStatus', 'privacy_authorization', 'privacy_authorization.privacy_approval_status', 'string'],
-      ['$.authentication.method', 'privacy_authorization', 'privacy_authorization.privacy_authentication_method', 'string'],
+      // The authentication method a subscriber used is itself CPNI: it reveals what factors
+      // protect the account. Digested rather than withheld so an auditor can still prove two
+      // accesses used the same method.
+      ['$.authentication.method', 'privacy_authorization', 'privacy_authorization.privacy_authentication_method', 'string', cpni('CONFIDENTIAL')],
       ['$.authentication.result', 'privacy_authorization', 'privacy_authorization.privacy_authentication_result', 'string'],
       ['$.access.channel', 'privacy_authorization', 'privacy_authorization.privacy_access_channel', 'string'],
-      ['$.account.reference', 'customer_account', 'customer_account.customer_account_number', 'string'],
+      // An account reference identifies a subscriber. It never belongs in an audit artifact.
+      ['$.account.reference', 'customer_account', 'customer_account.customer_account_number', 'string', cpni('RESTRICTED')],
       ['$.rules.citations', 'regulatory_requirement', 'regulatory_requirement.privacy_regulation_citations', 'string'],
     ],
     samplePayload: {
@@ -214,6 +236,8 @@ export const telecommunicationsCpniContract: ContextContract = contract({
   policies: [policy({
     id: 'policy-cpni-minimum-necessary',
     label: 'CPNI minimum necessary and authenticated access',
+    purposeRequired: true,
+    permittedPurposeIds: ['service-provisioning', 'customer-initiated-support'],
     description: 'Requires a valid approval or rule-based permission, channel-appropriate authentication, minimum-necessary protected context, immutable access or disclosure logging, and human escalation for ambiguity. Direct call-detail content is excluded.',
     riskTier: 'OPERATIONAL_ACTION',
     maximumEvidenceAgeMinutes: 5,
@@ -250,6 +274,7 @@ interface ContractInput {
   policies: GuardrailPolicy[]
   evidence: EvidenceRecord[]
   tests: ContextTest[]
+  purposes?: DeclaredPurpose[]
 }
 
 function contract(input: ContractInput): ContextContract {
@@ -263,6 +288,7 @@ function contract(input: ContractInput): ContextContract {
     version: '1.0.0',
     releaseStatus: 'PUBLISHED',
     runtimeMode: 'REFERENCE',
+    purposes: input.purposes ?? [],
     digest: `sha256:reference-${input.id}-1`,
     versions: {
       contract: `${input.id}@1.0.0`,
@@ -295,7 +321,7 @@ function binding(input: {
   freshnessMinutes: number
   permission: string
   schema: string
-  mappings: Array<[sourcePath: string, targetTypeId: string, targetPropertyId: string, sourceDataType: string]>
+  mappings: Array<[sourcePath: string, targetTypeId: string, targetPropertyId: string, sourceDataType: string, classification?: ClassificationAssertion]>
   samplePayload: Record<string, unknown>
 }): SourceBinding {
   return {
@@ -314,12 +340,13 @@ function binding(input: {
     method: 'READ',
     executionMode: 'SIMULATED',
     samplePayload: input.samplePayload,
-    mappings: input.mappings.map(([sourcePath, targetTypeId, targetPropertyId, sourceDataType]) => ({
+    mappings: input.mappings.map(([sourcePath, targetTypeId, targetPropertyId, sourceDataType, classification]) => ({
       sourcePath,
       targetTypeId,
       targetPropertyId,
       sourceDataType,
       confidence: 'EXACT',
+      ...(classification ? { classification } : {}),
     })),
   }
 }
@@ -351,6 +378,8 @@ function policy(input: {
   riskTier: RiskTier
   maximumEvidenceAgeMinutes: number
   owner: string
+  purposeRequired?: boolean
+  permittedPurposeIds?: string[]
 }): GuardrailPolicy {
   return {
     ...input,

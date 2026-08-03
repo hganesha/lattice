@@ -189,6 +189,19 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  packages/plan-verifier:
+    dependencies:
+      '@lattice/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
 packages:
 
   '@adobe/css-tools@4.5.0':
