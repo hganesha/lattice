@@ -40,15 +40,27 @@ describe('Studio shell', () => {
     expect(localStorage.getItem('lattice:navigation-collapsed')).toBe('true')
   })
 
-  it('opens the self-contained introduction from the Studio header', async () => {
+  it('opens the introduction from the Studio header and can be closed via Escape or the close button', async () => {
     const user = userEvent.setup()
     render(<LatticeI18nProvider><App /></LatticeI18nProvider>)
 
     await user.click(screen.getByRole('button', { name: 'Intro' }))
 
-    expect(screen.getByRole('dialog', { name: 'Introduction to Lattice' })).toBeVisible()
-    expect(screen.getByTitle('Lattice introduction')).toHaveAttribute('src', '/lattice-intro.html')
+    await user.click(screen.getByRole('button', { name: 'Intro' }))
 
+    const deck = await screen.findByRole('dialog', { name: 'Introduction to Lattice' })
+    expect(screen.getByRole('dialog', { name: 'Introduction to Lattice' })).toBeVisible()
+    // The deck is a standalone document in `public/`, not a bundled route.
+    expect(screen.getByTitle('Lattice introduction')).toHaveAttribute('src', '/lattice-intro.html')
+    expect(screen.getByRole('link', { name: 'Open in new tab' })).toHaveAttribute('href', '/lattice-intro.html')
+
+    // Close with Escape
+    await user.keyboard('{Escape}')
+    expect(deck).not.toBeInTheDocument()
+
+    // Re-open and close with the Close button
+    await user.click(screen.getByRole('button', { name: 'Intro' }))
+    await screen.findByRole('dialog', { name: 'Introduction to Lattice' })
     await user.click(screen.getByRole('button', { name: 'Close introduction' }))
     expect(screen.queryByRole('dialog', { name: 'Introduction to Lattice' })).not.toBeInTheDocument()
   })
