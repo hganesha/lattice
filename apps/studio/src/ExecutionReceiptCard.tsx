@@ -18,7 +18,7 @@ export function ExecutionReceiptCard({ receipt }: ExecutionReceiptCardProps) {
     {receipt.bindingResults.map((result) => <div className="adapter-result" key={result.bindingId}>
       <div><b>{result.sourceSystem}</b><span>{result.mode} adapter · {result.durationMs} ms</span></div>
       <span className={result.status === 'SUCCESS' ? 'receipt-success' : 'receipt-failed'}>{result.status}</span>
-      <small>{result.status === 'SUCCESS' ? `${result.mappedValues.length} governed fields · ${result.responseDigest}` : result.error}</small>
+      <small>{result.status === 'SUCCESS' ? `${result.rowCount} row${result.rowCount === 1 ? '' : 's'}${result.truncated ? ' (truncated)' : ''} · ${result.rows[0]?.values.length ?? 0} governed fields · ${result.responseDigest}` : result.error}</small>
     </div>)}
     <div className="artifact-digest">{receipt.artifactDigest}</div>
   </article>

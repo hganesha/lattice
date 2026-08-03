@@ -179,7 +179,7 @@ Writes are read-modify-write with snapshot-diff upserts and **no optimistic conc
 - **The pgvector work is not wired.** `supabase/migrations/20260728182130_contract_intent_embeddings.sql` builds a full release-scoped, organization-scoped, provider-pinned embedding store with pgmq/pg_cron/pg_net worker plumbing — 631 lines, plus a 353-line test — and nothing in `apps/api` or `packages/compiler-core` references it. `intentResolverFromEnvironment` (`embeddingProvider.ts:65`) only ever builds the in-memory hybrid resolver. Two divergent designs for the same capability now exist; one of them is dead.
 - **Degradation is invisible.** When the embedding endpoint fails, resolution silently falls back to lexical and records `degradedReason` (`intentResolver.ts:88-95`) — which no Studio component reads. An operator cannot tell that semantic routing is down.
 
-### 2.11 The data plane can return exactly one row — P1
+### 2.11 The data plane can return exactly one row — P1 · FIXED
 
 Every native adapter returns a single row: `boundedQuery` wraps the template in `LIMIT 1` (`connectors.ts:609-612`), Postgres takes `result.rows[0]`, Fabric passes `maxRows: 1`, Databricks/Snowflake/BigQuery take `data_array[0]` / `rows[0]`, and `rowRecord` flattens one row to an object (`connectors.ts:651`). No aggregation, no result sets, no pagination, no streaming. "What is our exposure across all counterparties?" is not expressible. That is a large fraction of the analytical questions an enterprise will bring.
 
@@ -190,6 +190,24 @@ Related defects in the same layer:
 - **Arguments carry Lattice entity ids, not source keys.** `argumentValue` passes `entity.entityId` (`connectors.ts:623`) — e.g. `sample-contract-airline-dispatch-release-flight`. There is no source-key/natural-key mapping and no entity-resolution layer, so a parameterised query against a real warehouse has nothing meaningful to filter on.
 - **Read-only enforcement is a regex blocklist** (`connectors.ts:397-401`). Postgres gets a genuine `BEGIN READ ONLY`; Databricks, Snowflake, BigQuery, and Fabric get only the regex. A `SELECT` that calls a side-effecting UDF or stored procedure passes.
 - **`HTTP` execution mode is loopback-only** (`adapters.ts:42`), so the OpenAPI binding path — the most common enterprise integration — cannot reach any real service in a deployed environment.
+
+**Fixed, except the loopback restriction.** Bindings now return bounded result sets: a default
+ceiling of 50 rows, a hard cap of 1,000 that no contract can raise, and an honest `truncated`
+flag — the adapters ask for one row more than the ceiling precisely so a receipt can distinguish
+"exactly the limit" from "more than the limit". Receipts and the MCP surface are row-shaped
+rather than assuming a single record.
+
+Snowflake and BigQuery bind plan arguments — positionally via SQL API bindings and by name via
+`queryParameters` respectively — so all five native providers now answer the question the
+compiler actually resolved rather than a static template. Postgres no longer binds from object
+key order: a positional query must declare `parameterOrder`, and both connector validation and
+the publish gate refuse a binding that does not, so adding a required entity type can no longer
+silently rebind a query.
+
+**Still open.** The read-only regex blocklist, the loopback-only HTTP mode, and source-key
+mapping — plan arguments still carry Lattice entity identifiers rather than the natural keys a
+real warehouse would filter on, which is the remaining half of making these connectors useful
+against production data.
 
 ### 2.12 Freshness is asserted at authoring time, not measured at read time — P1
 
@@ -346,7 +364,7 @@ Nine generated industry ontologies (16,488 lines) derived from 74 forms are an e
 
 7. KMS/HSM signing with `kid`-addressed JWKS, key history, and a standalone verification library (2.6, 3.4).
 8. User-identity propagation to the data platform — OBO/token exchange — so native row/column security applies (3.1).
-9. Result sets: pagination, aggregation, and real parameter binding for Snowflake and BigQuery; named rather than positional binding for Postgres; source-key mapping for arguments (2.11).
+9. ~~Result sets and real parameter binding for every native provider (2.11).~~ **Done.** Source-key mapping, the read-only blocklist, and the loopback-only HTTP mode remain.
 10. Measured freshness from the source system, replacing authoring-time `observedAt` (2.12).
 11. Per-contract reads, caching, and optimistic concurrency in the Supabase registry (2.9).
 12. ~~Classification-aware receipts: redaction for `mappedValues` (2.7).~~ **Done** — delivered ahead of P1 because the classification model in P2.17 is what it depends on. Retention and an encryption boundary remain open.

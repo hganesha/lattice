@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
-import { discloseMappedValue, type BindingExecutionResult, type ContextContract, type SignedExecutionPlan, type SourceBinding } from '@lattice/contracts'
-import { executeConnector } from './connectors.js'
+import { discloseMappedValue, type BindingExecutionResult, type ContextContract, type MappedRow, type SignedExecutionPlan, type SourceBinding } from '@lattice/contracts'
+import { executeConnector, type ConnectorRows } from './connectors.js'
 
 export interface ExecuteBindingsOptions {
   /** Scopes value digests to one tenant so they stay comparable within an audit trail only. */
@@ -32,21 +32,31 @@ export async function executeBindings(
     if (!binding) return failed(bindingId, 'Unknown source', 'SIMULATED', 'SOURCE_BINDING_NOT_FOUND')
     const startedAt = Date.now()
     try {
-      const payload = await loadPayload(binding, plan.arguments)
-      // The raw value is read to confirm the mapping resolves, then immediately reduced to
-      // whatever its classification permits a receipt to retain.
-      const rawValues = (binding.mappings ?? []).map((mapping) => ({ mapping, value: readPath(payload, mapping.sourcePath) }))
-      if (rawValues.some((entry) => entry.value === undefined)) throw new Error('SOURCE_MAPPING_VALUE_MISSING')
+      const { rows, truncated } = await loadRows(binding, plan.arguments)
       const digest = saltedDigest(options.digestSalt)
-      const mappedValues = rawValues.map((entry) => discloseMappedValue(entry.mapping, entry.value, contract, digest))
+      const mappings = binding.mappings ?? []
+
+      const mappedRows: MappedRow[] = rows.map((row, rowIndex) => {
+        // The raw value is read to confirm the mapping resolves, then immediately reduced to
+        // whatever its classification permits a receipt to retain.
+        const rawValues = mappings.map((mapping) => ({ mapping, value: readPath(row, mapping.sourcePath) }))
+        if (rawValues.some((entry) => entry.value === undefined)) throw new Error('SOURCE_MAPPING_VALUE_MISSING')
+        return {
+          rowIndex,
+          values: rawValues.map((entry) => discloseMappedValue(entry.mapping, entry.value, contract, digest)),
+        }
+      })
+
       return {
         bindingId,
         sourceSystem: binding.sourceSystem,
         mode: binding.executionMode ?? 'SIMULATED',
         status: 'SUCCESS' as const,
         durationMs: Date.now() - startedAt,
-        responseDigest: digest(payload),
-        mappedValues,
+        responseDigest: digest(rows),
+        rows: mappedRows,
+        rowCount: mappedRows.length,
+        truncated,
       }
     } catch (error) {
       return failed(binding.id, binding.sourceSystem, binding.executionMode ?? 'SIMULATED', error instanceof Error ? error.message : 'ADAPTER_EXECUTION_FAILED', Date.now() - startedAt)
@@ -54,11 +64,17 @@ export async function executeBindings(
   }))
 }
 
-async function loadPayload(binding: SourceBinding, parameters: SignedExecutionPlan['arguments']): Promise<Record<string, unknown>> {
+/**
+ * Reads a bounded result set.
+ *
+ * Sample payloads and HTTP sources describe a single object today, so they yield one row. A
+ * connector returns as many as its row ceiling allows.
+ */
+async function loadRows(binding: SourceBinding, parameters: SignedExecutionPlan['arguments']): Promise<ConnectorRows> {
   if (binding.executionMode === 'CONNECTOR') return executeConnector(binding, parameters)
   if ((binding.executionMode ?? 'SIMULATED') === 'SIMULATED') {
     if (!binding.samplePayload) throw new Error('SAMPLE_PAYLOAD_NOT_CONFIGURED')
-    return structuredClone(binding.samplePayload)
+    return { rows: [structuredClone(binding.samplePayload)], truncated: false }
   }
   if (!binding.endpoint) throw new Error('SOURCE_ENDPOINT_NOT_CONFIGURED')
   const endpoint = new URL(binding.endpoint)
@@ -68,7 +84,8 @@ async function loadPayload(binding: SourceBinding, parameters: SignedExecutionPl
   try {
     const response = await fetch(endpoint, { method: binding.method ?? 'GET', redirect: 'error', signal: controller.signal })
     if (!response.ok) throw new Error(`SOURCE_HTTP_${response.status}`)
-    return await response.json() as Record<string, unknown>
+    const body = await response.json() as Record<string, unknown> | Array<Record<string, unknown>>
+    return { rows: Array.isArray(body) ? body : [body], truncated: false }
   } finally {
     clearTimeout(timeout)
   }
@@ -81,7 +98,7 @@ function readPath(payload: Record<string, unknown>, path: string): unknown {
 }
 
 function failed(bindingId: string, sourceSystem: string, mode: 'SIMULATED' | 'HTTP' | 'CONNECTOR', error: string, durationMs = 0): BindingExecutionResult {
-  return { bindingId, sourceSystem, mode, status: 'FAILED', durationMs, mappedValues: [], error }
+  return { bindingId, sourceSystem, mode, status: 'FAILED', durationMs, rows: [], rowCount: 0, truncated: false, error }
 }
 
 function digest(value: unknown): string {

@@ -184,6 +184,19 @@ export interface BindingConnectorConfig {
   resource: ConnectorResource
   queryTemplate?: string
   parameterStyle?: 'NAMED' | 'POSITIONAL' | 'NONE'
+  /**
+   * Argument names in the order the query's positional markers expect them.
+   *
+   * Required for positional providers whose template carries markers. Without it the binding
+   * would depend on JavaScript object key order, so adding a required entity type would
+   * silently rebind every parameter in the query.
+   */
+  parameterOrder?: string[]
+  /**
+   * Most rows this binding may return. Defaults to DEFAULT_MAXIMUM_ROWS and is capped at
+   * MAXIMUM_ROWS_CEILING, so a governed read cannot become an unbounded extract.
+   */
+  maximumRows?: number
   readOnly: boolean
 }
 
@@ -949,8 +962,17 @@ export interface BindingExecutionResult {
   status: 'SUCCESS' | 'FAILED'
   durationMs: number
   responseDigest?: string
-  mappedValues: MappedValueRecord[]
+  /** Rows the binding returned, each mapped onto governed properties. */
+  rows: MappedRow[]
+  rowCount: number
+  /** True when the source had more rows than the binding's row limit allowed. */
+  truncated: boolean
   error?: string
+}
+
+export interface MappedRow {
+  rowIndex: number
+  values: MappedValueRecord[]
 }
 
 /**
