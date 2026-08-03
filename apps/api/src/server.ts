@@ -21,6 +21,8 @@ import {
   type CreateRuntimeApprovalDecisionRequest,
   type ContextContract,
   type ContractSummary,
+  type BindingPreview,
+  type SourceBinding,
   type CreateContractRequest,
   type ExecutePlanRequest,
   type ImportPreviewRequest,
@@ -30,7 +32,7 @@ import {
   type UnsignedExecutionPlan,
   type WorkspaceSummary,
 } from '@lattice/contracts'
-import { executeBindings } from './adapters.js'
+import { executeBindings, type ExecuteBindingsOptions } from './adapters.js'
 import { runAssurance } from './assurance.js'
 import { AssuranceStore } from './assuranceStore.js'
 import { ContractRegistry, ContractValidationError, type PublishRequest } from './registry.js'
@@ -47,8 +49,11 @@ import { SubjectScopedStore, type Subject } from './planStore.js'
 import { ContractRegistryConflictError, SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
 import { embeddingProviderFromEnvironment, intentResolverFromEnvironment } from './embeddingProvider.js'
 import { PersistedIntentResolver } from './persistedIntentIndex.js'
+import { delegationScopeFor, tokenExchangeFromEnvironment } from './delegatedIdentity.js'
+import { catalogSourceFromEnvironment } from './catalogFederation.js'
 import { openApiDocument } from './openapi.js'
 import { planSignerFromEnvironment } from './signing.js'
+import { recordCompileDecision, recordExecution, registerTelemetry, withSpan } from './telemetry.js'
 
 const port = Number(process.env.PORT ?? 8787)
 const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
@@ -72,8 +77,19 @@ const expiredPlanGraceMs = 60 * 60_000
 const clarifications = new SubjectScopedStore<PendingClarification>(clarificationRetentionMs)
 const intentResolver = intentResolverFromEnvironment()
 const embeddingProvider = embeddingProviderFromEnvironment()
+const tokenExchange = tokenExchangeFromEnvironment()
+const catalogSource = catalogSourceFromEnvironment()
+if (catalogSource) {
+  process.stderr.write(`[catalog] Classification federated from ${catalogSource.catalog}.\n`)
+}
+if (tokenExchange) {
+  process.stderr.write(`[identity] Delegated identity enabled via ${tokenExchange.provider}; DELEGATED bindings run as the asking user.\n`)
+}
+if (await registerTelemetry()) {
+  process.stderr.write('[telemetry] Tracing registered; governed decisions and executions are exported as spans.\n')
+}
 const plans = new SubjectScopedStore<{ plan: SignedExecutionPlan; contractId: string }>(expiredPlanGraceMs)
-const { signer: planSigner, ephemeral: ephemeralSigningKey } = planSignerFromEnvironment()
+const { signer: planSigner, ephemeral: ephemeralSigningKey } = await planSignerFromEnvironment()
 if (ephemeralSigningKey && process.env.NODE_ENV === 'production') {
   throw new Error('LATTICE_SIGNING_KEY is required in production: an ephemeral key cannot verify a plan across restarts or replicas.')
 }
@@ -266,6 +282,7 @@ const server = createServer(async (request, response) => {
         const contractId = body.contractId ?? `ontology:${body.workspaceId}`
         const sourceName = body.sourceName?.trim() || [body.binding.connector.resource.catalog, body.binding.connector.resource.database, body.binding.connector.resource.schema, body.binding.connector.resource.object].filter(Boolean).join('.')
         const preview = await discoverConnector(body.binding, contractId, sourceName)
+        await applyCatalogClassifications(body.binding, preview)
         console.info('[connector.discover]', { principalId: identity.principalId, provider: body.binding.connector.provider, sourceName, fieldCount: preview.operations[0]?.fields.length ?? 0 })
         send(response, 200, preview)
       } catch (error) {
@@ -724,14 +741,22 @@ const server = createServer(async (request, response) => {
         return
       }
       const runtimeContract = materializeSimulatedContext(selectedContract)
-      const resolver = resolverFor(principal, request)
-      const intentResolution = await resolver.resolve(body, runtimeContract)
-      const result = await prepareCompile(
-        new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) }),
-        runtimeContract,
-        principal,
-      )
-      rememberClarification(result, principal, body, intentResolution)
+      const result = await withSpan('lattice.compile', {
+        'lattice.contract_id': runtimeContract.id,
+        'lattice.contract_version': runtimeContract.version,
+        'lattice.tenant_id': principal.tenantId ?? 'none',
+      }, async (span) => {
+        const resolver = resolverFor(principal, request)
+        const intentResolution = await withSpan('lattice.resolve_intent', {}, async () => resolver.resolve(body, runtimeContract))
+        const compiled = await prepareCompile(
+          new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) }),
+          runtimeContract,
+          principal,
+        )
+        rememberClarification(compiled, principal, body, intentResolution)
+        recordCompileDecision(span, compiled)
+        return compiled
+      })
       send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...result, principal })
       return
     }
@@ -839,7 +864,7 @@ const server = createServer(async (request, response) => {
         expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString(),
         nonce: randomUUID(),
       }
-      const signedPlan = signAndStore(renewedPlan, approval.contractId, principal)
+      const signedPlan = await signAndStore(renewedPlan, approval.contractId, principal)
       const resumed = await runtimeApprovalStore.markResumed(approval.id, signedPlan.planId, principal.tenantId, now)
       send(response, 200, { approval: resumed, plan: signedPlan })
       return
@@ -926,7 +951,15 @@ const server = createServer(async (request, response) => {
         send(response, 403, { error: 'REQUIRED_PERMISSION_MISSING', missingPermissions: missing, receipt })
         return
       }
-      const bindingResults = await executeBindings(plan, activeContract, principal.tenantId ? { digestSalt: principal.tenantId } : {})
+      const bindingResults = await withSpan('lattice.execute_bindings', {
+        'lattice.operation': plan.operation,
+        'lattice.risk_tier': plan.riskTier,
+        'lattice.grounding': plan.grounding,
+        'lattice.bindings': plan.sourceBindings.length,
+      }, async () => executeBindings(plan, activeContract, {
+        ...(principal.tenantId ? { digestSalt: principal.tenantId } : {}),
+        ...delegationFor(request),
+      }))
       const receipt = await executionStore.append({
         ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
         contractId,
@@ -939,6 +972,7 @@ const server = createServer(async (request, response) => {
         grantedPermissions,
         bindingResults,
       })
+      await withSpan('lattice.execution_receipt', {}, async (span) => { recordExecution(span, receipt) })
       send(response, receipt.status === 'SUCCESS' ? 200 : 502, receipt)
       return
     }
@@ -973,6 +1007,58 @@ server.listen(port, '127.0.0.1', () => {
  * endpoint there is nothing to read, and the process-level resolver — lexical, or the in-memory
  * hybrid — answers instead.
  */
+
+/**
+ * Supplies the caller's own token so a DELEGATED binding runs as them.
+ *
+ * Without a configured exchange there is nothing to delegate with, and a binding that asked for
+ * delegation fails rather than quietly running as the service principal — which would apply none
+ * of the platform's row filters while the receipt claimed otherwise.
+ */
+
+/**
+ * Labels discovered fields with the classification the data catalog already holds.
+ *
+ * Discovery is the moment an author first sees a source column, and it is the only moment they
+ * are choosing what to map. Arriving pre-labelled is what stops a second, diverging judgement
+ * being made in the Studio. A catalog that cannot be read leaves the fields unlabelled rather
+ * than blocking discovery — but it is never reported as "nothing sensitive here".
+ */
+async function applyCatalogClassifications(binding: SourceBinding, preview: BindingPreview): Promise<void> {
+  if (!catalogSource) return
+
+  const resource = binding.connector?.resource
+  const prefix = [resource?.catalog, resource?.database, resource?.schema, resource?.object].filter(Boolean).join('.')
+  if (!prefix) return
+
+  const columns = preview.operations.flatMap((operation) => operation.fields.map((field) => ({
+    field,
+    qualifiedName: `${prefix}.${field.path.replace(/^\$\./, '')}`,
+  })))
+
+  try {
+    const assertions = await catalogSource.classify(columns.map((column) => ({ qualifiedName: column.qualifiedName })))
+    for (const column of columns) {
+      const assertion = assertions.get(column.qualifiedName)
+      if (assertion) column.field.classification = assertion
+    }
+  } catch (error) {
+    console.warn('[catalog.classify]', { catalog: catalogSource.catalog, error: error instanceof Error ? error.message : 'unknown' })
+  }
+}
+
+function delegationFor(request: IncomingMessage): { delegation?: ExecuteBindingsOptions['delegation'] } {
+  const subjectToken = request.headers.authorization?.replace(/^Bearer /i, '').trim()
+  if (!tokenExchange || !subjectToken) return {}
+  return {
+    delegation: {
+      subjectToken,
+      exchange: (token, scope) => tokenExchange!.exchange(token, scope),
+      scopeFor: (provider) => delegationScopeFor(provider),
+    },
+  }
+}
+
 function resolverFor(identity: RequestIdentity, request: IncomingMessage): IntentResolver {
   if (!supabaseRegistryConfig || !embeddingProvider || !identity.tenantId) return intentResolver
   return new PersistedIntentResolver({
@@ -1037,14 +1123,14 @@ function rememberClarification(
   })
 }
 
-function finalize(result: CompileResponse, contractId: string, principal: RequestIdentity): CompileResponse {
+async function finalize(result: CompileResponse, contractId: string, principal: RequestIdentity): Promise<CompileResponse> {
   if (!result.plan) return result
-  const signed = signAndStore(result.plan, contractId, principal)
+  const signed = await signAndStore(result.plan, contractId, principal)
   return { ...result, plan: signed }
 }
 
-function signAndStore(plan: UnsignedExecutionPlan, contractId: string, principal: RequestIdentity): SignedExecutionPlan {
-  const signed = signPlan(plan)
+async function signAndStore(plan: UnsignedExecutionPlan, contractId: string, principal: RequestIdentity): Promise<SignedExecutionPlan> {
+  const signed = await signPlan(plan)
   plans.set(signed.planId, subjectOf(principal), { plan: signed, contractId }, planRetentionUntil(signed))
   return signed
 }
@@ -1057,9 +1143,9 @@ function subjectOf(identity: RequestIdentity): Subject {
   return { principalId: identity.principalId, ...(identity.tenantId ? { tenantId: identity.tenantId } : {}) }
 }
 
-function signPlan(plan: UnsignedExecutionPlan): SignedExecutionPlan {
-  const signature = planSigner.sign(Buffer.from(JSON.stringify(plan)))
-  return { ...plan, keyId: planSigner.activeKeyId, signatureAlgorithm: 'Ed25519', signature }
+async function signPlan(plan: UnsignedExecutionPlan): Promise<SignedExecutionPlan> {
+  const signature = await planSigner.sign(Buffer.from(JSON.stringify(plan)))
+  return { ...plan, keyId: planSigner.activeKeyId, signatureAlgorithm: planSigner.algorithm, signature }
 }
 
 function verifyPlan(plan: SignedExecutionPlan): boolean {

@@ -99,3 +99,43 @@ test('every failure has an actionable explanation', () => {
     assert.ok(explainVerificationFailure(failure).length > 20, `${failure} needs a useful explanation`)
   }
 })
+
+/** Mirrors an ES256 plan as a managed KMS would produce it: raw r||s, never DER. */
+function issueEs256(overrides: Partial<UnsignedExecutionPlan> = {}) {
+  const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+  const jwk = publicKey.export({ format: 'jwk' }) as { crv?: string; kty?: string; x?: string; y?: string }
+  const keyId = createHash('sha256')
+    .update(JSON.stringify({ crv: jwk.crv, kty: jwk.kty, x: jwk.x, y: jwk.y }))
+    .digest('base64url')
+
+  const unsigned = { ...issue(overrides).plan } as Record<string, unknown>
+  delete unsigned.keyId
+  delete unsigned.signatureAlgorithm
+  delete unsigned.signature
+
+  const signature = sign('sha256', Buffer.from(JSON.stringify(unsigned)), { key: privateKey, dsaEncoding: 'ieee-p1363' })
+  const plan = { ...unsigned, keyId, signatureAlgorithm: 'ES256', signature: signature.toString('base64url') } as unknown as SignedExecutionPlan
+  return { plan, jwks: [{ ...(jwk as object), kid: keyId, alg: 'ES256', use: 'sig' }] }
+}
+
+test('an ES256 plan from a managed KMS verifies the same way', () => {
+  const { plan, jwks } = issueEs256()
+  const result = verifyExecutionPlan({ plan, jwks, now })
+
+  assert.equal(result.valid, true, JSON.stringify(result.failures))
+  assert.deepEqual(result.failures, [])
+})
+
+test('a tampered ES256 plan fails, so the wider algorithm did not weaken the check', () => {
+  const { plan, jwks } = issueEs256()
+  const tampered = { ...plan, operation: 'risk.something_else' } as SignedExecutionPlan
+
+  assert.deepEqual(verifyExecutionPlan({ plan: tampered, jwks, now }).failures, ['SIGNATURE_INVALID'])
+})
+
+test('an unknown algorithm is still refused', () => {
+  const { plan, jwks } = issue()
+  const odd = { ...plan, signatureAlgorithm: 'RS256' } as unknown as SignedExecutionPlan
+
+  assert.deepEqual(verifyExecutionPlan({ plan: odd, jwks, now }).failures, ['UNSUPPORTED_ALGORITHM'])
+})

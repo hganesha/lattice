@@ -516,3 +516,83 @@ test('the read-only check is not fooled by comments or side-effecting functions'
     )
   }
 })
+
+test('a delegated binding runs as the caller, not the service principal', async () => {
+  process.env.LATTICE_TEST_DATABRICKS_TOKEN = 'service-principal-token'
+  const authorizations: string[] = []
+  const exchanged: Array<{ subjectToken: string; scope: string }> = []
+  const binding = databricksBinding()
+  const delegatedBinding: SourceBinding = { ...binding, connector: { ...binding.connector!, identityMode: 'DELEGATED' } }
+
+  try {
+    const payload = await executeConnector(delegatedBinding, { id: { entityId: 'cp-42' } }, {
+      fetch: async (_input: string | URL | Request, init?: RequestInit) => {
+        authorizations.push(String(new Headers(init?.headers).get('authorization')))
+        return new Response(JSON.stringify({
+          status: { state: 'SUCCEEDED' },
+          manifest: { schema: { columns: [{ name: 'id' }] } },
+          result: { data_array: [['cp-42']] },
+        }), { status: 200 })
+      },
+      delegation: {
+        subjectToken: 'caller-token',
+        exchange: async (subjectToken, scope) => { exchanged.push({ subjectToken, scope }); return { accessToken: 'user-scoped-token' } },
+        scopeFor: () => 'databricks/.default',
+      },
+    })
+
+    assert.deepEqual(payload.rows, [{ id: 'cp-42' }])
+    assert.deepEqual(exchanged, [{ subjectToken: 'caller-token', scope: 'databricks/.default' }])
+    // The service principal's own token must not be what reaches the platform.
+    assert.equal(authorizations[0], 'Bearer user-scoped-token')
+  } finally {
+    delete process.env.LATTICE_TEST_DATABRICKS_TOKEN
+  }
+})
+
+test('a delegated binding fails rather than falling back to the service identity', async () => {
+  process.env.LATTICE_TEST_DATABRICKS_TOKEN = 'service-principal-token'
+  const binding = databricksBinding()
+  const delegatedBinding: SourceBinding = { ...binding, connector: { ...binding.connector!, identityMode: 'DELEGATED' } }
+
+  try {
+    // No delegation configured: silently using the service token would apply none of the
+    // platform's row filters while the receipt claimed the user's own entitlements applied.
+    await assert.rejects(
+      () => executeConnector(delegatedBinding, {}, { fetch: async () => new Response('{}', { status: 200 }) }),
+      /DELEGATED_IDENTITY_NOT_CONFIGURED/,
+    )
+
+    await assert.rejects(
+      () => executeConnector(delegatedBinding, {}, {
+        fetch: async () => new Response('{}', { status: 200 }),
+        delegation: { subjectToken: 't', exchange: async () => ({ accessToken: 'x' }), scopeFor: () => undefined },
+      }),
+      /DELEGATED_IDENTITY_SCOPE_UNKNOWN:DATABRICKS/,
+    )
+  } finally {
+    delete process.env.LATTICE_TEST_DATABRICKS_TOKEN
+  }
+})
+
+test('an expired delegated token is refused rather than sent', async () => {
+  process.env.LATTICE_TEST_DATABRICKS_TOKEN = 'service-principal-token'
+  const binding = databricksBinding()
+  const delegatedBinding: SourceBinding = { ...binding, connector: { ...binding.connector!, identityMode: 'DELEGATED' } }
+
+  try {
+    await assert.rejects(
+      () => executeConnector(delegatedBinding, {}, {
+        fetch: async () => new Response('{}', { status: 200 }),
+        delegation: {
+          subjectToken: 't',
+          exchange: async () => ({ accessToken: 'x', expiresAt: '2020-01-01T00:00:00.000Z' }),
+          scopeFor: () => 'databricks/.default',
+        },
+      }),
+      /CREDENTIAL_EXPIRED/,
+    )
+  } finally {
+    delete process.env.LATTICE_TEST_DATABRICKS_TOKEN
+  }
+})
