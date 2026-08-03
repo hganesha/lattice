@@ -40,6 +40,23 @@ describe('Studio shell', () => {
     expect(localStorage.getItem('lattice:navigation-collapsed')).toBe('true')
   })
 
+  it('opens the briefing deck from the header and closes it on Escape', async () => {
+    const user = userEvent.setup()
+    render(<LatticeI18nProvider><App /></LatticeI18nProvider>)
+
+    await user.click(screen.getByRole('button', { name: 'Intro' }))
+
+    const deck = await screen.findByRole('dialog', { name: 'Introduction to Lattice' })
+    // The deck is a standalone document in `public/`, not a bundled route.
+    expect(screen.getByTitle('Introduction to Lattice')).toHaveAttribute('src', '/lattice-intro.html')
+    expect(screen.getByRole('link', { name: 'Open in new tab' })).toHaveAttribute('href', '/lattice-intro.html')
+
+    await user.keyboard('{Escape}')
+
+    expect(deck).not.toBeInTheDocument()
+    expect(document.body.style.overflow).toBe('')
+  })
+
   it('opens a selected existing contract in its workspace', async () => {
     const user = userEvent.setup()
     const workspaceId = 'workspace-financial-services'

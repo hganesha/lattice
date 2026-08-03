@@ -29,6 +29,7 @@ import { AppearanceSettings } from './AppearanceSettings'
 import { Brand } from './Brand'
 import { ConfirmDialog } from './ConfirmDialog'
 import { IndustryWorkspaceIcon } from './IndustryWorkspaceIcon'
+import { IntroDeck } from './IntroDeck'
 import { AccountControl } from './AccountControl'
 import { API_URL, apiAuthHeaders } from './api'
 import { useMessages, type MessageKey } from './i18n/messages'
@@ -88,6 +89,7 @@ export function App() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [welcomeOpen, setWelcomeOpen] = useState(() => localStorage.getItem(WELCOME_DISMISSED_KEY) !== 'true')
+  const [introOpen, setIntroOpen] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<{ kind: 'CONTRACT' | 'WORKSPACE'; id: string; mode?: StudioMode }>()
   const [shareState, setShareState] = useState<'IDLE' | 'COPIED' | 'FAILED'>('IDLE')
   const [saveState, setSaveState] = useState<'IDLE' | 'SAVING' | 'FAILED'>('IDLE')
@@ -343,6 +345,7 @@ export function App() {
           <div className="header-actions">
             {(workspaceMode || hasActiveWorkspaceContract) && <span className={`draft-state ${draftDirty ? 'dirty' : ''}`}>{saveState === 'FAILED' ? t('headerSaveFailed') : draftDirty ? t('unsavedDraft') : t('draftSaved')}</span>}
             {(workspaceMode ? Boolean(workspace) : hasActiveWorkspaceContract) && <button className="release" onClick={() => void saveActiveDraft()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}
+            <button className="ghost" onClick={() => setIntroOpen(true)}>{t('introOpen')}</button>
             <button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button>
             <AppearanceSettings />
             {hasActiveWorkspaceContract && <button className="ghost" onClick={() => void shareContract()} title={shareState === 'FAILED' ? t('linkClipboardDenied') : undefined}>{shareState === 'COPIED' ? t('linkCopied') : shareState === 'FAILED' ? t('linkReady') : t('share')}</button>}
@@ -369,6 +372,7 @@ export function App() {
         }} />}
         {welcomeOpen && <WelcomeStudio contracts={contracts} onClose={closeWelcome} onExplore={(id) => void exploreExample(id)} onCreate={() => { closeWelcome(); setWizardOpen(true) }} />}
       </Suspense>
+      {introOpen && <IntroDeck onClose={() => setIntroOpen(false)} />}
       {pendingNavigation && <ConfirmDialog title={t('discardChangesTitle')} description={t('discardChanges')} cancelLabel={t('commonCancel')} confirmLabel={t('discardChangesConfirm')} onCancel={() => setPendingNavigation(undefined)} onConfirm={confirmNavigation} />}
     </div>
   )
