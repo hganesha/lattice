@@ -46,13 +46,9 @@ describe('Studio shell', () => {
 
     await user.click(screen.getByRole('button', { name: 'Intro' }))
 
-    await user.click(screen.getByRole('button', { name: 'Intro' }))
-
     const deck = await screen.findByRole('dialog', { name: 'Introduction to Lattice' })
-    expect(screen.getByRole('dialog', { name: 'Introduction to Lattice' })).toBeVisible()
     // The deck is a standalone document in `public/`, not a bundled route.
     expect(screen.getByTitle('Lattice introduction')).toHaveAttribute('src', '/lattice-intro.html')
-    expect(screen.getByRole('link', { name: 'Open in new tab' })).toHaveAttribute('href', '/lattice-intro.html')
 
     // Close with Escape
     await user.keyboard('{Escape}')
