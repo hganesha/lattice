@@ -483,3 +483,36 @@ test('a binding cannot raise its row ceiling beyond the hard cap', () => {
   assert.equal(resolveMaximumRows(0), 50)
   assert.equal(resolveMaximumRows(-5), 50)
 })
+
+test('the read-only check is not fooled by comments or side-effecting functions', () => {
+  const rejected = [
+    'SELECT 1; DROP TABLE governed.counterparty',
+    'SELECT 1 /*;*/ ; DELETE FROM governed.counterparty',
+    'SELECT pg_read_file(\'/etc/passwd\')',
+    'SELECT * FROM dblink(\'host=attacker\', \'SELECT 1\') AS t(x text)',
+    'SELECT pg_sleep(60)',
+    'WITH x AS (SELECT 1) INSERT INTO governed.counterparty SELECT * FROM x',
+    'SELECT * INTO governed.copy FROM governed.counterparty',
+    '-- SELECT 1\nDROP TABLE governed.counterparty',
+  ]
+  for (const query of rejected) {
+    assert.equal(
+      validateConnectorBinding(databricksBinding(query)).checks.find((check) => check.id === 'query')?.status,
+      'FAIL',
+      `expected to reject: ${query}`,
+    )
+  }
+
+  const accepted = [
+    'SELECT id, status FROM governed.counterparty WHERE id = :id',
+    'WITH recent AS (SELECT id FROM governed.counterparty) SELECT * FROM recent',
+    'SELECT id FROM governed.counterparty -- only the identifier',
+  ]
+  for (const query of accepted) {
+    assert.equal(
+      validateConnectorBinding(databricksBinding(query)).checks.find((check) => check.id === 'query')?.status,
+      'PASS',
+      `expected to accept: ${query}`,
+    )
+  }
+})

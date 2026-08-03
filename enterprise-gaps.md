@@ -165,11 +165,25 @@ append-only ledger in 2.4/P1.13.
 
 **Fixed.** Every one of those artifacts carries a `tenantId`, stamped from the authenticated identity on write and required to match on every read, decision, and resume. Cross-tenant reads and decisions are covered by tests in each store. Two caveats: this is filtering in the application, not a storage boundary — the durable fix is still the normalized Postgres cutover with RLS — and artifacts written before this change have no `tenantId`, so they are invisible to every tenant and need a one-time backfill if they matter.
 
-### 2.9 The whole registry is re-read from Postgres on every request — P1
+### 2.9 The whole registry is re-read from Postgres on every request — P1 · FIXED
 
 `server.ts:101` constructs a `SupabaseRegistryStorage` and calls `ContractRegistry.openStorage` **per request**, and `read()` (`supabaseRegistry.ts:89-131`) pulls *all* workspaces, *all* contract drafts, and *every release's full contract JSON* in four unpaginated PostgREST calls with a 5-second timeout, then runs the full hydrate/seed/repair pipeline over it (`registry.ts:50-68`). With nine seeded industry ontologies plus release history, a single `GET /health`-adjacent authenticated call moves megabytes. There is no per-contract read, no cache, no `limit` (PostgREST's default row cap will silently truncate at scale), and no ETag.
 
 Writes are read-modify-write with snapshot-diff upserts and **no optimistic concurrency** (`supabaseRegistry.ts:133-196`). The `writeQueue` that serialized writes for the file registry (`registry.ts:271`) is per-instance, and the instance now lives for one request — so concurrent draft saves silently clobber each other, cross-instance and even in-instance.
+
+**Fixed.** The runtime path — compile, clarify, and active-contract reads — now fetches only the
+release it needs, two targeted queries instead of four unbounded ones. Published releases are
+content-addressed and immutable, so they are served from a bounded LRU cache that can never go
+stale: a different release has a different digest and therefore a different key.
+
+Contract writes are conditional on the `updated_at` the request read, so a concurrent edit now
+raises `CONTRACT_MODIFIED_CONCURRENTLY` (409) instead of silently winning. Reads ask PostgREST
+for an exact count and refuse a short answer, because a registry quietly missing contracts is
+worse than one that fails loudly.
+
+**Still open.** The authoring routes continue to load the full document, and the file-registry
+fallback remains. The normalized per-contract cutover is a larger change to the registry
+abstraction than the runtime path required.
 
 ### 2.10 Intent resolution defects — P2 but safety-relevant
 
@@ -213,7 +227,14 @@ the plan: these are natural keys — account numbers, subscriber identifiers —
 travels much further than a receipt does. Both the connector validation and the publish gate
 require the bound property to exist and to be marked as identifying.
 
-**Still open.** The read-only regex blocklist and the loopback-only HTTP mode.
+**Also addressed.** The read-only check now strips comments before matching, so `/*;*/ DROP`
+cannot hide behind one, and rejects the function classes that read files, reach the network, or
+mutate behind a `SELECT`. It is still a blocklist and not a SQL parser — only PostgreSQL gets a
+real guarantee, from its `READ ONLY` transaction — and the code says so; the durable fix is a
+read-only role on the provider side. HTTP bindings can now reach an explicitly allowlisted host
+over HTTPS via `LATTICE_HTTP_SOURCE_HOSTS` rather than loopback only, which made the mode useless
+in any deployed environment; opening it unconditionally would have turned a governed binding into
+an SSRF primitive.
 
 ### 2.12 Freshness is asserted at authoring time, not measured at read time — P1
 
@@ -372,7 +393,7 @@ Nine generated industry ontologies (16,488 lines) derived from 74 forms are an e
 8. User-identity propagation to the data platform — OBO/token exchange — so native row/column security applies (3.1).
 9. ~~Result sets, real parameter binding, and source-key mapping (2.11).~~ **Done.** The read-only regex blocklist and the loopback-only HTTP mode remain.
 10. Measured freshness from the source system, replacing authoring-time `observedAt` (2.12).
-11. Per-contract reads, caching, and optimistic concurrency in the Supabase registry (2.9).
+11. ~~Per-contract reads, caching, and optimistic concurrency in the Supabase registry (2.9).~~ **Done** for the runtime path; the authoring routes still load the full document.
 12. ~~Classification-aware receipts: redaction for `mappedValues` (2.7).~~ **Done** — delivered ahead of P1 because the classification model in P2.17 is what it depends on. Retention and an encryption boundary remain open.
 13. ~~Separation of duties on governance reviews; append-only, hash-chained artifact ledger (2.4).~~ **Done** for reviews and the two append-only ledgers; in-place-mutating artifacts and an external anchor remain.
 14. ~~A golden-question regression suite executed by assurance, gating publish (2.13).~~ **Done** for routing; answer-level assertions remain.

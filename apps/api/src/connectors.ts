@@ -468,10 +468,33 @@ function validEndpoint(endpoint: string | undefined, transport: string): boolean
   return !/\s/.test(endpoint)
 }
 
+/**
+ * Rejects anything that is not a single, plainly read-only statement.
+ *
+ * A blocklist over keywords is not a SQL parser and should not be mistaken for one: comments
+ * can smuggle text past it, and a bare SELECT can still invoke a side-effecting function. Only
+ * PostgreSQL gets a real guarantee, from its READ ONLY transaction. This narrows the gap by
+ * stripping comments before matching — so `/*;*\/ DROP` cannot hide behind a comment — and by
+ * refusing the function classes that read files, reach the network, or mutate through a SELECT.
+ *
+ * The durable fix is provider-side: a read-only role, or a read-only warehouse.
+ */
 function isReadOnlyQuery(query: string | undefined): boolean {
   if (!query?.trim()) return false
-  const normalized = query.trim().replace(/;\s*$/, '')
-  return /^(select|with)\b/i.test(normalized) && !/;/.test(normalized) && !/\b(insert|update|delete|merge|drop|alter|create|truncate|grant|revoke|call|execute|into)\b/i.test(normalized)
+
+  const withoutComments = query
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/--[^\n]*/g, ' ')
+    .trim()
+    .replace(/;\s*$/, '')
+
+  if (!withoutComments) return false
+  if (!/^(select|with)\b/i.test(withoutComments)) return false
+  if (/;/.test(withoutComments)) return false
+  if (/\b(insert|update|delete|merge|drop|alter|create|truncate|grant|revoke|call|execute|exec|into|copy|vacuum|analyze|lock|listen|notify|do|prepare|deallocate|set|reset|begin|commit|rollback|savepoint)\b/i.test(withoutComments)) return false
+  // Functions that read the filesystem, reach the network, or mutate behind a SELECT.
+  if (/\b(pg_read_file|pg_read_binary_file|pg_ls_dir|lo_import|lo_export|dblink|pg_sleep|pg_terminate_backend|pg_reload_conf|xp_cmdshell|openrowset|opendatasource|external_query|system\$)/i.test(withoutComments)) return false
+  return true
 }
 
 function credentialStateFor(reference: string): ConnectorValidationResult['credentialState'] {

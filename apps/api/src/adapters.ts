@@ -108,6 +108,28 @@ function propertyKey(propertyId: string): string {
 }
 
 /**
+ * Decides whether an HTTP binding may reach a host.
+ *
+ * Loopback alone made this mode useless in any deployed environment, but opening it up
+ * unconditionally would turn a governed binding into an SSRF primitive. Hosts are therefore
+ * allowlisted explicitly through LATTICE_HTTP_SOURCE_HOSTS, and anything reached over plaintext
+ * still has to be loopback.
+ */
+export function isAllowedHttpSource(endpoint: URL, environment: NodeJS.ProcessEnv = process.env): boolean {
+  const loopback = ['127.0.0.1', '::1', 'localhost'].includes(endpoint.hostname)
+  if (loopback) return true
+  if (endpoint.protocol !== 'https:') return false
+
+  const allowed = (environment.LATTICE_HTTP_SOURCE_HOSTS ?? '')
+    .split(',')
+    .map((host) => host.trim().toLocaleLowerCase())
+    .filter(Boolean)
+
+  const hostname = endpoint.hostname.toLocaleLowerCase()
+  return allowed.some((host) => hostname === host || hostname.endsWith(`.${host}`))
+}
+
+/**
  * Reads a bounded result set.
  *
  * Sample payloads and HTTP sources describe a single object today, so they yield one row. A
@@ -121,7 +143,7 @@ async function loadRows(binding: SourceBinding, parameters: Record<string, Conne
   }
   if (!binding.endpoint) throw new Error('SOURCE_ENDPOINT_NOT_CONFIGURED')
   const endpoint = new URL(binding.endpoint)
-  if (!['127.0.0.1', 'localhost'].includes(endpoint.hostname)) throw new Error('SOURCE_HOST_NOT_ALLOWLISTED')
+  if (!isAllowedHttpSource(endpoint)) throw new Error('SOURCE_HOST_NOT_ALLOWLISTED')
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 3_000)
   try {

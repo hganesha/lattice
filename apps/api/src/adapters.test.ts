@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { counterpartyRiskContract, type ContextContract, type SignedExecutionPlan, type SourceBinding } from '@lattice/contracts'
-import { resolveBindingParameters } from './adapters.js'
+import { isAllowedHttpSource, resolveBindingParameters } from './adapters.js'
 
 const plan = { arguments: { counterparty: { entityId: 'CP-0103' } } } as Pick<SignedExecutionPlan, 'arguments'>
 
@@ -69,4 +69,22 @@ test('an entity missing the declared key fails rather than binding undefined', (
     ),
     /SOURCE_PARAMETER_KEY_MISSING:counterparty_lei/,
   )
+})
+
+test('an HTTP binding reaches only loopback or an explicitly allowlisted host', () => {
+  const allowlisted = { LATTICE_HTTP_SOURCE_HOSTS: 'risk.internal, collateral.example.com' }
+
+  assert.equal(isAllowedHttpSource(new URL('http://127.0.0.1:9000/v1/x'), {}), true)
+  assert.equal(isAllowedHttpSource(new URL('http://localhost:9000/v1/x'), {}), true)
+
+  // Opening this up unconditionally would make a governed binding an SSRF primitive.
+  assert.equal(isAllowedHttpSource(new URL('https://risk.internal/v1/x'), {}), false)
+  assert.equal(isAllowedHttpSource(new URL('https://risk.internal/v1/x'), allowlisted), true)
+  assert.equal(isAllowedHttpSource(new URL('https://api.risk.internal/v1/x'), allowlisted), true)
+  assert.equal(isAllowedHttpSource(new URL('https://attacker.example/v1/x'), allowlisted), false)
+
+  // An allowlisted host still may not be reached over plaintext.
+  assert.equal(isAllowedHttpSource(new URL('http://risk.internal/v1/x'), allowlisted), false)
+  // Nor may a lookalike that merely ends with the allowed string.
+  assert.equal(isAllowedHttpSource(new URL('https://evil-risk.internal/v1/x'), allowlisted), false)
 })

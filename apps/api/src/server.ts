@@ -44,7 +44,7 @@ import { authenticatorFromEnvironment, type RequestIdentity } from './auth.js'
 import { applyTenantMembership, tenantMembershipResolverFromEnvironment } from './tenancy.js'
 import { hasOrganizationRole, missingPermissions, requiredOrganizationRoles, resolveGrantedPermissions } from './authorization.js'
 import { SubjectScopedStore, type Subject } from './planStore.js'
-import { SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
+import { ContractRegistryConflictError, SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
 import { intentResolverFromEnvironment } from './embeddingProvider.js'
 import { openApiDocument } from './openapi.js'
 
@@ -109,17 +109,28 @@ const server = createServer(async (request, response) => {
       }
     }
 
-    const registry = requestIdentity && supabaseRegistryConfig
-      ? await ContractRegistry.openStorage(
-          new SupabaseRegistryStorage(
-            supabaseRegistryConfig,
-            requiredTenantId(requestIdentity),
-            requestIdentity.principalId,
-            request.headers.authorization ?? '',
-          ),
-          counterpartyRiskContract,
-          { persistOnOpen: false },
+    const supabaseStorage = requestIdentity && supabaseRegistryConfig
+      ? new SupabaseRegistryStorage(
+          supabaseRegistryConfig,
+          requiredTenantId(requestIdentity),
+          requestIdentity.principalId,
+          request.headers.authorization ?? '',
         )
+      : undefined
+
+    /**
+     * Loading the organization's whole registry costs the same whether a route needs one
+     * contract or all of them, so the runtime path asks for just the release it compiles
+     * against and everything else falls back to the full document.
+     */
+    const publishedContract = async (contractId: string): Promise<ContextContract | undefined> => (
+      supabaseStorage
+        ? supabaseStorage.readPublishedContract(contractId)
+        : fileRegistry.latestPublished(contractId)
+    )
+
+    const registry = supabaseStorage
+      ? await ContractRegistry.openStorage(supabaseStorage, counterpartyRiskContract, { persistOnOpen: false })
       : fileRegistry
 
     if (request.method === 'GET' && url.pathname === '/v1/connectors') {
@@ -257,7 +268,7 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'GET' && url.pathname === '/v1/contracts/active') {
       const contractId = url.searchParams.get('contractId') ?? counterpartyRiskContract.id
-      const published = registry.latestPublished(contractId)
+      const published = await publishedContract(contractId)
       if (!published) {
         send(response, 404, { error: 'PUBLISHED_CONTRACT_NOT_FOUND' })
         return
@@ -695,7 +706,7 @@ const server = createServer(async (request, response) => {
       }
 
       const selectedContractId = body.contractId ?? counterpartyRiskContract.id
-      const selectedContract = registry.latestPublished(selectedContractId)
+      const selectedContract = await publishedContract(selectedContractId)
       if (!selectedContract) {
         send(response, 409, { error: 'CONTRACT_NOT_PUBLISHED', message: 'Publish this contract before compiling runtime questions.' })
         return
@@ -725,7 +736,7 @@ const server = createServer(async (request, response) => {
         return
       }
       const body = await readJson<{ entityId?: string; operationId?: string }>(request)
-      const selectedContract = registry.latestPublished(pending.request.contractId ?? counterpartyRiskContract.id)
+      const selectedContract = await publishedContract(pending.request.contractId ?? counterpartyRiskContract.id)
       if (!selectedContract) {
         send(response, 409, { error: 'CONTRACT_NOT_PUBLISHED' })
         return
@@ -923,6 +934,10 @@ const server = createServer(async (request, response) => {
   } catch (error) {
     if (error instanceof ContractValidationError) {
       send(response, 422, { error: error.message, issues: error.issues })
+      return
+    }
+    if (error instanceof ContractRegistryConflictError) {
+      send(response, 409, { error: 'CONTRACT_MODIFIED_CONCURRENTLY', message: error.message })
       return
     }
     const message = error instanceof Error ? error.message : 'Unknown error'

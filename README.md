@@ -114,6 +114,14 @@ Open workspace-level **Ontology bindings** to map shared master or reference dat
 
 The Studio reads its connector catalog from the API and can validate endpoint shape, resource scope, query safety, credential resolution, and runtime-driver availability for every staged binding. Databricks uses built-in HTTPS adapters for Unity Catalog discovery and Statement Execution; Microsoft Fabric uses encrypted native TDS with a Microsoft Entra SQL access token for `INFORMATION_SCHEMA` discovery and bounded T-SQL execution; PostgreSQL uses a native wire-protocol adapter for `information_schema` discovery and read-only transactions. Snowflake and BigQuery retain built-in HTTPS dispatchers. Kafka and object-storage transports remain delegated to a separately operated local connector runtime configured with `LATTICE_CONNECTOR_GATEWAY_URL=http://127.0.0.1:<port>`; further native connector expansion is deferred.
 
+HTTP source bindings reach loopback by default. To let one reach a real service, allowlist its
+host explicitly — opening this up unconditionally would turn a governed binding into an SSRF
+primitive, so plaintext remains loopback-only regardless:
+
+```bash
+export LATTICE_HTTP_SOURCE_HOSTS=risk.internal,collateral.example.com
+```
+
 Credentials are resolved by a server-only chain. `env:VARIABLE_NAME` reads the process environment; vault, workload-identity, and managed-identity references can be handled by an injected runtime resolver or a credential broker configured with `LATTICE_CREDENTIAL_BROKER_URL` and optional `LATTICE_CREDENTIAL_BROKER_TOKEN`. Remote brokers must use HTTPS (loopback HTTP is allowed for local development) and implement `POST /v1/credentials/resolve`, accepting `{ reference, provider, resource }` and returning `{ value, expiresAt? }`. Empty, malformed, or expired responses are rejected. Secret values never enter contracts, browser responses, telemetry records, or logs.
 
 Each connector card can run a health check. Native discovery adapters perform a non-mutating metadata probe; other adapters report configuration-only degraded status until a safe live probe exists. Results retain latency, credential source, sanitized failure code, last successful probe, and freshness state in the local connector-health ledger.
