@@ -102,7 +102,8 @@ describe('Studio shell', () => {
     await user.click(screen.getByRole('button', { name: /^Contracts/ }))
     await user.selectOptions(screen.getByLabelText('Active contract'), secondContract.id)
 
-    expect(await screen.findByRole('heading', { name: 'Compiler' })).toBeVisible()
+    // The nav and the page both label this view, so target the page heading specifically.
+    expect(await screen.findByRole('heading', { name: 'Compiler', level: 1 })).toBeVisible()
     expect(localStorage.getItem('lattice:active-contract')).toBe(secondContract.id)
   })
 })
