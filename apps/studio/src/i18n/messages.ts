@@ -50,6 +50,8 @@ export const messages = defineMessages({
   integrationsColumnStatus: { id: 'integrations.columnStatus', defaultMessage: 'Status' },
   integrationsColumnFreshness: { id: 'integrations.columnFreshness', defaultMessage: 'Freshness' },
   integrationsColumnChecked: { id: 'integrations.columnChecked', defaultMessage: 'Last checked' },
+  ontologyIconChoose: { id: 'ontology.iconChoose', defaultMessage: 'Change' },
+  ontologyIconClose: { id: 'ontology.iconClose', defaultMessage: 'Done' },
   introOpen: { id: 'intro.open', defaultMessage: 'Intro' },
   introKicker: { id: 'intro.kicker', defaultMessage: 'Lattice briefing' },
   introTitle: { id: 'intro.title', defaultMessage: 'Introduction to Lattice' },
