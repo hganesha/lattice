@@ -40,6 +40,7 @@ export const spanishMessages = {
   integrationsColumnChecked: 'Última comprobación',
   ontologyIconChoose: 'Cambiar',
   ontologyIconClose: 'Listo',
+  ontologyDomainGroups: 'Grupos de dominio',
   introOpen: 'Introducción', introKicker: 'Presentación de Lattice', introTitle: 'Introducción a Lattice', introClose: 'Cerrar introducción', introFrameTitle: 'Introducción a Lattice',
   welcomeEnterpriseKicker: 'Patrones empresariales',
   welcomeEnterpriseTitle: 'Dónde encaja Lattice en la empresa',
