@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { ReviewStore } from './reviewStore.js'
@@ -16,6 +16,38 @@ test('persists an immutable review request and rationale-backed decision', async
   assert.match(decided.artifactDigest, /^sha256:/)
   assert.match(decided.decision?.artifactDigest ?? '', /^sha256:/)
   await assert.rejects(() => store.decide(review.id, 'REJECTED', 'Changed mind', 'principal_reviewer', 'tenant_a'), /REVIEW_ALREADY_DECIDED/)
+})
+
+test('deciding a review appends a superseding artifact instead of overwriting the request', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-review-append-'))
+  const path = join(directory, 'reviews.json')
+  const store = await ReviewStore.open(path)
+  const review = await store.create({ contractId: 'grid', contractVersion: '0.1.0', targetKind: 'POLICY', targetId: 'policy-1', targetLabel: 'Policy', impact: 'HIGH', evidenceRefs: [] }, 'principal_author', 'tenant_a')
+  await store.decide(review.id, 'APPROVED', 'Independently reviewed and correct.', 'principal_reviewer', 'tenant_a')
+
+  // The ledger holds both states; the store folds them to the latest.
+  const ledger = JSON.parse(await readFile(path, 'utf8')) as { reviews: Array<{ id: string; status: string }> }
+  assert.deepEqual(ledger.reviews.map((entry) => entry.status), ['OPEN', 'DECIDED'])
+  assert.deepEqual([...new Set(ledger.reviews.map((entry) => entry.id))], [review.id])
+
+  // A review that changed state is still one review, not two.
+  const current = await store.list('grid', 'tenant_a')
+  assert.equal(current.length, 1)
+  assert.equal(current[0]?.status, 'DECIDED')
+})
+
+test('the record of who opened a review survives the decision', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-review-history-'))
+  const path = join(directory, 'reviews.json')
+  const store = await ReviewStore.open(path)
+  const review = await store.create({ contractId: 'grid', contractVersion: '0.1.0', targetKind: 'POLICY', targetId: 'policy-1', targetLabel: 'Policy', impact: 'HIGH', evidenceRefs: [] }, 'principal_author', 'tenant_a')
+  await store.decide(review.id, 'REJECTED', 'Freshness controls are not acceptable.', 'principal_reviewer', 'tenant_a')
+
+  // Overwriting used to destroy the opening artifact, which is what separation of duties is
+  // argued from after the fact.
+  const ledger = JSON.parse(await readFile(path, 'utf8')) as { reviews: Array<{ submittedBy: string; artifactDigest: string }> }
+  assert.equal(ledger.reviews[0]?.submittedBy, 'principal_author')
+  assert.equal(ledger.reviews[0]?.artifactDigest, review.artifactDigest)
 })
 
 test('the author of a claim cannot approve it', async () => {
@@ -36,9 +68,9 @@ test('reviews are not readable or decidable from another tenant', async () => {
   const store = await ReviewStore.open(join(directory, 'reviews.json'))
   const review = await store.create({ contractId: 'grid', contractVersion: '0.1.0', targetKind: 'POLICY', targetId: 'policy-1', targetLabel: 'Policy', impact: 'HIGH', evidenceRefs: [] }, 'principal_author', 'tenant_a')
 
-  assert.equal(store.list('grid', 'tenant_a').length, 1)
-  assert.equal(store.list('grid', 'tenant_b').length, 0)
-  assert.equal(store.get(review.id, 'tenant_b'), undefined)
+  assert.equal((await store.list('grid', 'tenant_a')).length, 1)
+  assert.equal((await store.list('grid', 'tenant_b')).length, 0)
+  assert.equal(await store.get(review.id, 'tenant_b'), undefined)
   await assert.rejects(() => store.decide(review.id, 'APPROVED', 'Approving another tenant claim.', 'principal_intruder', 'tenant_b'), /REVIEW_NOT_FOUND/)
 })
 
@@ -49,5 +81,5 @@ test('returns an existing open review for the same claim', async () => {
   const first = await store.create(input, 'principal_author', 'tenant_a')
   const second = await store.create(input, 'principal_author', 'tenant_a')
   assert.equal(first.id, second.id)
-  assert.equal(store.list('grid', 'tenant_a').length, 1)
+  assert.equal((await store.list('grid', 'tenant_a')).length, 1)
 })

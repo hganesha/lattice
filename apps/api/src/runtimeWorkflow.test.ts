@@ -36,7 +36,7 @@ test('runtime approval enforces separation of duties and resumes once', async ()
   assert.equal(decided.status, 'APPROVED')
   const resumed = await store.markResumed(approval.id, signed.planId, 'tenant_a')
   assert.equal(resumed.status, 'RESUMED')
-  assert.equal((await RuntimeApprovalStore.open(join(directory, 'approvals.json'))).get(approval.id, 'tenant_a')?.status, 'RESUMED')
+  assert.equal((await (await RuntimeApprovalStore.open(join(directory, 'approvals.json'))).get(approval.id, 'tenant_a'))?.status, 'RESUMED')
 })
 
 test('a runtime approval cannot be decided or resumed from another tenant', async () => {
@@ -49,8 +49,8 @@ test('a runtime approval cannot be decided or resumed from another tenant', asyn
     operationId: signed.operation, policyId: 'policy-grid', riskTier: signed.riskTier, requestedBy: 'requester', pendingPlan: signed,
   }, new Date('2026-07-19T20:00:00.000Z'))
 
-  assert.equal(store.list('contract-grid-outage-response', 'tenant_b').length, 0)
-  assert.equal(store.get(approval.id, 'tenant_b'), undefined)
+  assert.equal((await store.list('contract-grid-outage-response', 'tenant_b')).length, 0)
+  assert.equal(await store.get(approval.id, 'tenant_b'), undefined)
   await assert.rejects(() => store.decide(approval.id, 'APPROVED', 'Approving another tenant request.', 'reviewer', 'tenant_b'), /RUNTIME_APPROVAL_NOT_FOUND/)
   await assert.rejects(() => store.markResumed(approval.id, signed.planId, 'tenant_b'), /RUNTIME_APPROVAL_NOT_FOUND/)
 })
@@ -77,7 +77,7 @@ test('sample adapter maps governed values and execution receipts prevent replay'
   const store = await ExecutionStore.open(join(directory, 'receipts.json'))
   await store.append({ tenantId: 'tenant_a', contractId: contract.id, contractVersion: '0.2.0', plan: signed, principalId: 'agent', status: 'SUCCESS', startedAt: '2026-07-19T20:00:00.000Z', completedAt: '2026-07-19T20:00:01.000Z', grantedPermissions: ['grid.outage.read'], bindingResults: results })
   await assert.rejects(() => store.append({ tenantId: 'tenant_a', contractId: contract.id, contractVersion: '0.2.0', plan: signed, principalId: 'agent', status: 'SUCCESS', startedAt: '2026-07-19T20:00:00.000Z', completedAt: '2026-07-19T20:00:01.000Z', grantedPermissions: ['grid.outage.read'], bindingResults: results }), /NONCE_ALREADY_CONSUMED/)
-  assert.equal(store.list(contract.id, 'tenant_b').length, 0)
+  assert.equal((await store.list(contract.id, 'tenant_b')).length, 0)
 })
 
 test('a denied attempt is recorded for audit without spending the plan nonce', async () => {
@@ -87,9 +87,9 @@ test('a denied attempt is recorded for audit without spending the plan nonce', a
   const timestamps = { startedAt: '2026-07-19T20:00:00.000Z', completedAt: '2026-07-19T20:00:01.000Z' }
 
   await store.append({ tenantId: 'tenant_a', contractId: 'contract-grid-outage-response', contractVersion: '0.2.0', plan: signed, principalId: 'intruder', status: 'DENIED', ...timestamps, grantedPermissions: [], bindingResults: [] })
-  assert.equal(store.findConsumedByPlanId(signed.planId), undefined)
+  assert.equal(await store.findConsumedByPlanId(signed.planId), undefined)
 
   const receipt = await store.append({ tenantId: 'tenant_a', contractId: 'contract-grid-outage-response', contractVersion: '0.2.0', plan: signed, principalId: 'agent', status: 'SUCCESS', ...timestamps, grantedPermissions: ['grid.outage.read'], bindingResults: [] })
-  assert.equal(store.findConsumedByPlanId(signed.planId)?.id, receipt.id)
-  assert.equal(store.list('contract-grid-outage-response', 'tenant_a').length, 2)
+  assert.equal((await store.findConsumedByPlanId(signed.planId))?.id, receipt.id)
+  assert.equal((await store.list('contract-grid-outage-response', 'tenant_a')).length, 2)
 })

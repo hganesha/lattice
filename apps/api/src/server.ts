@@ -257,7 +257,7 @@ const server = createServer(async (request, response) => {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      send(response, 200, { records: connectorHealthStore.list(identity.tenantId, url.searchParams.get('bindingId') ?? undefined) })
+      send(response, 200, { records: await connectorHealthStore.list(identity.tenantId, url.searchParams.get('bindingId') ?? undefined) })
       return
     }
 
@@ -438,7 +438,7 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, assuranceStore.list(contractId, identity.tenantId))
+      send(response, 200, await assuranceStore.list(contractId, identity.tenantId))
       return
     }
 
@@ -472,7 +472,7 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, reviewStore.list(contractId, identity.tenantId))
+      send(response, 200, await reviewStore.list(contractId, identity.tenantId))
       return
     }
 
@@ -536,7 +536,7 @@ const server = createServer(async (request, response) => {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const run = assuranceStore.get(assuranceRunMatch[1], identity.tenantId)
+      const run = await assuranceStore.get(assuranceRunMatch[1], identity.tenantId)
       if (!run) {
         send(response, 404, { error: 'ASSURANCE_RUN_NOT_FOUND' })
         return
@@ -717,7 +717,7 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, runtimeApprovalStore.list(contractId, identity.tenantId))
+      send(response, 200, await runtimeApprovalStore.list(contractId, identity.tenantId))
       return
     }
 
@@ -732,7 +732,7 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, executionStore.list(contractId, identity.tenantId))
+      send(response, 200, await executionStore.list(contractId, identity.tenantId))
       return
     }
 
@@ -854,7 +854,7 @@ const server = createServer(async (request, response) => {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const approval = runtimeApprovalStore.get(runtimeResumeMatch[1], principal.tenantId)
+      const approval = await runtimeApprovalStore.get(runtimeResumeMatch[1], principal.tenantId)
       if (!approval) {
         send(response, 404, { error: 'RUNTIME_APPROVAL_NOT_FOUND' })
         return
@@ -941,7 +941,7 @@ const server = createServer(async (request, response) => {
         send(response, 422, { error: 'PLAN_INVALID_OR_EXPIRED' })
         return
       }
-      if (executionStore.findConsumedByPlanId(plan.planId)) {
+      if (await executionStore.findConsumedByPlanId(plan.planId)) {
         send(response, 409, { error: 'PLAN_NONCE_ALREADY_CONSUMED' })
         return
       }
