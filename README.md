@@ -107,6 +107,32 @@ On Vercel this needs no configuration: `@vercel/otel` registers automatically. E
 `LATTICE_OTEL_ENABLED=true` and it registers the same way, or leave it unset and the
 instrumentation stays inert.
 
+### Deploying the Studio and the Context API on one origin
+
+The Studio deploys to Vercel as a static build. The Context API does not: it is a long-lived
+Node process that keeps assurance runs, review artifacts, runtime approvals, execution receipts,
+and connector health in files on disk, and only the contract registry has a Supabase-backed
+alternative. On serverless the writable filesystem is per-invocation, so those governance
+artifacts would silently reset — receipts that vanish are worse than no receipts. Host the API
+where it can hold a disk: a container, or a PaaS dyno.
+
+Serve both from the Studio's origin anyway. `apps/studio/vercel.json` rewrites `/health`,
+`/openapi.json`, and `/v1/*` to the API host, so the browser only ever sees one origin. Replace
+`REPLACE-WITH-YOUR-CONTEXT-API-HOST` with the host you deployed the API to; until you do, those
+paths 404 and the Studio reports the runtime offline.
+
+Two settings decide whether this works at all:
+
+- `HOST=0.0.0.0` on the API. The default is `127.0.0.1`, which keeps a development API off the
+  local network but refuses every connection that did not start on the same machine.
+- `VITE_API_URL` only when the API is on a *different* origin than the Studio. It is read at
+  build time and inlined, so changing it requires a rebuild, not a restart. Left unset, a
+  production build issues same-origin relative requests, which is what the rewrites expect.
+
+`LATTICE_STUDIO_ORIGIN` is a comma-separated allowlist for browsers calling the API cross-origin,
+defaulting to `http://127.0.0.1:5173,http://localhost:5173`. A Studio served through the rewrites
+is same-origin and never consults it.
+
 ### Running queries as the asking user
 
 By default a governed query runs as one shared service principal, which means Unity Catalog row
