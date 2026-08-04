@@ -1,40 +1,32 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import type { RuntimeApprovalArtifact, RuntimeApprovalDecisionArtifact, UnsignedExecutionPlan } from '@lattice/contracts'
+import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
 
-interface RuntimeApprovalDocument {
-  schemaVersion: '1.0'
-  approvals: RuntimeApprovalArtifact[]
-}
-
+/**
+ * Runtime approvals, kept as an append-only ledger.
+ *
+ * Every state an approval passes through — pending, decided, expired, resumed — is appended as a
+ * superseding artifact carrying the same approval id rather than overwriting the previous one.
+ * The backing table has no update policy, and the history is worth keeping anyway: an approval
+ * that was granted and later resumed is a different audit story from one that was simply resumed.
+ */
 export class RuntimeApprovalStore {
-  private writeQueue: Promise<void> = Promise.resolve()
-
-  private constructor(private readonly filePath: string, private document: RuntimeApprovalDocument) {}
+  constructor(private readonly storage: LedgerStorage<RuntimeApprovalArtifact>) {}
 
   static async open(filePath: string): Promise<RuntimeApprovalStore> {
-    try {
-      return new RuntimeApprovalStore(filePath, JSON.parse(await readFile(filePath, 'utf8')) as RuntimeApprovalDocument)
-    } catch (error) {
-      const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      if (!missing) throw error
-      const store = new RuntimeApprovalStore(filePath, { schemaVersion: '1.0', approvals: [] })
-      await store.persist()
-      return store
-    }
+    return new RuntimeApprovalStore(
+      await FileLedgerStorage.open<RuntimeApprovalArtifact>(filePath, 'approvals', 'Runtime approval'),
+    )
   }
 
-  list(contractId: string, tenantId: string | undefined): RuntimeApprovalArtifact[] {
-    return this.document.approvals
-      .filter((approval) => approval.contractId === contractId && approval.tenantId === tenantId)
-      .map((approval) => structuredClone(approval))
-      .reverse()
+  async list(contractId: string, tenantId: string | undefined): Promise<RuntimeApprovalArtifact[]> {
+    const approvals = await this.current()
+    return approvals.filter((approval) => approval.contractId === contractId && approval.tenantId === tenantId).reverse()
   }
 
-  get(approvalId: string, tenantId: string | undefined): RuntimeApprovalArtifact | undefined {
-    const approval = this.document.approvals.find((candidate) => candidate.id === approvalId && candidate.tenantId === tenantId)
-    return approval ? structuredClone(approval) : undefined
+  async get(approvalId: string, tenantId: string | undefined): Promise<RuntimeApprovalArtifact | undefined> {
+    const approvals = await this.current()
+    return approvals.find((candidate) => candidate.id === approvalId && candidate.tenantId === tenantId)
   }
 
   async create(input: {
@@ -51,26 +43,21 @@ export class RuntimeApprovalStore {
     const requestedAt = now.toISOString()
     const expiresAt = new Date(now.getTime() + 24 * 60 * 60_000).toISOString()
     const unsigned = { ...input, requestedAt, expiresAt }
-    const approval: RuntimeApprovalArtifact = {
+    return this.storage.append({
       id: `runtime_approval_${randomUUID()}`,
       ...unsigned,
       status: 'PENDING',
       artifactDigest: digest(unsigned),
-    }
-    this.document.approvals.push(approval)
-    await this.persist()
-    return structuredClone(approval)
+    })
   }
 
   async decide(approvalId: string, decision: 'APPROVED' | 'REJECTED', rationale: string, decidedBy: string, tenantId: string | undefined, now = new Date()): Promise<RuntimeApprovalArtifact> {
-    const index = this.document.approvals.findIndex((approval) => approval.id === approvalId && approval.tenantId === tenantId)
-    const approval = this.document.approvals[index]
+    const approval = await this.get(approvalId, tenantId)
     if (!approval) throw new Error('RUNTIME_APPROVAL_NOT_FOUND')
     if (approval.status !== 'PENDING') throw new Error('RUNTIME_APPROVAL_ALREADY_DECIDED')
     if (approval.requestedBy === decidedBy) throw new Error('RUNTIME_APPROVAL_SEPARATION_REQUIRED')
     if (new Date(approval.expiresAt).getTime() <= now.getTime()) {
-      this.document.approvals[index] = { ...approval, status: 'EXPIRED' }
-      await this.persist()
+      await this.storage.append({ ...approval, status: 'EXPIRED' }, `runtime_expiry_${randomUUID()}`)
       throw new Error('RUNTIME_APPROVAL_EXPIRED')
     }
     const decidedAt = now.toISOString()
@@ -80,32 +67,30 @@ export class RuntimeApprovalStore {
       ...unsigned,
       artifactDigest: digest(unsigned),
     }
-    const decided: RuntimeApprovalArtifact = { ...approval, status: decision, decision: artifact }
-    this.document.approvals[index] = decided
-    await this.persist()
-    return structuredClone(decided)
+    return this.storage.append({ ...approval, status: decision, decision: artifact }, artifact.id)
   }
 
   async markResumed(approvalId: string, signedPlanId: string, tenantId: string | undefined, now = new Date()): Promise<RuntimeApprovalArtifact> {
-    const index = this.document.approvals.findIndex((approval) => approval.id === approvalId && approval.tenantId === tenantId)
-    const approval = this.document.approvals[index]
+    const approval = await this.get(approvalId, tenantId)
     if (!approval) throw new Error('RUNTIME_APPROVAL_NOT_FOUND')
-    if (approval.status === 'RESUMED') return structuredClone(approval)
+    if (approval.status === 'RESUMED') return approval
     if (approval.status !== 'APPROVED') throw new Error('RUNTIME_APPROVAL_NOT_APPROVED')
-    const resumed: RuntimeApprovalArtifact = { ...approval, status: 'RESUMED', resumedAt: now.toISOString(), signedPlanId }
-    this.document.approvals[index] = resumed
-    await this.persist()
-    return structuredClone(resumed)
+    return this.storage.append(
+      { ...approval, status: 'RESUMED', resumedAt: now.toISOString(), signedPlanId },
+      `runtime_resume_${randomUUID()}`,
+    )
   }
 
-  private async persist(): Promise<void> {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await mkdir(dirname(this.filePath), { recursive: true })
-      const temporaryPath = `${this.filePath}.tmp`
-      await writeFile(temporaryPath, `${JSON.stringify(this.document, null, 2)}\n`, 'utf8')
-      await rename(temporaryPath, this.filePath)
-    })
-    await this.writeQueue
+  /**
+   * Folds the ledger down to the latest artifact for each approval.
+   *
+   * Ledger order is chain order, so the last artifact bearing an approval's id is its current
+   * state.
+   */
+  private async current(): Promise<RuntimeApprovalArtifact[]> {
+    const byApproval = new Map<string, RuntimeApprovalArtifact>()
+    for (const artifact of await this.storage.list()) byApproval.set(artifact.id, artifact)
+    return [...byApproval.values()]
   }
 }
 
