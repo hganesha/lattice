@@ -31,6 +31,10 @@ import {
   type SignedExecutionPlan,
   type UnsignedExecutionPlan,
   type WorkspaceSummary,
+  type AssuranceRun,
+  type ReviewRequestArtifact,
+  type RuntimeApprovalArtifact,
+  type ExecutionReceipt,
 } from '@lattice/contracts'
 import { executeBindings, type ExecuteBindingsOptions } from './adapters.js'
 import { runAssurance } from './assurance.js'
@@ -46,7 +50,10 @@ import { authenticatorFromEnvironment, type RequestIdentity } from './auth.js'
 import { applyTenantMembership, tenantMembershipResolverFromEnvironment } from './tenancy.js'
 import { hasOrganizationRole, missingPermissions, requiredOrganizationRoles, resolveGrantedPermissions } from './authorization.js'
 import { SubjectScopedStore, type Subject } from './planStore.js'
-import { ContractRegistryConflictError, SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment } from './supabaseRegistry.js'
+import { ContractRegistryConflictError, SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment, type SupabaseRegistryConfig } from './supabaseRegistry.js'
+import { SupabaseGovernanceLedger, type GovernedArtifactKind } from './supabaseGovernanceLedger.js'
+import { SupabaseConnectorHealthStorage } from './connectorHealthStorage.js'
+import type { ChainedArtifact } from './hashChain.js'
 import { embeddingProviderFromEnvironment, intentResolverFromEnvironment } from './embeddingProvider.js'
 import { PersistedIntentResolver } from './persistedIntentIndex.js'
 import { delegationScopeFor, tokenExchangeFromEnvironment } from './delegatedIdentity.js'
@@ -77,12 +84,57 @@ const allowedStudioOrigins = (process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0
   .map((origin) => origin.trim())
   .filter(Boolean)
 const dataDirectory = process.env.LATTICE_DATA_DIR ?? (process.env.VERCEL ? join(tmpdir(), 'lattice-api-data') : join(process.cwd(), 'data'))
-const fileRegistry = await ContractRegistry.open(join(dataDirectory, 'contract-registry.json'), counterpartyRiskContract)
-const assuranceStore = await AssuranceStore.open(join(dataDirectory, 'assurance-runs.json'))
-const reviewStore = await ReviewStore.open(join(dataDirectory, 'review-artifacts.json'))
-const runtimeApprovalStore = await RuntimeApprovalStore.open(join(dataDirectory, 'runtime-approvals.json'))
-const executionStore = await ExecutionStore.open(join(dataDirectory, 'execution-receipts.json'))
-const connectorHealthStore = await ConnectorHealthStore.open(join(dataDirectory, 'connector-health.json'))
+interface LocalStores {
+  registry: ContractRegistry
+  assurance: AssuranceStore
+  review: ReviewStore
+  runtimeApproval: RuntimeApprovalStore
+  execution: ExecutionStore
+  connectorHealth: ConnectorHealthStore
+}
+
+let localStoresPromise: Promise<LocalStores> | undefined
+
+/**
+ * The same five ledgers, backed by Postgres for one request.
+ *
+ * Each is scoped to the organization and to its artifact kind, and none is filtered to a contract
+ * here: an execution receipt has to be findable by plan id across every contract, or a spent
+ * nonce could be replayed under a different one.
+ */
+function governanceLedgers(config: SupabaseRegistryConfig, organizationId: string, authorization: string): Omit<LocalStores, 'registry'> {
+  const ledger = <T extends ChainedArtifact>(kind: GovernedArtifactKind) =>
+    new SupabaseGovernanceLedger<T>(config, organizationId, authorization, kind, undefined)
+
+  return {
+    assurance: new AssuranceStore(ledger<AssuranceRun>('ASSURANCE_RUN')),
+    review: new ReviewStore(ledger<ReviewRequestArtifact>('REVIEW')),
+    runtimeApproval: new RuntimeApprovalStore(ledger<RuntimeApprovalArtifact>('RUNTIME_APPROVAL')),
+    execution: new ExecutionStore(ledger<ExecutionReceipt>('EXECUTION_RECEIPT')),
+    connectorHealth: new ConnectorHealthStore(new SupabaseConnectorHealthStorage(config, organizationId, authorization)),
+  }
+}
+
+/**
+ * The file-backed stores, opened once and only if something actually reads them.
+ *
+ * These used to open at module load. On a serverless platform that is work done against a
+ * filesystem that is private to one invocation and thrown away afterwards — ledgers written and
+ * immediately lost. When Supabase is configured every request is served from Postgres instead and
+ * these are never opened at all, which is what makes the deployed API stateless enough to run
+ * there.
+ */
+function localStores(): Promise<LocalStores> {
+  localStoresPromise ??= (async () => ({
+    registry: await ContractRegistry.open(join(dataDirectory, 'contract-registry.json'), counterpartyRiskContract),
+    assurance: await AssuranceStore.open(join(dataDirectory, 'assurance-runs.json')),
+    review: await ReviewStore.open(join(dataDirectory, 'review-artifacts.json')),
+    runtimeApproval: await RuntimeApprovalStore.open(join(dataDirectory, 'runtime-approvals.json')),
+    execution: await ExecutionStore.open(join(dataDirectory, 'execution-receipts.json')),
+    connectorHealth: await ConnectorHealthStore.open(join(dataDirectory, 'connector-health.json')),
+  }))()
+  return localStoresPromise
+}
 const authenticator = authenticatorFromEnvironment()
 const tenantMembershipResolver = tenantMembershipResolverFromEnvironment()
 const supabaseRegistryConfig = supabaseRegistryConfigFromEnvironment()
@@ -116,7 +168,14 @@ if (ephemeralSigningKey) {
   process.stderr.write('[signing] No LATTICE_SIGNING_KEY configured; using an ephemeral development key. Plans will not verify across restarts.\n')
 }
 
-const server = createServer(async (request, response) => {
+/**
+ * Serves one request.
+ *
+ * Exported so a platform that owns the listening socket — a Vercel Function, say — can call it
+ * directly. `(request, response)` is already the shape those runtimes hand a Node handler, so the
+ * deployed API and the standalone server run exactly the same code rather than a copy of it.
+ */
+export async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
   setCors(request, response)
   if (request.method === 'OPTIONS') {
     response.writeHead(204).end()
@@ -162,6 +221,24 @@ const server = createServer(async (request, response) => {
       : undefined
 
     /**
+     * The governance ledgers for this request.
+     *
+     * Bound per request rather than per process because the Postgres ledgers read and write under
+     * the caller's own token — that is what makes row level security, rather than this code, the
+     * thing deciding which organization's artifacts are visible. Without Supabase configured they
+     * fall back to the files, which is the local development path.
+     */
+    const ledgers = supabaseStorage && supabaseRegistryConfig && requestIdentity
+      ? governanceLedgers(supabaseRegistryConfig, requiredTenantId(requestIdentity), request.headers.authorization ?? '')
+      : await localStores()
+
+    const assuranceStore = ledgers.assurance
+    const reviewStore = ledgers.review
+    const runtimeApprovalStore = ledgers.runtimeApproval
+    const executionStore = ledgers.execution
+    const connectorHealthStore = ledgers.connectorHealth
+
+    /**
      * Loading the organization's whole registry costs the same whether a route needs one
      * contract or all of them, so the runtime path asks for just the release it compiles
      * against and everything else falls back to the full document.
@@ -169,12 +246,12 @@ const server = createServer(async (request, response) => {
     const publishedContract = async (contractId: string): Promise<ContextContract | undefined> => (
       supabaseStorage
         ? supabaseStorage.readPublishedContract(contractId)
-        : fileRegistry.latestPublished(contractId)
+        : (await localStores()).registry.latestPublished(contractId)
     )
 
     const registry = supabaseStorage
       ? await ContractRegistry.openStorage(supabaseStorage, counterpartyRiskContract, { persistOnOpen: false })
-      : fileRegistry
+      : (await localStores()).registry
 
     if (request.method === 'GET' && url.pathname === '/v1/connectors') {
       if (!await authenticate(request)) {
@@ -257,7 +334,7 @@ const server = createServer(async (request, response) => {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      send(response, 200, { records: connectorHealthStore.list(identity.tenantId, url.searchParams.get('bindingId') ?? undefined) })
+      send(response, 200, { records: await connectorHealthStore.list(identity.tenantId, url.searchParams.get('bindingId') ?? undefined) })
       return
     }
 
@@ -438,7 +515,7 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, assuranceStore.list(contractId, identity.tenantId))
+      send(response, 200, await assuranceStore.list(contractId, identity.tenantId))
       return
     }
 
@@ -472,7 +549,7 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, reviewStore.list(contractId, identity.tenantId))
+      send(response, 200, await reviewStore.list(contractId, identity.tenantId))
       return
     }
 
@@ -536,7 +613,7 @@ const server = createServer(async (request, response) => {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const run = assuranceStore.get(assuranceRunMatch[1], identity.tenantId)
+      const run = await assuranceStore.get(assuranceRunMatch[1], identity.tenantId)
       if (!run) {
         send(response, 404, { error: 'ASSURANCE_RUN_NOT_FOUND' })
         return
@@ -717,7 +794,7 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, runtimeApprovalStore.list(contractId, identity.tenantId))
+      send(response, 200, await runtimeApprovalStore.list(contractId, identity.tenantId))
       return
     }
 
@@ -732,7 +809,7 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, executionStore.list(contractId, identity.tenantId))
+      send(response, 200, await executionStore.list(contractId, identity.tenantId))
       return
     }
 
@@ -771,6 +848,7 @@ const server = createServer(async (request, response) => {
           new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) }),
           runtimeContract,
           principal,
+          runtimeApprovalStore,
         )
         rememberClarification(compiled, principal, body, intentResolution)
         recordCompileDecision(span, compiled)
@@ -818,7 +896,7 @@ const server = createServer(async (request, response) => {
           intentResolution: pending.intentResolution,
           selectedOperationId,
           ...subjectOf(principal),
-        }), runtimeContract, principal,
+        }), runtimeContract, principal, runtimeApprovalStore,
       )
       clarifications.delete(clarificationMatch[1])
       rememberClarification(result, principal, pending.request, pending.intentResolution, selectedOperationId)
@@ -854,7 +932,7 @@ const server = createServer(async (request, response) => {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const approval = runtimeApprovalStore.get(runtimeResumeMatch[1], principal.tenantId)
+      const approval = await runtimeApprovalStore.get(runtimeResumeMatch[1], principal.tenantId)
       if (!approval) {
         send(response, 404, { error: 'RUNTIME_APPROVAL_NOT_FOUND' })
         return
@@ -941,7 +1019,7 @@ const server = createServer(async (request, response) => {
         send(response, 422, { error: 'PLAN_INVALID_OR_EXPIRED' })
         return
       }
-      if (executionStore.findConsumedByPlanId(plan.planId)) {
+      if (await executionStore.findConsumedByPlanId(plan.planId)) {
         send(response, 409, { error: 'PLAN_NONCE_ALREADY_CONSUMED' })
         return
       }
@@ -1011,11 +1089,19 @@ const server = createServer(async (request, response) => {
       error: message,
     })
   }
-})
+}
 
-server.listen(port, host, () => {
-  process.stdout.write(`Lattice Context API listening at http://${host}:${port}\n`)
-})
+/**
+ * Listens only when this module is the program being run.
+ *
+ * Imported as a handler — which is how the Vercel Function uses it — binding a port would either
+ * fail or quietly hold one open for the lifetime of the invocation.
+ */
+if (process.env.LATTICE_DISABLE_LISTEN !== 'true') {
+  createServer(handleRequest).listen(port, host, () => {
+    process.stdout.write(`Lattice Context API listening at http://${host}:${port}\n`)
+  })
+}
 
 
 /**
@@ -1089,7 +1175,7 @@ function resolverFor(identity: RequestIdentity, request: IncomingMessage): Inten
   })
 }
 
-async function prepareCompile(result: CompileResponse, contract: ContextContract, principal: RequestIdentity): Promise<CompileResponse> {
+async function prepareCompile(result: CompileResponse, contract: ContextContract, principal: RequestIdentity, runtimeApprovalStore: RuntimeApprovalStore): Promise<CompileResponse> {
   if (result.decision === 'APPROVAL_REQUIRED' && result.pendingPlan) {
     const operation = contract.operations.find((candidate) => candidate.id === result.pendingPlan?.operation)
     const policy = operation ? contract.policies.find((candidate) => candidate.riskTier === operation.riskTier) : undefined

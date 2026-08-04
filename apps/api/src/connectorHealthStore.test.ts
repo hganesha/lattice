@@ -24,7 +24,7 @@ test('persists connector health history and carries the last successful probe in
   assert.equal(healthy.freshnessStatus, 'CURRENT')
   assert.equal(failed.lastSuccessfulAt, healthyAt)
   assert.equal(failed.freshnessStatus, 'STALE')
-  assert.deepEqual(store.list('tenant_a', 'binding-fabric').map((record) => record.status), ['UNHEALTHY', 'HEALTHY'])
+  assert.deepEqual((await store.list('tenant_a', 'binding-fabric')).map((record) => record.status), ['UNHEALTHY', 'HEALTHY'])
   assert.match(await readFile(path, 'utf8'), /connector_health_/)
 })
 
@@ -42,7 +42,7 @@ test('connector health telemetry is not readable from another tenant', async () 
     checkedAt: '2026-07-22T12:00:00.000Z',
   }, 60, 'tenant_a')
 
-  assert.equal(store.list('tenant_a').length, 1)
-  assert.equal(store.list('tenant_b').length, 0)
-  assert.equal(store.latest('tenant_b', 'binding-fabric'), undefined)
+  assert.equal((await store.list('tenant_a')).length, 1)
+  assert.equal((await store.list('tenant_b')).length, 0)
+  assert.equal(await store.latest('tenant_b', 'binding-fabric'), undefined)
 })

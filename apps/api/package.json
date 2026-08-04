@@ -26,5 +26,9 @@
     "@types/node": "^22.0.0",
     "@types/pg": "^8.20.0",
     "typescript": "^5.4.0"
+  },
+  "exports": {
+    ".": "./dist/server.js",
+    "./server": "./dist/server.js"
   }
 }
