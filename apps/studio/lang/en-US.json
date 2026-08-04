@@ -517,6 +517,8 @@
   "ontology.exportRdf": "Export semantic RDF/XML ↗",
   "ontology.exportTurtle": "Export semantic Turtle ↗",
   "ontology.icon": "Icon",
+  "ontology.iconChoose": "Change",
+  "ontology.iconClose": "Done",
   "ontology.identifier": "Identifier",
   "ontology.immutableTypeHistory": "Immutable type history",
   "ontology.immutableVersions": "{count, plural, one {# immutable version} other {# immutable versions}}",

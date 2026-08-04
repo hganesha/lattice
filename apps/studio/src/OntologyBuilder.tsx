@@ -57,6 +57,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   const [saving, setSaving] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [inspectorTab, setInspectorTab] = useState<'DEFINITION' | 'RELATIONSHIPS'>('DEFINITION')
+  const [highlightedRelationshipId, setHighlightedRelationshipId] = useState('')
   const [layoutMode, setLayoutMode] = useState<OntologyLayoutMode>('lanes')
   const [autoLayoutEnabled, setAutoLayoutEnabled] = useState(true)
   const [manualLayout, setManualLayout] = useState<NonNullable<ContextContract['schemaLayout']>>(contract.schemaLayout ?? {})
@@ -112,8 +113,11 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     labelShowBg: true,
     labelBgPadding: [6, 4],
     labelBgBorderRadius: 4,
-    className: 'ontology-flow-edge',
-  })), [contract.relationshipTypes, layoutMode])
+    // Highlighting one edge is only useful if the others recede; in a graph this dense an
+    // emphasised edge is still lost among sixty siblings.
+    className: `ontology-flow-edge${highlightedRelationshipId ? relationship.id === highlightedRelationshipId ? ' highlighted' : ' muted' : ''}`,
+    ...(relationship.id === highlightedRelationshipId ? { animated: true, zIndex: 10 } : {}),
+  })), [contract.relationshipTypes, layoutMode, highlightedRelationshipId])
 
   useEffect(() => {
     if (mode === 'workspace') return
@@ -346,7 +350,19 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
           <div className="relation-strip">
             <div className="relation-strip-heading"><span>{t('ontologyRelationshipTypes').toLocaleUpperCase()}</span><button onClick={() => setDialog('relationship')}>{t('ontologyAdd')}</button></div>
             <div className="relation-list" tabIndex={0} aria-label={t('ontologyRelationshipTypes')}>
-              {contract.relationshipTypes.map((relation) => <div className="relation-chip" key={relation.id}><span>{typeLabel(contract, relation.sourceTypeId)}</span><b>— {relation.label} →</b><span>{typeLabel(contract, relation.targetTypeId)}</span><em>{relation.cardinality.replaceAll('_', ' : ')}</em></div>)}
+              {contract.relationshipTypes.map((relation) => <button
+                type="button"
+                className={`relation-chip ${relation.id === highlightedRelationshipId ? 'highlighted' : ''}`}
+                key={relation.id}
+                aria-pressed={relation.id === highlightedRelationshipId}
+                // Clicking again clears it, so the canvas can be returned to normal without
+                // hunting for a separate control.
+                onClick={() => {
+                  const next = relation.id === highlightedRelationshipId ? '' : relation.id
+                  setHighlightedRelationshipId(next)
+                  if (next) setSelectedTypeId(relation.sourceTypeId)
+                }}
+              ><span>{typeLabel(contract, relation.sourceTypeId)}</span><b>— {relation.label} →</b><span>{typeLabel(contract, relation.targetTypeId)}</span><em>{relation.cardinality.replaceAll('_', ' : ')}</em></button>)}
             </div>
           </div>
           {mode === 'contract' && <div className="release-history">
