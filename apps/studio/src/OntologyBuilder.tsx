@@ -25,6 +25,7 @@ import { useMessages } from './i18n/messages'
 import { OntologyLaneNode, type OntologyLaneNodeType } from './OntologyLaneNode'
 import { OntologyEntityNode } from './OntologyEntityNode'
 import { buildOntologyIsometricLayout, buildOntologyLaneLayout } from './ontologyLaneLayout'
+import { colorFrom, domainGroupPalette } from './domainGroupColors'
 import { Toast } from './Toast'
 import { DomainGroupField } from './DomainGroupField'
 import { EntityIconPicker } from './EntityIconPicker'
@@ -77,12 +78,13 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     ? laneLayout.positions
     : { ...laneLayout.positions, ...manualLayout }, [autoLayoutEnabled, laneLayout.positions, manualLayout])
   const resolvedPositions = layoutMode === 'isometric' ? isometricLayout.positions : lanePositions
+  const groupPalette = useMemo(() => domainGroupPalette(displayLayout.lanes.map((lane) => lane.label)), [displayLayout.lanes])
   const derivedNodes = useMemo<Node[]>(() => [
     ...displayLayout.lanes.map((lane): OntologyLaneNodeType => ({
       id: `__lane_${lane.id}`,
       type: 'ontologyLane',
       position: lane.position,
-      data: { label: lane.label, count: lane.entityTypeIds.length, kindLabel: domainGroupLabel },
+      data: { label: lane.label, count: lane.entityTypeIds.length, kindLabel: domainGroupLabel, ...colorFrom(groupPalette, lane.label) },
       style: { width: lane.width, height: lane.height },
       className: 'ontology-lane-node',
       draggable: false,
@@ -95,13 +97,13 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
       id: type.id,
       type: 'ontologyEntity',
       position: resolvedPositions[type.id]!,
-      data: { icon: type.icon, label: type.label, propertyCount: type.properties.length, propsLabel: propsLabel },
+      data: { icon: type.icon, label: type.label, propertyCount: type.properties.length, propsLabel: propsLabel, ...colorFrom(groupPalette, type.group) },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       className: `ontology-flow-node ${type.approvalStatus === 'APPROVED' ? 'approved' : 'draft'} ${selectedTypeId === type.id ? 'selected' : ''}`,
       zIndex: 2,
     })),
-  ], [contract.entityTypes, displayLayout.lanes, domainGroupLabel, propsLabel, resolvedPositions, selectedTypeId])
+  ], [contract.entityTypes, displayLayout.lanes, domainGroupLabel, groupPalette, propsLabel, resolvedPositions, selectedTypeId])
   const [graphNodes, setGraphNodes, onNodesChange] = useNodesState(derivedNodes)
   const graphEdges = useMemo<Edge[]>(() => contract.relationshipTypes.map((relationship) => ({
     id: relationship.id,
@@ -346,6 +348,13 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
             </ReactFlow>
             {contract.entityTypes.length === 0 && <div className="empty-canvas"><span>◇</span><h3>{t('ontologyEmptyTitle')}</h3><p>{t('ontologyEmptyDescription')}</p><button className="release" onClick={() => setDialog('entity')}>{t('ontologyCreateFirstType')}</button></div>}
             <div className="canvas-hint"><span>{t('ontologyConnectNodes')}</span></div>
+            {/* Colour alone would be a private joke; the legend is what makes it readable. */}
+            <div className="canvas-legend" aria-label={t('ontologyDomainGroups')}>
+              {displayLayout.lanes.map((lane) => <span key={lane.id}>
+                <i aria-hidden="true" style={{ background: colorFrom(groupPalette, lane.label).accent }} />
+                {lane.label}
+              </span>)}
+            </div>
           </div>
           <div className="relation-strip">
             <div className="relation-strip-heading"><span>{t('ontologyRelationshipTypes').toLocaleUpperCase()}</span><button onClick={() => setDialog('relationship')}>{t('ontologyAdd')}</button></div>

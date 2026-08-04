@@ -52,6 +52,7 @@ export const messages = defineMessages({
   integrationsColumnChecked: { id: 'integrations.columnChecked', defaultMessage: 'Last checked' },
   ontologyIconChoose: { id: 'ontology.iconChoose', defaultMessage: 'Change' },
   ontologyIconClose: { id: 'ontology.iconClose', defaultMessage: 'Done' },
+  ontologyDomainGroups: { id: 'ontology.domainGroups', defaultMessage: 'Domain groups' },
   introOpen: { id: 'intro.open', defaultMessage: 'Intro' },
   introKicker: { id: 'intro.kicker', defaultMessage: 'Lattice briefing' },
   introTitle: { id: 'intro.title', defaultMessage: 'Introduction to Lattice' },

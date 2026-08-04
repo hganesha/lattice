@@ -505,6 +505,7 @@
   "ontology.domainGroup.add": "＋ Add new group…",
   "ontology.domainGroup.new": "New domain group",
   "ontology.domainGroup.newPlaceholder": "e.g. Compliance",
+  "ontology.domainGroups": "Domain groups",
   "ontology.editableModel": "Editable semantic model",
   "ontology.empty.action": "＋ Create first entity type",
   "ontology.empty.description": "Create the first governed entity type for this contract.",
