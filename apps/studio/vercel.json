@@ -3,8 +3,8 @@
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/health", "destination": "/api/health" },
-    { "source": "/openapi.json", "destination": "/api/openapi.json" },
-    { "source": "/v1/:path*", "destination": "/api/v1/:path*" }
+    { "source": "/health", "destination": "/api/lattice?__lattice_path=/health" },
+    { "source": "/openapi.json", "destination": "/api/lattice?__lattice_path=/openapi.json" },
+    { "source": "/v1/:path*", "destination": "/api/lattice?__lattice_path=/v1/:path*" }
   ]
 }
