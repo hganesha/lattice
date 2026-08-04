@@ -109,29 +109,37 @@ instrumentation stays inert.
 
 ### Deploying the Studio and the Context API on one origin
 
-The Studio deploys to Vercel as a static build. The Context API does not: it is a long-lived
-Node process that keeps assurance runs, review artifacts, runtime approvals, execution receipts,
-and connector health in files on disk, and only the contract registry has a Supabase-backed
-alternative. On serverless the writable filesystem is per-invocation, so those governance
-artifacts would silently reset — receipts that vanish are worse than no receipts. Host the API
-where it can hold a disk: a container, or a PaaS dyno.
+Both deploy as a single Vercel project. The Studio is the static build; the Context API is a
+function at `apps/studio/api/[...path].ts`, and `apps/studio/vercel.json` routes `/health`,
+`/openapi.json`, and `/v1/*` to it. The function delegates to the same `handleRequest` the
+standalone server runs, so there is no second copy of the API to drift.
 
-Serve both from the Studio's origin anyway. `apps/studio/vercel.json` rewrites `/health`,
-`/openapi.json`, and `/v1/*` to the API host, so the browser only ever sees one origin. Replace
-`REPLACE-WITH-YOUR-CONTEXT-API-HOST` with the host you deployed the API to; until you do, those
-paths 404 and the Studio reports the runtime offline.
+One origin is the point. A Studio calling an API on another origin depends on CORS being right at
+both ends, and when it is not the failure is invisible to the page: the browser rejects every
+response and the Studio reports the runtime offline with nothing in the console to explain it.
+Same-origin requests skip the CORS check entirely.
 
-Two settings decide whether this works at all:
+Running on functions requires Supabase, because a function's filesystem is private to one
+invocation and discarded afterwards. Set `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` — Vercel's
+Supabase integration injects both — and every governance ledger reads and writes Postgres under
+the caller's own token, so row level security decides what is visible. Without them the API falls
+back to JSON files, which is the local development path and will silently lose receipts and
+approvals if deployed.
 
-- `HOST=0.0.0.0` on the API. The default is `127.0.0.1`, which keeps a development API off the
-  local network but refuses every connection that did not start on the same machine.
-- `VITE_API_URL` only when the API is on a *different* origin than the Studio. It is read at
-  build time and inlined, so changing it requires a rebuild, not a restart. Left unset, a
-  production build issues same-origin relative requests, which is what the rewrites expect.
+Also set `LATTICE_SIGNING_KEY`. The API refuses to start in production on an ephemeral key,
+because a plan signed with one cannot be verified after the invocation that issued it ends.
 
-`LATTICE_STUDIO_ORIGIN` is a comma-separated allowlist for browsers calling the API cross-origin,
-defaulting to `http://127.0.0.1:5173,http://localhost:5173`. A Studio served through the rewrites
-is same-origin and never consults it.
+`VITE_API_URL` should stay unset. It is inlined at build time, and a production build with no
+value issues same-origin relative requests, which is what the routes above expect. Set it only
+when the API genuinely lives on another origin, and rebuild afterwards — changing it in the
+dashboard does nothing until the next build.
+
+To run the API as a standalone process instead — a container, a PaaS dyno — `HOST=0.0.0.0` is
+required. The default `127.0.0.1` keeps a development API off the local network but refuses every
+connection that did not start on the same machine. In that shape the Studio is cross-origin, so
+`LATTICE_STUDIO_ORIGIN` has to name it: a comma-separated allowlist defaulting to
+`http://127.0.0.1:5173,http://localhost:5173`, which is also why both loopback spellings work
+locally.
 
 ### Running queries as the asking user
 
