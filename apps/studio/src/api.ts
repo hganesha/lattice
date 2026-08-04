@@ -1,4 +1,16 @@
-export const API_URL = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') ?? 'http://127.0.0.1:8787'
+/**
+ * Where the Context API lives, as seen from the browser.
+ *
+ * A deployed Studio serves the API from its own origin — `vercel.json` rewrites `/v1` and
+ * `/health` to wherever the API actually runs — so the built default is the empty string, which
+ * leaves every request as a same-origin relative path. Defaulting to a loopback address instead
+ * would bake `http://127.0.0.1:8787` into the bundle, and a visitor's browser resolves that to
+ * their own machine: the Studio reports the runtime offline and no request ever leaves the page.
+ *
+ * Set `VITE_API_URL` when the API is on a different origin. It is read at build time, not at
+ * runtime, so changing it means rebuilding.
+ */
+export const API_URL = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') ?? (import.meta.env.DEV ? 'http://127.0.0.1:8787' : '')
 
 const ACCESS_TOKEN_KEY = 'lattice:oidc-access-token'
 const ACTIVE_ORGANIZATION_KEY = 'lattice:active-organization'

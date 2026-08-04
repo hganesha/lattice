@@ -56,7 +56,26 @@ import { planSignerFromEnvironment } from './signing.js'
 import { recordCompileDecision, recordExecution, registerTelemetry, withSpan } from './telemetry.js'
 
 const port = Number(process.env.PORT ?? 8787)
-const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
+/**
+ * Loopback by default, so a development API is not exposed to the local network by accident.
+ * Anything hosting this for real — a container, a PaaS dyno — has to set `HOST=0.0.0.0`, because
+ * a process bound to 127.0.0.1 refuses every connection that did not originate on the same box.
+ */
+const host = process.env.HOST ?? '127.0.0.1'
+/**
+ * Origins allowed to call this API from a browser, comma-separated.
+ *
+ * `localhost` and `127.0.0.1` are the same machine but different origins, and a Studio opened on
+ * the wrong one has every response rejected by the browser with no error the page can see — it
+ * just reports the runtime offline. Both spellings are allowed by default so that stops happening.
+ *
+ * A Studio served through a rewrite on its own origin never reaches this code: the browser sees a
+ * same-origin request and does not run a CORS check at all.
+ */
+const allowedStudioOrigins = (process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173,http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
 const dataDirectory = process.env.LATTICE_DATA_DIR ?? (process.env.VERCEL ? join(tmpdir(), 'lattice-api-data') : join(process.cwd(), 'data'))
 const fileRegistry = await ContractRegistry.open(join(dataDirectory, 'contract-registry.json'), counterpartyRiskContract)
 const assuranceStore = await AssuranceStore.open(join(dataDirectory, 'assurance-runs.json'))
@@ -98,7 +117,7 @@ if (ephemeralSigningKey) {
 }
 
 const server = createServer(async (request, response) => {
-  setCors(response)
+  setCors(request, response)
   if (request.method === 'OPTIONS') {
     response.writeHead(204).end()
     return
@@ -994,8 +1013,8 @@ const server = createServer(async (request, response) => {
   }
 })
 
-server.listen(port, '127.0.0.1', () => {
-  process.stdout.write(`Lattice Context API listening at http://127.0.0.1:${port}\n`)
+server.listen(port, host, () => {
+  process.stdout.write(`Lattice Context API listening at http://${host}:${port}\n`)
 })
 
 
@@ -1200,8 +1219,18 @@ async function readJson<T>(request: IncomingMessage): Promise<T> {
   }
 }
 
-function setCors(response: ServerResponse): void {
-  response.setHeader('Access-Control-Allow-Origin', studioOrigin)
+/**
+ * Echoes back the caller's own origin when it is allowed, rather than a single fixed value.
+ * A browser only accepts the response when the header matches the requesting origin exactly, so
+ * with several allowed origins the header has to depend on who is asking. Unrecognized origins
+ * get the first allowed one, which is the same rejection they would get from a fixed header.
+ */
+function setCors(request: IncomingMessage, response: ServerResponse): void {
+  const requestOrigin = request.headers.origin
+  const allowedOrigin = requestOrigin && allowedStudioOrigins.includes(requestOrigin) ? requestOrigin : allowedStudioOrigins[0]
+  if (allowedOrigin) response.setHeader('Access-Control-Allow-Origin', allowedOrigin)
+  // Caches keyed only on the URL would otherwise hand one origin's response to another.
+  response.setHeader('Vary', 'Origin')
   response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Lattice-Organization')
   response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS')
 }
