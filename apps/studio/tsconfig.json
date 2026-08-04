@@ -12,6 +12,7 @@
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "api/**/*.ts"],
   "references": [
     { "path": "../../packages/contracts" },
-    { "path": "../../packages/exporter-core" }
+    { "path": "../../packages/exporter-core" },
+    { "path": "../api" }
   ]
 }
