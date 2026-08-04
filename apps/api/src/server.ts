@@ -49,6 +49,8 @@ import { buildReleaseDiffArtifact } from './releaseDiff.js'
 import { authenticatorFromEnvironment, type RequestIdentity } from './auth.js'
 import { applyTenantMembership, tenantMembershipResolverFromEnvironment } from './tenancy.js'
 import { hasOrganizationRole, missingPermissions, requiredOrganizationRoles, resolveGrantedPermissions } from './authorization.js'
+import type { OrganizationRole } from './tenancy.js'
+import { integrationsSummary } from './integrations.js'
 import { SubjectScopedStore, type Subject } from './planStore.js'
 import { ContractRegistryConflictError, SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment, type SupabaseRegistryConfig } from './supabaseRegistry.js'
 import { SupabaseGovernanceLedger, type GovernedArtifactKind } from './supabaseGovernanceLedger.js'
@@ -156,7 +158,8 @@ if (catalogSource) {
 if (tokenExchange) {
   process.stderr.write(`[identity] Delegated identity enabled via ${tokenExchange.provider}; DELEGATED bindings run as the asking user.\n`)
 }
-if (await registerTelemetry()) {
+const telemetryRegistered = await registerTelemetry()
+if (telemetryRegistered) {
   process.stderr.write('[telemetry] Tracing registered; governed decisions and executions are exported as spans.\n')
 }
 const plans = new SubjectScopedStore<{ plan: SignedExecutionPlan; contractId: string }>(expiredPlanGraceMs)
@@ -325,6 +328,40 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
       const result = validateConnectorBinding(body.binding)
       console.info('[connector.validate]', { principalId: identity.principalId, bindingId: body.binding.id, provider: result.provider, status: result.status, driver: result.driver, credentialState: result.credentialState })
       send(response, result.status === 'INVALID' ? 422 : 200, result)
+      return
+    }
+
+    /**
+     * What this deployment is wired to.
+     *
+     * Restricted to the roles that operate the deployment. It discloses no credentials, but the
+     * shape of an environment — which catalog, which identity provider, whether signing is
+     * managed — is operational detail a reader of governed data has no need for.
+     */
+    if (request.method === 'GET' && url.pathname === '/v1/integrations') {
+      const identity = await authenticate(request)
+      if (!identity) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const operatorRoles: OrganizationRole[] = ['OWNER', 'ADMIN', 'OPERATOR']
+      if (!hasOrganizationRole(identity, operatorRoles)) {
+        send(response, 403, { error: 'ORGANIZATION_ROLE_REQUIRED', requiredRoles: operatorRoles })
+        return
+      }
+      send(response, 200, {
+        ...integrationsSummary({
+          environment: process.env,
+          supabaseConfigured: Boolean(supabaseRegistryConfig),
+          signing: {
+            algorithm: planSigner.algorithm,
+            activeKeyId: planSigner.activeKeyId,
+            ephemeral: ephemeralSigningKey,
+          },
+          telemetryEnabled: telemetryRegistered,
+        }),
+        connectors: await connectorHealthStore.list(identity.tenantId),
+      })
       return
     }
 
