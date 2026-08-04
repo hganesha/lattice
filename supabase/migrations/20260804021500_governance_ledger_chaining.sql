@@ -1,4 +1,4 @@
--- Hash-chained governance ledgers in Postgres.
+-- Hash-chained governance ledgers in Postgres. new
 --
 -- The file-backed stores chain every artifact to its predecessor so that removing, reordering, or
 -- editing a record stops the chain verifying. Moving those stores to Postgres has to preserve
