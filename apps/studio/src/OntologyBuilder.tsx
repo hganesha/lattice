@@ -68,7 +68,6 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     relationship.sourceTypeId === selectedTypeId || relationship.targetTypeId === selectedTypeId,
   ), [contract.relationshipTypes, selectedTypeId])
   const issues = useMemo(() => validateContract(contract, mode === 'workspace'), [contract, mode])
-  const domainGroupLabel = t('ontologyDomainGroup')
   const propsLabel = t('ontologyProperties').toLocaleLowerCase()
   const domainGroups = useMemo(() => uniqueDomainGroups(contract.entityTypes), [contract.entityTypes])
   const laneLayout = useMemo(() => buildOntologyLaneLayout(contract.entityTypes), [contract.entityTypes])
@@ -84,7 +83,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
       id: `__lane_${lane.id}`,
       type: 'ontologyLane',
       position: lane.position,
-      data: { label: lane.label, count: lane.entityTypeIds.length, kindLabel: domainGroupLabel, ...colorFrom(groupPalette, lane.label) },
+      data: { label: lane.label, count: lane.entityTypeIds.length, ...colorFrom(groupPalette, lane.label) },
       style: { width: lane.width, height: lane.height },
       className: 'ontology-lane-node',
       draggable: false,
@@ -103,7 +102,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
       className: `ontology-flow-node ${type.approvalStatus === 'APPROVED' ? 'approved' : 'draft'} ${selectedTypeId === type.id ? 'selected' : ''}`,
       zIndex: 2,
     })),
-  ], [contract.entityTypes, displayLayout.lanes, domainGroupLabel, groupPalette, propsLabel, resolvedPositions, selectedTypeId])
+  ], [contract.entityTypes, displayLayout.lanes, groupPalette, propsLabel, resolvedPositions, selectedTypeId])
   const [graphNodes, setGraphNodes, onNodesChange] = useNodesState(derivedNodes)
   const graphEdges = useMemo<Edge[]>(() => contract.relationshipTypes.map((relationship) => ({
     id: relationship.id,
