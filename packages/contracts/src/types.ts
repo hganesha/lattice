@@ -1065,3 +1065,37 @@ export interface ExecutionReceipt {
 export interface ExecutePlanRequest {
   grantedPermissions?: never
 }
+
+/**
+ * What a deployment is wired to, as reported by `GET /v1/integrations`.
+ *
+ * Deliberately describes configuration without disclosing it: an operator needs to know that
+ * Collibra is federating classifications and which host it points at, never the token used to
+ * reach it. `activeKeyId` is a public thumbprint, already published at `/v1/keys`.
+ */
+export interface IntegrationsSummary {
+  persistence: {
+    backend: 'SUPABASE' | 'FILESYSTEM'
+    /** False when ledgers are written to a filesystem the platform discards between invocations. */
+    durable: boolean
+  }
+  catalog:
+    | { configured: false }
+    | { configured: true; provider: 'purview' | 'unity-catalog' | 'collibra'; host?: string }
+  delegatedIdentity:
+    | { configured: false }
+    | { configured: true; provider: 'ENTRA' | 'OKTA'; host?: string }
+  signing: {
+    provider: 'LOCAL' | 'AZURE_KEY_VAULT' | 'AWS_KMS'
+    algorithm: string
+    activeKeyId: string
+    /** True when the key was generated at startup, so plans stop verifying after a restart. */
+    ephemeral: boolean
+  }
+  telemetry: { enabled: boolean }
+}
+
+/** `GET /v1/integrations`: how this deployment is wired, plus how its connectors are behaving. */
+export interface IntegrationsResponse extends IntegrationsSummary {
+  connectors: ConnectorHealthRecord[]
+}

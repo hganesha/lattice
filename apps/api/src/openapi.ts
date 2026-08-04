@@ -550,6 +550,32 @@ export const openApiDocument: OpenApiDocument = {
         },
       },
     },
+    '/v1/integrations': {
+      get: {
+        tags: ['Connectors'],
+        operationId: 'getIntegrations',
+        summary: 'Report what this deployment is wired to, without disclosing any credential.',
+        description:
+          'Catalog federation, delegated identity, plan signing, and ledger persistence are configured by ' +
+          'environment variable. This reports which are active and, for endpoints, the hostname only — never ' +
+          'a token, secret, or private key. Restricted to owners, admins, and operators.',
+        responses: {
+          200: jsonResponse('Configured integrations and current connector health.', {
+            type: 'object',
+            properties: {
+              persistence: { type: 'object', description: 'Where governance ledgers are written, and whether they survive.' },
+              catalog: { type: 'object', description: 'Federated classification source, if configured.' },
+              delegatedIdentity: { type: 'object', description: 'Token exchange provider, if configured.' },
+              signing: { type: 'object', description: 'Plan signing provider and the active public key id.' },
+              telemetry: { type: 'object', properties: { enabled: { type: 'boolean' } } },
+              connectors: { type: 'array', items: opaqueDocument('ConnectorHealthRecord', 'One probe result.') },
+            },
+          }),
+          401: errorResponse,
+          403: errorResponse,
+        },
+      },
+    },
     '/v1/connectors/health': {
       get: {
         tags: ['Connectors'],
