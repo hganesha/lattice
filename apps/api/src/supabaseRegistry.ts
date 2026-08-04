@@ -370,7 +370,7 @@ function groupBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
   return grouped
 }
 
-function secureProjectUrl(value: string): URL {
+export function secureProjectUrl(value: string): URL {
   let url: URL
   try { url = new URL(value) } catch { throw new Error('SUPABASE_URL_INVALID') }
   const localHttp = url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname)
@@ -378,7 +378,7 @@ function secureProjectUrl(value: string): URL {
   return url
 }
 
-function validUuid(value: string): boolean {
+export function validUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }
 
