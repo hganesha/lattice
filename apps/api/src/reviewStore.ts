@@ -1,61 +1,49 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import type { CreateReviewRequest, ReviewDecisionArtifact, ReviewDecisionValue, ReviewRequestArtifact } from '@lattice/contracts'
+import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
 
-interface ReviewDocument {
-  schemaVersion: '1.0'
-  reviews: ReviewRequestArtifact[]
-}
-
+/**
+ * Governance reviews, kept as an append-only ledger.
+ *
+ * Deciding a review used to overwrite the open artifact in place. The backing table has select
+ * and insert policies and deliberately no update, because a ledger you can rewrite proves
+ * nothing — so a decision is appended as a superseding artifact carrying the same review id, and
+ * the current state of a review is the last artifact written for it. That also means the record
+ * of who opened a review survives the decision, which overwriting destroyed.
+ */
 export class ReviewStore {
-  private writeQueue: Promise<void> = Promise.resolve()
-
-  private constructor(private readonly filePath: string, private document: ReviewDocument) {}
+  constructor(private readonly storage: LedgerStorage<ReviewRequestArtifact>) {}
 
   static async open(filePath: string): Promise<ReviewStore> {
-    try {
-      return new ReviewStore(filePath, JSON.parse(await readFile(filePath, 'utf8')) as ReviewDocument)
-    } catch (error) {
-      const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      if (!missing) throw error
-      const store = new ReviewStore(filePath, { schemaVersion: '1.0', reviews: [] })
-      await store.persist()
-      return store
-    }
+    return new ReviewStore(await FileLedgerStorage.open<ReviewRequestArtifact>(filePath, 'reviews', 'Review'))
   }
 
-  list(contractId: string, tenantId: string | undefined): ReviewRequestArtifact[] {
-    return this.document.reviews
-      .filter((review) => review.contractId === contractId && review.tenantId === tenantId)
-      .map((review) => structuredClone(review))
-      .reverse()
+  async list(contractId: string, tenantId: string | undefined): Promise<ReviewRequestArtifact[]> {
+    const reviews = await this.current()
+    return reviews.filter((review) => review.contractId === contractId && review.tenantId === tenantId).reverse()
   }
 
-  get(reviewId: string, tenantId: string | undefined): ReviewRequestArtifact | undefined {
-    const review = this.document.reviews.find((candidate) => candidate.id === reviewId && candidate.tenantId === tenantId)
-    return review ? structuredClone(review) : undefined
+  async get(reviewId: string, tenantId: string | undefined): Promise<ReviewRequestArtifact | undefined> {
+    const reviews = await this.current()
+    return reviews.find((candidate) => candidate.id === reviewId && candidate.tenantId === tenantId)
   }
 
   async create(input: CreateReviewRequest, submittedBy: string, tenantId: string | undefined, now = new Date()): Promise<ReviewRequestArtifact> {
-    const existing = this.document.reviews.find((review) => review.tenantId === tenantId && review.contractId === input.contractId && review.targetKind === input.targetKind && review.targetId === input.targetId && review.status === 'OPEN')
+    const reviews = await this.current()
+    const existing = reviews.find((review) => review.tenantId === tenantId && review.contractId === input.contractId && review.targetKind === input.targetKind && review.targetId === input.targetId && review.status === 'OPEN')
     if (existing) return structuredClone(existing)
     const submittedAt = now.toISOString()
     const unsigned = { ...(tenantId ? { tenantId } : {}), ...input, submittedAt, submittedBy }
-    const review: ReviewRequestArtifact = {
+    return this.storage.append({
       id: `review_${randomUUID()}`,
       ...unsigned,
       status: 'OPEN',
       artifactDigest: digest(unsigned),
-    }
-    this.document.reviews.push(review)
-    await this.persist()
-    return structuredClone(review)
+    })
   }
 
   async decide(reviewId: string, decision: ReviewDecisionValue, rationale: string, decidedBy: string, tenantId: string | undefined, now = new Date()): Promise<ReviewRequestArtifact> {
-    const index = this.document.reviews.findIndex((review) => review.id === reviewId && review.tenantId === tenantId)
-    const review = this.document.reviews[index]
+    const review = await this.get(reviewId, tenantId)
     if (!review) throw new Error('REVIEW_NOT_FOUND')
     if (review.status === 'DECIDED') throw new Error('REVIEW_ALREADY_DECIDED')
     // These approvals are exactly what unblocks publishing, so the author cannot be the
@@ -64,20 +52,19 @@ export class ReviewStore {
     const decidedAt = now.toISOString()
     const unsignedDecision = { reviewId, decision, rationale, decidedAt, decidedBy }
     const artifact: ReviewDecisionArtifact = { id: `decision_${randomUUID()}`, ...unsignedDecision, artifactDigest: digest(unsignedDecision) }
-    const decided: ReviewRequestArtifact = { ...review, status: 'DECIDED', decision: artifact }
-    this.document.reviews[index] = decided
-    await this.persist()
-    return structuredClone(decided)
+    // Keyed by the decision, identified as the review: a distinct row describing the same review.
+    return this.storage.append({ ...review, status: 'DECIDED', decision: artifact }, artifact.id)
   }
 
-  private async persist(): Promise<void> {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await mkdir(dirname(this.filePath), { recursive: true })
-      const temporaryPath = `${this.filePath}.tmp`
-      await writeFile(temporaryPath, `${JSON.stringify(this.document, null, 2)}\n`, 'utf8')
-      await rename(temporaryPath, this.filePath)
-    })
-    await this.writeQueue
+  /**
+   * Folds the ledger down to the latest artifact for each review.
+   *
+   * Ledger order is chain order, so the last artifact bearing a review's id is its current state.
+   */
+  private async current(): Promise<ReviewRequestArtifact[]> {
+    const byReview = new Map<string, ReviewRequestArtifact>()
+    for (const artifact of await this.storage.list()) byReview.set(artifact.id, artifact)
+    return [...byReview.values()]
   }
 }
 

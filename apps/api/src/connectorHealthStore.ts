@@ -1,66 +1,43 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import type { ConnectorHealthRecord, FreshnessStatus } from '@lattice/contracts'
 import type { ConnectorHealthProbe } from './connectors.js'
-
-interface ConnectorHealthDocument {
-  schemaVersion: '1.0'
-  records: ConnectorHealthRecord[]
-}
+import { FileConnectorHealthStorage, type ConnectorHealthStorage } from './connectorHealthStorage.js'
 
 export class ConnectorHealthStore {
-  private writeQueue: Promise<void> = Promise.resolve()
-
-  private constructor(private readonly filePath: string, private document: ConnectorHealthDocument) {}
+  constructor(private readonly storage: ConnectorHealthStorage) {}
 
   static async open(filePath: string): Promise<ConnectorHealthStore> {
-    try {
-      return new ConnectorHealthStore(filePath, JSON.parse(await readFile(filePath, 'utf8')) as ConnectorHealthDocument)
-    } catch (error) {
-      const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      if (!missing) throw error
-      const store = new ConnectorHealthStore(filePath, { schemaVersion: '1.0', records: [] })
-      await store.persist()
-      return store
-    }
+    return new ConnectorHealthStore(await FileConnectorHealthStorage.open(filePath))
   }
 
-  list(tenantId: string | undefined, bindingId?: string): ConnectorHealthRecord[] {
-    const owned = this.document.records.filter((record) => record.tenantId === tenantId)
+  async list(tenantId: string | undefined, bindingId?: string): Promise<ConnectorHealthRecord[]> {
+    const all = await this.storage.list()
+    const owned = all.filter((record) => record.tenantId === tenantId)
     const records = bindingId ? owned.filter((record) => record.bindingId === bindingId) : owned
     const now = new Date().toISOString()
-    return records.map((record) => ({ ...structuredClone(record), freshnessStatus: freshnessStatus(record.lastSuccessfulAt, record.maximumFreshnessMinutes, now) })).reverse()
+    // Freshness is relative to when it is asked for, not when it was recorded, so it is derived
+    // on read rather than trusted from the stored row.
+    return records
+      .map((record) => ({ ...record, freshnessStatus: freshnessStatus(record.lastSuccessfulAt, record.maximumFreshnessMinutes, now) }))
+      .reverse()
   }
 
-  latest(tenantId: string | undefined, bindingId: string): ConnectorHealthRecord | undefined {
-    return this.list(tenantId, bindingId)[0]
+  async latest(tenantId: string | undefined, bindingId: string): Promise<ConnectorHealthRecord | undefined> {
+    return (await this.list(tenantId, bindingId))[0]
   }
 
   async append(probe: ConnectorHealthProbe, maximumFreshnessMinutes: number, tenantId: string | undefined): Promise<ConnectorHealthRecord> {
-    const previousSuccess = [...this.document.records].reverse().find((record) => record.tenantId === tenantId && record.bindingId === probe.bindingId && record.status === 'HEALTHY')
+    const all = await this.storage.list()
+    const previousSuccess = [...all].reverse().find((record) => record.tenantId === tenantId && record.bindingId === probe.bindingId && record.status === 'HEALTHY')
     const lastSuccessfulAt = probe.status === 'HEALTHY' ? probe.checkedAt : previousSuccess?.checkedAt
-    const record: ConnectorHealthRecord = {
+    return this.storage.append({
       id: `connector_health_${randomUUID()}`,
       ...(tenantId ? { tenantId } : {}),
       ...probe,
       maximumFreshnessMinutes,
       ...(lastSuccessfulAt ? { lastSuccessfulAt } : {}),
       freshnessStatus: freshnessStatus(lastSuccessfulAt, maximumFreshnessMinutes, probe.checkedAt),
-    }
-    this.document.records.push(record)
-    await this.persist()
-    return structuredClone(record)
-  }
-
-  private async persist(): Promise<void> {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await mkdir(dirname(this.filePath), { recursive: true })
-      const temporaryPath = `${this.filePath}.tmp`
-      await writeFile(temporaryPath, `${JSON.stringify(this.document, null, 2)}\n`, 'utf8')
-      await rename(temporaryPath, this.filePath)
     })
-    await this.writeQueue
   }
 }
 

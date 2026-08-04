@@ -1,41 +1,21 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import type { BindingExecutionResult, ExecutionReceipt, SignedExecutionPlan } from '@lattice/contracts'
-import { ArtifactChainBrokenError, linkArtifact, nextChainState, verifyChain } from './hashChain.js'
-
-interface ExecutionDocument {
-  schemaVersion: '1.0'
-  receipts: ExecutionReceipt[]
-}
+import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
 
 export class ExecutionStore {
-  private writeQueue: Promise<void> = Promise.resolve()
-
-  private constructor(private readonly filePath: string, private document: ExecutionDocument) {}
+  constructor(private readonly storage: LedgerStorage<ExecutionReceipt>) {}
 
   static async open(filePath: string): Promise<ExecutionStore> {
-    try {
-      const document = JSON.parse(await readFile(filePath, 'utf8')) as ExecutionDocument
-      // An execution ledger that cannot be trusted is worse than none, so a broken chain stops
-      // the service rather than being served as if it were sound.
-      const verification = verifyChain(document.receipts, receiptContentDigest)
-      if (!verification.valid) throw new ArtifactChainBrokenError('Execution', verification)
-      return new ExecutionStore(filePath, document)
-    } catch (error) {
-      const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      if (!missing) throw error
-      const store = new ExecutionStore(filePath, { schemaVersion: '1.0', receipts: [] })
-      await store.persist()
-      return store
-    }
+    // An execution ledger that cannot be trusted is worse than none, so a broken chain stops
+    // the service rather than being served as if it were sound.
+    return new ExecutionStore(
+      await FileLedgerStorage.open<ExecutionReceipt>(filePath, 'receipts', 'Execution', receiptContentDigest),
+    )
   }
 
-  list(contractId: string, tenantId: string | undefined): ExecutionReceipt[] {
-    return this.document.receipts
-      .filter((receipt) => receipt.contractId === contractId && receipt.tenantId === tenantId)
-      .map((receipt) => structuredClone(receipt))
-      .reverse()
+  async list(contractId: string, tenantId: string | undefined): Promise<ExecutionReceipt[]> {
+    const receipts = await this.storage.list()
+    return receipts.filter((receipt) => receipt.contractId === contractId && receipt.tenantId === tenantId).reverse()
   }
 
   /**
@@ -44,9 +24,9 @@ export class ExecutionStore {
    * one unauthorized call is enough to force a whole compile and approval cycle again.
    * The lookup is deliberately not tenant-scoped: a plan identifier is single-use globally.
    */
-  findConsumedByPlanId(planId: string): ExecutionReceipt | undefined {
-    const receipt = this.document.receipts.find((candidate) => candidate.planId === planId && candidate.status !== 'DENIED')
-    return receipt ? structuredClone(receipt) : undefined
+  async findConsumedByPlanId(planId: string): Promise<ExecutionReceipt | undefined> {
+    const receipts = await this.storage.list()
+    return receipts.find((candidate) => candidate.planId === planId && candidate.status !== 'DENIED')
   }
 
   async append(input: {
@@ -61,7 +41,7 @@ export class ExecutionStore {
     grantedPermissions: string[]
     bindingResults: BindingExecutionResult[]
   }): Promise<ExecutionReceipt> {
-    if (this.findConsumedByPlanId(input.plan.planId)) throw new Error('PLAN_NONCE_ALREADY_CONSUMED')
+    if (await this.findConsumedByPlanId(input.plan.planId)) throw new Error('PLAN_NONCE_ALREADY_CONSUMED')
     const unsigned = {
       ...(input.tenantId ? { tenantId: input.tenantId } : {}),
       contractId: input.contractId,
@@ -81,27 +61,11 @@ export class ExecutionStore {
       evidenceRefs: input.plan.evidenceRefs,
       bindingResults: input.bindingResults,
     }
-    const artifactDigest = digest(unsigned)
-    const { previousDigest, sequence } = nextChainState(this.document.receipts)
-    const receipt: ExecutionReceipt = {
+    return this.storage.append({
       id: `execution_${randomUUID()}`,
       ...unsigned,
-      artifactDigest,
-      chain: linkArtifact(previousDigest, artifactDigest, sequence),
-    }
-    this.document.receipts.push(receipt)
-    await this.persist()
-    return structuredClone(receipt)
-  }
-
-  private async persist(): Promise<void> {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await mkdir(dirname(this.filePath), { recursive: true })
-      const temporaryPath = `${this.filePath}.tmp`
-      await writeFile(temporaryPath, `${JSON.stringify(this.document, null, 2)}\n`, 'utf8')
-      await rename(temporaryPath, this.filePath)
-    })
-    await this.writeQueue
+      artifactDigest: digest(unsigned),
+    } as ExecutionReceipt)
   }
 }
 

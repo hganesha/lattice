@@ -77,7 +77,7 @@ export class SupabaseGovernanceLedger<T extends ChainedArtifact> implements Ledg
     return rows.map((row) => this.recordFromRow(row))
   }
 
-  async append(record: T): Promise<T> {
+  async append(record: T, storageKey?: string): Promise<T> {
     const url = new URL('/rest/v1/rpc/append_governed_artifact', this.projectUrl)
     const contractId = this.contractId ?? contractIdOf(record)
     if (!contractId) throw new Error(`SUPABASE_LEDGER_CONTRACT_REQUIRED:${this.kind}`)
@@ -89,7 +89,7 @@ export class SupabaseGovernanceLedger<T extends ChainedArtifact> implements Ledg
         target_organization_id: this.organizationId,
         target_contract_id: contractId,
         target_kind: this.kind,
-        target_id: record.id,
+        target_id: storageKey ?? record.id,
         target_artifact_digest: record.artifactDigest,
         target_document: record,
       }),

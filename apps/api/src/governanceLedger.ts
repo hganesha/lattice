@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { ArtifactChainBrokenError, verifyChain, type ChainedArtifact, type ContentDigest } from './hashChain.js'
+import { ArtifactChainBrokenError, linkArtifact, nextChainState, verifyChain, type ChainedArtifact, type ContentDigest } from './hashChain.js'
 
 /**
  * Where an append-only governance ledger keeps its artifacts.
@@ -22,8 +22,13 @@ export interface LedgerStorage<T extends ChainedArtifact> {
    *
    * The link is assigned by the storage rather than the caller, because deciding your own
    * sequence and predecessor is exactly the tampering the chain exists to make visible.
+   *
+   * `storageKey` separates the row's identity from the artifact's. A ledger that cannot update
+   * records expresses a change of state by appending a superseding artifact, and that successor
+   * describes the same review or approval — so it carries the same artifact id while needing a
+   * distinct key of its own. Defaults to the artifact id, which is what append-only ledgers use.
    */
-  append(record: T): Promise<T>
+  append(record: T, storageKey?: string): Promise<T>
 }
 
 interface LedgerDocument<T> {
@@ -76,10 +81,13 @@ export class FileLedgerStorage<T extends ChainedArtifact> implements LedgerStora
     return this.document.records.map((record) => structuredClone(record))
   }
 
-  async append(record: T): Promise<T> {
-    this.document.records.push(record)
+  async append(record: T, _storageKey?: string): Promise<T> {
+    // A file ledger has no row identity to collide, so the successor is simply the later record.
+    const { previousDigest, sequence } = nextChainState(this.document.records)
+    const linked = { ...record, chain: linkArtifact(previousDigest, record.artifactDigest, sequence) }
+    this.document.records.push(linked)
     await this.persist()
-    return structuredClone(record)
+    return structuredClone(linked)
   }
 
   private async persist(): Promise<void> {
