@@ -3,6 +3,7 @@ import type { AssuranceCheckCategory, AssuranceRun, ContextContract, ContextTest
 import { API_URL, apiAuthHeaders } from './api'
 import { useMessages } from './i18n/messages'
 import { Toast } from './Toast'
+import { EmptyState } from './SurfaceState'
 
 interface AssuranceStudioProps {
   contract: ContextContract
@@ -77,14 +78,14 @@ export function AssuranceStudio({ contract, onChange, onDirtyChange }: Assurance
 
     <section className="question-coverage panel">
       <div className="panel-header"><div><span className="panel-kicker">{t('assuranceCoverage')}</span><h2>{t('assuranceCoverageTitle')}</h2></div><span>{t('assuranceLinkedCount', { count: linkedQuestions })}</span></div>
-      <div className="question-link-list">{contract.competencyQuestions.map((question) => { const linked = contract.operations.some((operation) => operation.id === question.operationId); return <article className="question-link-row" key={question.id}><span className={linked ? 'linked' : 'unlinked'}>{linked ? '✓' : '!'}</span><div><b>{question.question}</b><small>{question.expectedAnswerShape}</small></div><label>{t('assuranceOperation').toLocaleUpperCase()}<select value={question.operationId} onChange={(event) => linkQuestion(question.id, event.target.value)}><option value={question.operationId} disabled={!linked}>{linked ? t('assuranceCurrentOperation') : t('assuranceSelectOperation')}</option>{contract.operations.filter((operation) => operation.id !== question.operationId).map((operation) => <option value={operation.id} key={operation.id}>{operation.label} · {operation.id}</option>)}</select></label></article> })}</div>
+      <div className="question-link-list">{contract.competencyQuestions.map((question) => { const linked = contract.operations.some((operation) => operation.id === question.operationId); return <article className="surface-row flush lead question-link-row" key={question.id}><span className={linked ? 'linked' : 'unlinked'}>{linked ? '✓' : '!'}</span><div><b>{question.question}</b><small>{question.expectedAnswerShape}</small></div><label>{t('assuranceOperation').toLocaleUpperCase()}<select value={question.operationId} onChange={(event) => linkQuestion(question.id, event.target.value)}><option value={question.operationId} disabled={!linked}>{linked ? t('assuranceCurrentOperation') : t('assuranceSelectOperation')}</option>{contract.operations.filter((operation) => operation.id !== question.operationId).map((operation) => <option value={operation.id} key={operation.id}>{operation.label} · {operation.id}</option>)}</select></label></article> })}</div>
     </section>
 
     <div className="assurance-results-layout">
       <main className="assurance-results panel">
         <div className="assurance-results-header"><div><span className="panel-kicker">{t('assuranceExecutionTrace')}</span><h2>{activeRun ? t('assuranceRunLabel', { id: activeRun.id.slice(-8) }) : t('assuranceGenerateTrace')}</h2></div>{activeRun && <div className="assurance-filters">{(['ALL', 'STRUCTURAL', 'QUESTION', 'MAPPING', 'POLICY', 'RELEASE'] as const).map((category) => <button className={filter === category ? 'active' : ''} onClick={() => setFilter(category)} key={category}>{category}</button>)}</div>}</div>
-        {!activeRun && <div className="assurance-empty"><span>✓</span><h3>{t('assuranceEmptyTitle')}</h3><p>{t('assuranceEmptyDescription')}</p></div>}
-        {activeRun && <div className="assurance-check-list">{visibleChecks.map((check) => <article className={`assurance-check ${check.status.toLocaleLowerCase()}`} key={check.id}><span>{check.status === 'PASS' ? '✓' : check.status === 'FAIL' ? '×' : '!'}</span><div><small>{check.category}</small><b>{check.label}</b><p>{check.message}</p><code>{check.affectedClaimIds.slice(0, 4).join(' · ') || t('assuranceContractWide')}{check.affectedClaimIds.length > 4 ? ` · +${check.affectedClaimIds.length - 4}` : ''}</code></div><em>{check.status}</em></article>)}</div>}
+        {!activeRun && <EmptyState icon="✓" title={t('assuranceEmptyTitle')} description={t('assuranceEmptyDescription')} />}
+        {activeRun && <div className="assurance-check-list">{visibleChecks.map((check) => <article className={`surface-row lead assurance-check ${check.status.toLocaleLowerCase()}`} key={check.id}><span>{check.status === 'PASS' ? '✓' : check.status === 'FAIL' ? '×' : '!'}</span><div><small>{check.category}</small><b>{check.label}</b><p>{check.message}</p><code>{check.affectedClaimIds.slice(0, 4).join(' · ') || t('assuranceContractWide')}{check.affectedClaimIds.length > 4 ? ` · +${check.affectedClaimIds.length - 4}` : ''}</code></div><em>{check.status}</em></article>)}</div>}
       </main>
       <aside className="assurance-readiness panel">
         <div className="panel-header"><div><span className="panel-kicker">{t('assurancePublishGate')}</span><h2>{t('assuranceReleaseReadiness')}</h2></div></div>

@@ -5,6 +5,7 @@ import { API_URL, apiAuthHeaders } from './api'
 import { useMessages } from './i18n/messages'
 import { ConfirmDialog } from './ConfirmDialog'
 import { Toast } from './Toast'
+import { EmptyState } from './SurfaceState'
 
 interface SourceBindingStudioProps {
   contract: ContextContract
@@ -140,7 +141,7 @@ export function SourceBindingStudio({ contract, scope = 'CONTRACT', workspaceId,
       <main className="binding-catalog panel">
         <div className="panel-header"><div><span className="panel-kicker">{t(scope === 'ONTOLOGY' ? 'bindingOntologyBindings' : 'bindingContractBindings').toLocaleUpperCase()}</span><h2>{contract.name}</h2></div><span className="binding-count">{t('bindingConfiguredCount', { count: contract.bindings.length })}</span></div>
         <div className="binding-list">
-          {contract.bindings.length === 0 && <div className="binding-empty"><span>⇄</span><h3>{t('bindingEmptyTitle')}</h3><p>{t('bindingEmptyDescription')}</p><button className="ghost" onClick={() => setEditorOpen(true)} disabled={!canCreateBinding}>{t('bindingChooseConnector')}</button></div>}
+          {contract.bindings.length === 0 && <EmptyState icon="⇄" title={t('bindingEmptyTitle')} description={t('bindingEmptyDescription')} secondaryLabel={t('bindingChooseConnector')} onSecondary={() => setEditorOpen(true)} secondaryDisabled={!canCreateBinding} />}
           {contract.bindings.map((binding) => <BindingCard binding={binding} validation={validationResults[binding.id]} health={healthResults[binding.id]} validating={validatingId === binding.id} checkingHealth={checkingHealthId === binding.id} onValidate={() => void validateBinding(binding)} onCheckHealth={() => void checkBindingHealth(binding)} {...(scope === 'ONTOLOGY' || binding.scope !== 'ONTOLOGY' ? { onRemove: () => setPendingRemoval(binding) } : {})} key={binding.id} />)}
         </div>
       </main>
@@ -168,7 +169,7 @@ interface BindingCardProps {
 function BindingCard({ binding, validation, health, validating, checkingHealth, onValidate, onCheckHealth, onRemove }: BindingCardProps) {
   const { t } = useMessages()
   const healthLabel = health?.status ?? binding.healthStatus ?? (binding.approvalStatus === 'APPROVED' ? 'VALID' : 'NOT_TESTED')
-  return <article className="binding-card">
+  return <article className="surface-row lead binding-card">
     <div className="binding-card-icon">{binding.connector?.provider === 'MICROSOFT_FABRIC' ? 'FAB' : binding.connector?.provider === 'DATABRICKS' ? 'DBX' : binding.connector?.provider === 'SNOWFLAKE' ? 'SNF' : binding.adapterType === 'OPENAPI' ? 'API' : binding.adapterType === 'EVENT_STREAM' ? 'EVT' : binding.adapterType === 'FILE' ? 'OBJ' : 'DB'}</div>
     <div className="binding-card-main"><div><h3>{binding.sourceSystem}</h3><span className={`binding-health ${healthLabel.toLocaleLowerCase()}`}>{healthLabel.replaceAll('_', ' ')}</span>{binding.scope === 'ONTOLOGY' && <span className="connector-validation ready">{t('bindingSharedOntology')}</span>}{validation && <span className={`connector-validation ${validation.status.toLocaleLowerCase()}`}>{validation.status}</span>}</div><code>{binding.method ?? 'OP'} {binding.endpoint ?? binding.operationId}</code><p>{t('bindingRefreshMeta', { environment: binding.environment, minutes: binding.freshnessMinutes, version: binding.version, transport: binding.connector ? ` · ${binding.connector.transport}` : '' })}</p>{health && <p className="binding-health-detail">{t('bindingHealthDetail', { latency: health.latencyMs, source: health.credentialSource.toLocaleLowerCase(), freshness: health.freshnessStatus.toLocaleLowerCase(), success: health.lastSuccessfulAt ? new Date(health.lastSuccessfulAt).toLocaleString() : t('bindingHealthNever') })}</p>}<div>{binding.connector && <span>{binding.connector.provider.replace('_', ' ')}</span>}{binding.requiredPermissions.map((permission) => <span key={permission}>{permission}</span>)}</div><div className="binding-card-actions"><button className="ghost" onClick={onValidate} disabled={validating || checkingHealth || !binding.connector}>{validating ? t('commonValidating') : t('commonValidate')}</button><button className="ghost" onClick={onCheckHealth} disabled={validating || checkingHealth || !binding.connector}>{checkingHealth ? t('bindingHealthChecking') : t('bindingHealthCheck')}</button>{onRemove && <button className="danger-link" onClick={onRemove}>{t('commonRemove')}</button>}</div></div>
     <div className="binding-card-metric"><b>{health ? `${health.latencyMs}` : binding.mappings?.length ?? '—'}</b><span>{health ? t('bindingHealthMilliseconds').toLocaleUpperCase() : t('bindingMappings').toLocaleUpperCase()}</span>{health ? <small>{health.probe.replaceAll('_', ' ')}</small> : validation && <small>{validation.driver.replaceAll('_', ' ')}</small>}</div>
@@ -176,5 +177,5 @@ function BindingCard({ binding, validation, health, validating, checkingHealth, 
 }
 
 function BindingStat({ label, value, meta, tone }: { label: string; value: string; meta: string; tone: string }) {
-  return <div className="binding-stat"><div><span>{label}</span><i className={`mini-dot ${tone}`} /></div><b>{value}</b><small>{meta}</small></div>
+  return <div className="surface-row binding-stat"><div><span>{label}</span><i className={`mini-dot ${tone}`} /></div><b>{value}</b><small>{meta}</small></div>
 }

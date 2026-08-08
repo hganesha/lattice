@@ -5,18 +5,13 @@
   .binding-prerequisite b { font-size: var(--text-support); color: var(--text); }
   .binding-prerequisite p { margin-top: 4px; color: var(--text-muted); font-size: var(--text-meta); }
   .binding-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin-top: 11px; }
-  .binding-stat { padding: 13px 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); }
   .binding-stat > div { display: flex; justify-content: space-between; color: var(--text-muted); font: var(--text-meta) DM Mono; letter-spacing: .7px; }
   .binding-stat b { display: block; margin-top: 9px; font: 600 20px Manrope; color: var(--text); }
   .binding-stat small { display: block; margin-top: 2px; color: var(--text-muted); font-size: var(--text-meta); }
   .binding-layout { display: grid; grid-template-columns: minmax(0, 1fr) 285px; gap: 11px; margin-top: 11px; }
   .binding-count { color: var(--text-muted); font: var(--text-meta) DM Mono; }
-  .binding-list { min-height: 385px; padding: 12px; }
-  .binding-empty { min-height: 350px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-  .binding-empty > span { color: var(--accent-strong); font-size: 26px; }
-  .binding-empty h3 { margin-top: 10px; font: 600 13px Manrope; color: var(--text); }
-  .binding-empty p { margin: 6px 0 13px; color: var(--text-muted); font-size: var(--text-support); }
-  .binding-card { display: grid; grid-template-columns: 42px 1fr 70px; align-items: center; gap: 12px; margin-bottom: 8px; padding: 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); }
+  .binding-list { min-height: 385px; padding: 12px; display: flex; flex-direction: column; gap: var(--space-2); }
+  .binding-card { --row-trail: 70px; }
   .binding-card-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 7px; background: var(--accent-soft); color: var(--accent-strong); font: 600 var(--text-support) DM Mono; }
   .binding-card-main > div:first-child { display: flex; align-items: center; gap: 8px; }
   .binding-card-main h3 { font: 600 var(--text-body) Manrope; color: var(--text); }
@@ -109,7 +104,8 @@
   .mapping-table { height: calc(100% - 146px); overflow: auto; }
   .mapping-table-head, .mapping-row { display: grid; grid-template-columns: minmax(150px, 1fr) 68px minmax(130px, .85fr) minmax(170px, 1fr) 82px; align-items: center; gap: 9px; padding: 9px 13px; }
   .mapping-table-head { position: sticky; top: 0; z-index: 2; color: var(--text-muted); background: var(--surface); border-bottom: 1px solid var(--border); font: var(--text-meta) DM Mono; letter-spacing: .6px; }
-  .mapping-row { min-height: 58px; border-bottom: 1px solid var(--border); }
+  /* Padding stays aligned with .mapping-table-head, so it is not the shared value. */
+  .mapping-row { min-height: 58px; }
   .mapping-row > div code, .mapping-row > div small { display: block; }
   .mapping-row > div code { color: var(--text-secondary); font: var(--text-meta) DM Mono; }
   .mapping-row > div small { margin-top: 4px; color: var(--text-muted); font-size: var(--text-meta); }

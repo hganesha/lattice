@@ -17,10 +17,8 @@
   .evidence-list-panel nav { display: flex; max-width: 470px; overflow: auto; border: 1px solid var(--border); border-radius: 5px; }
   .evidence-list-panel nav button { padding: 7px 8px; border: 0; border-right: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font: var(--text-meta) DM Mono; cursor: pointer; white-space: nowrap; }
   .evidence-list-panel nav button.active { color: var(--success); background: var(--success-soft); }
-  .evidence-list { max-height: 600px; overflow: auto; padding: 10px 12px; }
-  .evidence-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) 125px; align-items: center; gap: 11px; width: 100%; margin-bottom: 7px; padding: 11px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-raised); color: var(--text-secondary); text-align: left; cursor: pointer; }
-  .evidence-row:hover, .evidence-row.selected { border-color: var(--success); background: var(--success-soft); }
-  .evidence-row.selected { box-shadow: inset 3px 0 var(--success); }
+  .evidence-list { max-height: 600px; overflow: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: var(--space-2); }
+  .evidence-row { --row-trail: 125px; }
   .evidence-type-icon { display: grid; place-items: center; width: 39px; height: 39px; border-radius: 6px; color: var(--success); background: var(--success-soft); font: 600 var(--text-meta) DM Mono; }
   .evidence-type-icon.expert_decision { color: var(--warning); background: var(--warning-soft); }
   .evidence-type-icon.observation { color: var(--info); background: var(--info-soft); }
@@ -35,7 +33,7 @@
   .evidence-row time { color: var(--text-muted); font: var(--text-meta) DM Mono; text-align: right; }
   .evidence-inspector > header, .evidence-inspector .collapsible-inspector-header > header { min-height: 75px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
   .evidence-inspector > header h2, .evidence-inspector .collapsible-inspector-header > header h2 { max-width: 220px; margin-top: 5px; font: 600 var(--text-body)/1.35 Manrope; color: var(--text); }
-  .evidence-source-card { display: flex; align-items: center; gap: 10px; margin: 13px 15px; padding: 11px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-raised); }
+  .evidence-source-card { display: flex; align-items: center; gap: var(--space-3); margin: 13px 15px; }
   .evidence-source-card > span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 5px; background: var(--success-soft); color: var(--success); font: var(--text-meta) DM Mono; }
   .evidence-source-card b, .evidence-source-card small { display: block; }
   .evidence-source-card b { font-size: var(--text-support); color: var(--text); }

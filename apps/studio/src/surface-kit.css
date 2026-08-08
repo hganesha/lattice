@@ -55,6 +55,58 @@
   .surface-metric.actionable:hover { border-color: var(--border-strong); background: var(--surface-raised); }
   .surface-metric.actionable:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
+  /* The one card row. Replaces the chrome of 26 independently-tuned classes
+   * whose paddings drifted across 9/11/12/13/15/16/17px and whose radii drifted
+   * across 6/7/8/9px — which is why no consistent rhythm was possible.
+   *
+   * Chrome is shared; layout is not. A binding row and an evidence row really
+   * do have different column structures, so those stay per-surface. What was
+   * never legitimately different is the border, the fill, and the padding. */
+  .surface-row {
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface-raised);
+    color: var(--text);
+  }
+
+  /* Six surfaces share an icon | content | trailing-meta grid. Two custom
+   * properties cover the variation that used to justify six class definitions. */
+  .surface-row.lead {
+    display: grid;
+    grid-template-columns: var(--row-lead, 42px) minmax(0, 1fr) var(--row-trail, auto);
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  /* Interactivity only — width is a layout concern and belongs to the surface.
+   * Forcing width:100% here turned the relationship chips, which are meant to
+   * wrap inline, into full-width stacked rows. */
+  .surface-row.interactive {
+    text-align: left;
+    cursor: pointer;
+    transition: border-color var(--motion-base) var(--ease), background var(--motion-base) var(--ease);
+  }
+  .surface-row.block { width: 100%; }
+  .surface-row.interactive:hover { border-color: var(--border-strong); background: var(--surface-soft); }
+  .surface-row.interactive:focus-visible { outline: 2px solid var(--selection); outline-offset: 2px; }
+
+  /* Selection is a border plus a soft fill — no glow. It reads more clearly and
+   * can actually pass a contrast check. */
+  .surface-row.selected { border-color: var(--selection); background: var(--selection-soft); }
+
+  /* Rows inside an already-bordered panel: a divider, not a card. */
+  .surface-row.flush {
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+  }
+  .surface-row.flush:last-child { border-bottom: 0; }
+
+  /* No adjacency margin: containers own their spacing via gap. A margin here
+   * fights any wrapping flex container the rows sit in. */
+
   .mini-dot { width: 7px; height: 7px; border-radius: var(--radius-pill); flex-shrink: 0; }
   .mini-dot.green { background: var(--success); }
   .mini-dot.lime { background: var(--accent); }

@@ -360,7 +360,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
             <div className="relation-list" tabIndex={0} aria-label={t('ontologyRelationshipTypes')}>
               {contract.relationshipTypes.map((relation) => <button
                 type="button"
-                className={`relation-chip ${relation.id === highlightedRelationshipId ? 'highlighted' : ''}`}
+                className={`surface-row interactive relation-chip ${relation.id === highlightedRelationshipId ? 'highlighted' : ''}`}
                 key={relation.id}
                 aria-pressed={relation.id === highlightedRelationshipId}
                 // Clicking again clears it, so the canvas can be returned to normal without
@@ -396,7 +396,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
             <div className="property-heading"><div><span>{t('ontologyProperties').toLocaleUpperCase()}</span><em>{selectedType.properties.length}</em></div><button onClick={() => setDialog('property')}>{t('ontologyAddProperty')}</button></div>
             <div className="property-list">
               {selectedType.properties.length === 0 && <div className="empty-properties"><span>◇</span><b>{t('ontologyNoProperties')}</b><small>{t('ontologyNoPropertiesDescription')}</small></div>}
-              {selectedType.properties.map((property) => <div className="property-row" key={property.id}><span className="property-symbol">{property.identifier ? '#' : '•'}</span><div><b>{property.name}</b><small>{property.dataType}{property.required ? ` · ${t('ontologyRequired')}` : ''}</small></div><code>{property.id.split('.').at(-1)}</code></div>)}
+              {selectedType.properties.map((property) => <div className="surface-row property-row" key={property.id}><span className="property-symbol">{property.identifier ? '#' : '•'}</span><div><b>{property.name}</b><small>{property.dataType}{property.required ? ` · ${t('ontologyRequired')}` : ''}</small></div><code>{property.id.split('.').at(-1)}</code></div>)}
             </div>
           </div> : selectedType && inspectorTab === 'RELATIONSHIPS' ? <div id="ontology-relationships-panel" className="relationship-inspector" role="tabpanel" aria-labelledby="ontology-relationships-tab">
             <div className="entity-title"><span className="large-icon">↔</span><div><span>{t('ontologyRelationshipTypes').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>

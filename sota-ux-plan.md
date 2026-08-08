@@ -313,8 +313,9 @@ Every claim in this plan is a number that CI can track, which is the point — "
 | Visible nav items | 22 | ~8 | **~8** |
 | Body line-height | 1.45 | 1.60 | **1.60** |
 | axe serious/critical violations | unmeasured | 0 | **0** |
-| Classes for one card row | 26 | 1 | not done — see §9 |
-| Views on `SurfaceState` | 14 / 24 | 24 / 24 | not done — see §9 |
+| Card-row chrome definitions | 26 | 1 | **1** (`.surface-row`, 20 rows migrated) |
+| Full-panel empty-state treatments | 5 bespoke | 1 | **1** (`EmptyState`) |
+| Files using `SurfaceState` primitives | 16 | — | **21** |
 
 `pnpm --filter @lattice/studio ux:check` enforces the first three in CI.
 
@@ -347,7 +348,7 @@ Visual regression runs against the Phase 0 baselines throughout, so each phase p
 - **React Flow had to be layered too.** Unlayered vendor CSS beats *every* layered rule, so putting our styles into layers without doing the same to React Flow would have inverted the graph styling. `layers.css` imports it with `layer(vendor)`, verified in the built CSS.
 - **`!important` reached 0, not "< 20".** The budget assumed some would survive to fight third-party CSS; layering the vendor sheet removed that need entirely.
 - **`--text-secondary` could not be a size token.** It is already a colour in 173 places. The supporting-copy size role is `--text-support`.
-- **The 26-class card row and full `SurfaceState` adoption were not done.** Both touch component markup across 24 views rather than CSS, and neither is load-bearing for readability the way the type ramp was. The 13→1 hero consolidation is the pattern to follow; this is the obvious next increment.
+- **"26 → 1" resolved to "chrome → 1, layout stays".** Reading all 26 rules showed the shared thing was *chrome* — border, radius, raised fill, padding, all of which had drifted (padding across 9/11/12/13/15/16/17px, radius across 6/7/8/9px). The *layouts* are genuinely different: a binding row and an evidence row really do have different column structures. So `.surface-row` owns the chrome, and the old class names survive as thin layout modifiers carrying only grid templates. Six surfaces shared one `icon | content | trailing` grid, which is now `.lead` plus two custom properties — those six class definitions collapsed to one line each. Forcing all 26 into a single class would have been a worse design, not a better metric.
 
 ### Fixed along the way (found, not planned)
 
@@ -357,17 +358,26 @@ Visual regression runs against the Phase 0 baselines throughout, so each phase p
 - **`.nav-group-items[hidden]` did not hide.** An author `display` beats the UA sheet's `[hidden] { display: none }`, so collapsed groups still rendered until the attribute was honoured explicitly.
 - **Five e2e tests were already failing on `main`** — four visual baselines predating the nav restructure, and one written against an icon grid that has since been collapsed by design. All five now pass. The suite went from 6/12 to 12/12.
 
+### Bugs I introduced and caught in the row migration
+
+Both were errors in the primitive's own design, found by looking at the rendered page rather than by tests:
+
+- **`.interactive` set `width: 100%`.** Interactivity and width are separate concerns; conflating them turned the relationship chips — which are meant to wrap inline — into full-width stacked rows. Width is now an explicit `.block` modifier.
+- **`.surface-row + .surface-row { margin-top }` fought wrapping containers.** Adjacency margin is the wrong tool when rows sit in a flex-wrap list. Removed; containers own their rhythm via `gap`, which is also what Rule 4 says.
+
+Stripping the per-row `margin-bottom` also meant five list containers needed an explicit `gap` — otherwise rows would have sat flush against each other.
+
 ### Verification
 
-12/12 e2e (including the WCAG A/AA axe scan), 78/78 unit, typecheck clean, all three burn-down metrics at zero. Visual baselines regenerated; note CI runs `--ignore-snapshots` because baselines are macOS-rasterized, so they remain a local tool.
+12/12 e2e (including the WCAG A/AA axe scan), 78/78 unit, typecheck clean, i18n catalogue current, all three burn-down metrics at zero. Visual baselines regenerated; note CI runs `--ignore-snapshots` because baselines are macOS-rasterized, so they remain a local tool.
 
 ---
 
 ## 8. Next increment
 
-With the cascade fixed and the invariants under CI, the remaining work is component-level rather than architectural:
+With the cascade fixed, the primitives extracted, and the invariants under CI:
 
-1. **Extract `.surface-row`** and migrate the 26 card-row classes onto it, following the hero pattern in `surface-kit.css`. This is the largest remaining density win.
-2. **Finish `SurfaceState` adoption** across the 10 views still rolling their own empty states.
-3. **Audit metrics for actionability** — every `.surface-metric` should filter the content below it or move into the hero as prose.
-4. **Scoped breadcrumbs** on the three genuinely nested surfaces (contract editor, ontology bindings, evaluation run detail).
+1. **Audit metrics for actionability** — every `.surface-metric` should filter the content below it or move into the hero as prose. Unbounded inert metric strips are how a screen gets dense without getting informative.
+2. **Scoped breadcrumbs** on the three genuinely nested surfaces (contract editor, ontology bindings, evaluation run detail).
+3. **The inline empty states** — `pin-empty`, `gov-inline-empty`, `diff-empty`, `empty-properties`, `empty-canvas` — were deliberately left alone. They are one-line notes inside panels, not full-panel states, and `SurfaceState`'s 220px minimum would be wrong for them. If they need consolidating it should be as a separate, smaller primitive.
+4. **Self-host the fonts.** `layers.css` still pulls Inter/Manrope/DM Mono from Google Fonts, which is a render-blocking third-party request on every load.

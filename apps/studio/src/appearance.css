@@ -194,9 +194,20 @@
   .inspector-tabs button,.inspector-tabs span { color: var(--text-secondary); font-size: var(--ui-font-min); }
   .inspector-tabs .active { color: var(--text); border-color: var(--accent); }
 
-  :where(.property-row,.relation-chip,.release-list>div,.type-history-list article,.evidence-item,.test-card,.runtime-approval-card,.execution-receipt-card,.contract-tile,.binding-card,.binding-stat,.connector-tile,.mapping-row,.assurance-check,.question-link-row,.review-claim,.review-metric,.policy-card,.policy-coverage,.evidence-row,.evidence-source-card,.release-card,.change-grid article,.starter-card,.question-draft,.candidate-list button) { color: var(--text); background: var(--surface-raised); border-color: var(--border); }
-  :where(.property-row b,.relation-chip b,.release-list span,.type-history-list article p,.evidence-item b,.test-card b,.contract-tile h3,.binding-card h3,.connector-tile h3,.assurance-check b,.question-link-row b,.review-claim h3,.policy-card h3,.evidence-row b,.release-card h3) { color: var(--text); }
-  :where(.property-row small,.relation-chip,.type-history-list article time,.type-history-list article code,.evidence-item small,.test-card div span,.contract-tile p,.binding-card p,.connector-tile p,.assurance-check p,.question-link-row small,.review-claim p,.policy-card p,.evidence-row p,.release-card time) { color: var(--text-secondary); }
+  /* Was three mega-selectors listing 26 class names to give one bordered card
+   * its chrome. That chrome is now .surface-row in the primitives layer.
+   *
+   * What remains here is the handful of rows that have not been migrated to the
+   * primitive because they are not authored as components — release-list rows,
+   * type-history articles, change-grid articles and candidate buttons are built
+   * inline. They keep the old treatment until their markup moves. */
+  :where(.release-list>div,.type-history-list article,.test-card,.policy-coverage,.change-grid article,.candidate-list button) { color: var(--text); background: var(--surface-raised); border-color: var(--border); }
+  :where(.release-list span,.type-history-list article p,.test-card b) { color: var(--text); }
+  :where(.type-history-list article time,.type-history-list article code,.test-card div span) { color: var(--text-secondary); }
+
+  /* Typographic roles inside a card row, shared across every surface. */
+  .surface-row :where(b, h3) { color: var(--text); }
+  .surface-row :where(p, small, time, code) { color: var(--text-secondary); }
 
   .display-controls { display: flex; align-items: center; gap: 8px; }
   .display-control { display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; }

@@ -1,7 +1,6 @@
 @layer surfaces {
   .review-queue-page { margin-top: 14px; }
   .review-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin-top: 11px; }
-  .review-metric { padding: 13px 15px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); }
   .review-metric > div { display: flex; justify-content: space-between; color: var(--text-muted); font: var(--text-meta) DM Mono; letter-spacing: .7px; }
   .review-metric b { display: block; margin-top: 9px; font: 600 20px Manrope; color: var(--text); }
   .review-metric small { display: block; margin-top: 2px; color: var(--text-muted); font-size: var(--text-meta); }
@@ -13,8 +12,8 @@
   .review-claims > header nav button { padding: 7px 9px; border: 0; border-right: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font: var(--text-meta) DM Mono; cursor: pointer; }
   .review-claims > header nav button:last-child { border: 0; }
   .review-claims > header nav button.active { color: var(--warning); background: var(--warning-soft); }
-  .review-claim-list { padding: 10px 12px; }
-  .review-claim { display: grid; grid-template-columns: 42px minmax(0, 1fr) 145px; align-items: center; gap: 12px; margin-bottom: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); }
+  .review-claim-list { padding: 10px 12px; display: flex; flex-direction: column; gap: var(--space-2); }
+  .review-claim { --row-trail: 145px; }
   .claim-kind { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 7px; background: var(--warning-soft); color: var(--warning); font: 600 var(--text-meta) DM Mono; }
   .claim-kind.source_binding { color: var(--info); background: var(--info-soft); }
   .claim-kind.policy { color: var(--governance); background: var(--governance-soft); }
@@ -32,10 +31,6 @@
   .claim-action button { min-width: 125px; }
   .review-button, .history-button { padding: 8px 10px; border: 1px solid var(--info); border-radius: 5px; background: var(--info-soft); color: var(--info); font: var(--text-meta) Inter; cursor: pointer; }
   .history-button { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
-  .review-empty { min-height: 390px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .review-empty > span { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid var(--accent); border-radius: 50%; color: var(--accent-strong); }
-  .review-empty h3 { margin-top: 10px; font: 600 12px Manrope; color: var(--text); }
-  .review-empty p { margin-top: 5px; color: var(--text-muted); font-size: var(--text-meta); }
   .review-history .panel-header { height: 68px; }
   .review-history-list { padding: 10px 13px; }
   .review-history-list > p { padding: 50px 10px; color: var(--text-muted); font-size: var(--text-meta); text-align: center; }
@@ -102,6 +97,6 @@
 
   @media (max-width: 1250px) {
     .review-layout { grid-template-columns: minmax(0, 1fr) 255px; }
-    .review-claim { grid-template-columns: 42px minmax(0, 1fr) 135px; }
+    .review-claim { --row-trail: 135px; }
   }
 }

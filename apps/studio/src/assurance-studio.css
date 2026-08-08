@@ -10,7 +10,7 @@
   .question-coverage { margin-top: 11px; }
   .question-coverage .panel-header > span { color: var(--text-muted); font: var(--text-meta) DM Mono; }
   .question-link-list { padding: 8px 12px; }
-  .question-link-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) minmax(280px, .7fr); align-items: center; gap: 11px; padding: 11px 5px; border-bottom: 1px solid var(--border); }
+  .question-link-row { --row-lead: 30px; --row-trail: minmax(280px, .7fr); }
   .question-link-row:last-child { border: 0; }
   .question-link-row > span { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; font-weight: 700; }
   .question-link-row > span.linked { color: var(--accent-strong); background: var(--accent-soft); }
@@ -28,12 +28,9 @@
   .assurance-filters button { padding: 6px 7px; border: 0; border-right: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font: var(--text-meta) DM Mono; cursor: pointer; }
   .assurance-filters button:last-child { border: 0; }
   .assurance-filters button.active { color: var(--accent-strong); background: var(--accent-soft); }
-  .assurance-empty { min-height: 370px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .assurance-empty > span { display: grid; place-items: center; width: 45px; height: 45px; border: 1px dashed var(--border-strong); border-radius: 50%; color: var(--accent-strong); font-size: 18px; }
-  .assurance-empty h3 { margin-top: 11px; font: 600 12px Manrope; color: var(--text); }
-  .assurance-empty p { margin-top: 5px; color: var(--text-muted); font-size: var(--text-meta); }
-  .assurance-check-list { max-height: 470px; overflow: auto; padding: 9px 12px; }
-  .assurance-check { display: grid; grid-template-columns: 30px minmax(0, 1fr) 65px; gap: 10px; margin-bottom: 7px; padding: 11px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-raised); }
+  .assurance-check-list { max-height: 470px; overflow: auto; padding: 9px 12px; display: flex; flex-direction: column; gap: var(--space-2); }
+  /* Chrome comes from .surface-row; only the column widths are ours. */
+  .assurance-check { --row-lead: 30px; --row-trail: 65px; }
   .assurance-check > span { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; font-weight: 700; }
   .assurance-check.pass > span { color: var(--success); background: var(--success-soft); }
   .assurance-check.fail { border-color: var(--danger); background: var(--danger-soft); }

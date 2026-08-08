@@ -5,7 +5,7 @@ interface ExecutionReceiptCardProps {
 }
 
 export function ExecutionReceiptCard({ receipt }: ExecutionReceiptCardProps) {
-  return <article className="execution-receipt-card">
+  return <article className="surface-row execution-receipt-card">
     <div className="approval-card-heading">
       <div><span className="panel-kicker">IMMUTABLE EXECUTION RECEIPT</span><h3>{receipt.operationId}</h3></div>
       <span className={`runtime-status-pill ${receipt.status.toLocaleLowerCase()}`}>{receipt.status}</span>

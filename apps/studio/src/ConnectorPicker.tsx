@@ -53,7 +53,7 @@ export function ConnectorPicker({ onCancel, onSelect }: ConnectorPickerProps) {
     <div className="connector-picker-body">
       <div className="connector-picker-intro"><div><span className="panel-kicker">{t('connectorGovernedAdapters').toLocaleUpperCase()} · {(catalogState === 'LIVE' ? t('connectorApiSynchronized') : catalogState === 'FALLBACK' ? t('connectorLocalFallback') : t('connectorSynchronizing')).toLocaleUpperCase()}</span><h3>{t('connectorIntroTitle')}</h3><p>{t('connectorIntroDescription')}</p></div><div className="connector-count"><b>{connectors.length}</b><span>{t('connectorTypes').toLocaleUpperCase()}</span></div></div>
       <div className="connector-grid">
-        {connectors.map((connector) => { const icon = connectorIcons[connector.id]; return <button className={`connector-tile ${featured.has(connector.id) ? 'featured' : ''}`} onClick={() => onSelect(connector.id)} key={connector.id}>
+        {connectors.map((connector) => { const icon = connectorIcons[connector.id]; return <button className={`surface-row interactive block connector-tile ${featured.has(connector.id) ? 'featured' : ''}`} onClick={() => onSelect(connector.id)} key={connector.id}>
           <div className="connector-tile-top"><span className={`connector-monogram${icon ? ' brand-icon' : ''}`}>{icon ? <img src={icon} alt="" aria-hidden="true" /> : monogram(connector.label)}</span><span className="connector-category">{connector.category.replace('_', ' ')}</span></div>
           <h3>{connector.label}</h3>
           <p>{connector.description}</p>
