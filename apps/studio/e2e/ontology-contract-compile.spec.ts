@@ -28,18 +28,16 @@ test('creates a contract scoped to an industry ontology and opens its compiler',
   await page.getByRole('button', { name: 'Create contract →' }).click()
 
   await expect(page.getByRole('heading', { name: 'Choose a decision contract' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Dispatch Prioritization E2E' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Dispatch Prioritization E2E', exact: true, level: 3 })).toBeVisible()
 
   await nav(page).getByRole('button', { name: 'Compiler' }).click()
   await expect(page.getByRole('heading', { name: 'Compiler', level: 1 })).toBeVisible()
 
-  // E3/E4: an unpublished contract now reaches the money moment via dry run, and the compile
-  // button stays gated until a purpose is declared.
-  await expect(page.getByRole('button', { name: 'Declare a purpose ⌘↵' })).toBeDisabled()
-  await page.getByLabel('Declared purpose').selectOption('situational_awareness')
+  // E3: an unpublished contract reaches the money moment via dry run. A brand-new contract
+  // declares no purposes yet, so the selector says so and does not block the compile.
+  await expect(page.getByLabel('Declared purpose')).toBeDisabled()
+  await expect(page.getByText(/This contract declares no purposes, so none can be named/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Dry-run compile ⌘↵' })).toBeEnabled()
-  // The derived tier is shown before compiling, so the gate is visible up front.
-  await expect(page.getByText('Derived from purpose × contract × operation.')).toBeVisible()
 })
 
 test('a dry run reaches a disposition without publishing anything', async ({ page }) => {
@@ -47,7 +45,9 @@ test('a dry run reaches a disposition without publishing anything', async ({ pag
   await page.goto('/')
   await nav(page).getByRole('button', { name: 'Compiler' }).click()
 
+  // The seeded counterparty contract declares its purposes, so one must be named.
   await page.getByLabel('Declared purpose').selectOption('internal_analysis')
+  await expect(page.getByText('Derived from purpose × contract × operation.')).toBeVisible()
   await page.getByRole('button', { name: 'Dry-run compile ⌘↵' }).click()
 
   // A dry-run result must read unmistakably as non-authorizing (E3).
@@ -56,7 +56,7 @@ test('a dry run reaches a disposition without publishing anything', async ({ pag
 
   // Every compile persists, and the record is addressable by URL (E5, fixes G1/G2).
   await expect(page).toHaveURL(/\/dispositions\/disp_/)
-  await expect(page.getByText('VERSION PINS')).toBeVisible()
+  await expect(page.getByText('VERSION PINS').first()).toBeVisible()
   await expect(page.getByText('Dry run — non-authorizing')).toBeVisible()
 })
 

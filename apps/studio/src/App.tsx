@@ -176,7 +176,8 @@ export function App() {
   const reviewQueueCount = contract.entityTypes.filter((type) => ['DRAFT', 'IN_REVIEW', 'REJECTED'].includes(type.approvalStatus)).length + contract.bindings.filter((binding) => ['DRAFT', 'IN_REVIEW', 'REJECTED'].includes(binding.approvalStatus)).length + contract.policies.filter((policy) => ['DRAFT', 'IN_REVIEW', 'REJECTED'].includes(policy.approvalStatus)).length
   const runtimeStatus = contracts.find((summary) => summary.contractId === contract.id)?.runtimeStatus ?? (contract.releaseStatus === 'PUBLISHED' ? 'ACTIVE' : 'NO_RELEASE')
   const workspaceContracts = contracts.filter((summary) => !workspace || summary.workspaceId === workspace.id)
-  const hasActiveWorkspaceContract = workspaceContracts.some((summary) => summary.contractId === contract.id)
+  const viewedContractId = route.contractId ?? contract.id
+  const hasActiveWorkspaceContract = workspaceContracts.some((summary) => summary.contractId === viewedContractId)
   const navigationCounts: Record<CountKind, number> = {
     contracts: workspaceContracts.length,
     'ontology-bindings': workspace?.ontology.bindings?.length ?? 0,
@@ -195,6 +196,13 @@ export function App() {
   useEffect(() => {
     const controller = new AbortController()
     const initial = new URL(window.location.href)
+    /*
+     * The path as it was when this started. Restoring the last active contract is only correct
+     * while the user has not gone anywhere: these fetches can land after a contract has been
+     * created or selected, and applying a stale result then silently throws that away.
+     */
+    const startedAtPath = window.location.pathname
+    const superseded = () => window.location.pathname !== startedAtPath
     const activeContractId = initial.searchParams.get('contract') ?? currentContractIdFromPath() ?? localStorage.getItem(ACTIVE_CONTRACT_KEY) ?? counterpartyRiskContract.id
     void Promise.all([
       fetch(`${API_URL}/v1/contracts`, { headers: apiAuthHeaders(), signal: controller.signal }),
@@ -204,6 +212,7 @@ export function App() {
         if (listResponse.ok) setContracts(await listResponse.json() as ContractSummary[])
         const workspaceSummaries = workspaceListResponse.ok ? await workspaceListResponse.json() as WorkspaceSummary[] : []
         setWorkspaces(workspaceSummaries)
+        if (superseded()) return
         if (entryResponse.ok) {
           const entry = await entryResponse.json() as ContractRegistryEntry
           setContract(entry.draft)
@@ -213,12 +222,13 @@ export function App() {
             const workspaceResponse = await fetch(`${API_URL}/v1/workspaces/${workspaceId}`, { headers: apiAuthHeaders(), signal: controller.signal })
             if (workspaceResponse.ok) {
               const loaded = await workspaceResponse.json() as IndustryWorkspace
+              if (superseded()) return
               setWorkspace(loaded)
               navigate({ workspaceId: loaded.id, contractId: entry.contractId, surface: parseRouteSurface() }, { replace: true })
               return
             }
           }
-          navigate({ contractId: entry.contractId, surface: parseRouteSurface() }, { replace: true })
+          if (!superseded()) navigate({ contractId: entry.contractId, surface: parseRouteSurface() }, { replace: true })
         }
       })
       .catch(() => undefined)
@@ -256,10 +266,9 @@ export function App() {
   /** A deep link that names a different contract than the loaded one wins. */
   useEffect(() => {
     if (!route.contractId || route.contractId === contract.id) return
-    if (!contracts.some((summary) => summary.contractId === route.contractId)) return
     void loadContract(route.contractId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [route.contractId, contracts.length])
+  }, [route.contractId])
 
   useEffect(() => {
     if (!route.workspaceId || route.workspaceId === workspace?.id) return

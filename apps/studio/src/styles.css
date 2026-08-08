@@ -77,3 +77,8 @@ header { display: flex; align-items: center; justify-content: space-between; mar
 
 /* Keyboard-shortcut chip reuses the nav count slot. */
 .nav-item em { font-variant-numeric: tabular-nums; }
+
+/* The four job groups make the nav taller than the viewport on short screens: it scrolls, and the
+   health footer stays pinned. Without this the last group and the footer overflow the sidebar. */
+.sidebar > nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.sidebar-footer { flex: 0 0 auto; }

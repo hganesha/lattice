@@ -57,7 +57,9 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
   const purpose = purposeOptions.find((option) => option.id === purposeId)
   const selected = contract.entities.find((entity) => entity.id === selectedId)
   const authorizedAvailable = contract.releaseStatus === 'PUBLISHED' && runtimeStatus === 'ACTIVE'
-  const canCompile = !loading && Boolean(purposeId) && (mode === 'DRY_RUN' || authorizedAvailable)
+  // Purpose is required only where the contract declares purposes to choose from.
+  const purposeRequired = declaredPurposes.length > 0
+  const canCompile = !loading && (!purposeRequired || Boolean(purposeId)) && (mode === 'DRY_RUN' || authorizedAvailable)
 
   useEffect(() => {
     if (!purposeId) {
@@ -137,7 +139,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
   }
 
   const compileLabel = loading ? d('compilerCompiling')
-    : !purposeId ? d('compilerSelectPurposeFirst')
+    : purposeRequired && !purposeId ? d('compilerSelectPurposeFirst')
     : mode === 'DRY_RUN' ? d('compilerCompileDryRun')
     : runtimeStatus === 'SUSPENDED' ? d('compilerSuspended')
     : d('compilerCompileAuthorized')
@@ -146,7 +148,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     <section className="compiler-bar">
       <div className="spark" aria-hidden="true"><IconZap /></div>
       <div className="question-field"><label htmlFor="compiler-question">{t('runtimeCompileQuestion')}</label><input id="compiler-question" aria-label={t('runtimeQuestionLabel')} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void compile() }} /></div>
-      <div className="purpose-field"><label htmlFor="compiler-purpose">{d('compilerPurpose')}</label><select id="compiler-purpose" value={purposeId} required aria-required="true" onChange={(event) => setPurposeId(event.target.value)} disabled={purposes.status === 'LOADING'}><option value="">{purposes.status === 'LOADING' ? d('compilerPurposeLoading') : d('compilerPurposeRequired')}</option>{purposeOptions.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}</select></div>
+      <div className="purpose-field"><label htmlFor="compiler-purpose">{d('compilerPurpose')}</label><select id="compiler-purpose" value={purposeId} required={purposeRequired} aria-required={purposeRequired} onChange={(event) => setPurposeId(event.target.value)} disabled={purposes.status === 'LOADING' || !purposeRequired}><option value="">{purposes.status === 'LOADING' ? d('compilerPurposeLoading') : purposeRequired ? d('compilerPurposeRequired') : d('compilerPurposeNoneDeclared')}</option>{purposeOptions.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}</select></div>
       <div className="mode-field" role="group" aria-label={d('compilerMode')}>
         <button type="button" className={mode === 'DRY_RUN' ? 'selected' : ''} aria-pressed={mode === 'DRY_RUN'} onClick={() => setMode('DRY_RUN')}><IconFlask /> {d('compilerModeDryRun')}</button>
         <button type="button" className={mode === 'AUTHORIZED' ? 'selected' : ''} aria-pressed={mode === 'AUTHORIZED'} disabled={!authorizedAvailable} title={authorizedAvailable ? d('compilerModeAuthorizedHint') : d('compilerModeAuthorizedBlocked')} onClick={() => setMode('AUTHORIZED')}><IconShieldCheck /> {d('compilerModeAuthorized')}</button>
@@ -157,6 +159,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     <div className="compiler-context">
       <div className="compiler-declaration">
         <p className="compiler-hint">{d('compilerPurposeDeclared')}</p>
+        {purposes.status === 'READY' && !purposeRequired && <p className="compiler-hint warn">{d('compilerPurposeNoneDeclaredHint')}</p>}
         {purposes.status === 'ERROR' && <p className="compiler-hint warn">{d('compilerPurposeUnavailable', { detail: purposes.error })}</p>}
         {purpose && (purpose.audience || purpose.reversibility) && <dl className="purpose-facts">{purpose.audience && <div><dt>{d('compilerPurposeAudience')}</dt><dd>{d(purposeAudienceMessageKeys[purpose.audience])}</dd></div>}{purpose.reversibility && <div><dt>{d('compilerPurposeReversibility')}</dt><dd>{d(reversibilityMessageKeys[purpose.reversibility])}</dd></div>}</dl>}
         {purpose && <p className="compiler-hint">{purpose.description}</p>}

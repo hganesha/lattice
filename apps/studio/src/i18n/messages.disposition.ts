@@ -9,6 +9,8 @@ import type { DispositionMode, DispositionProvenance, EvidenceStrength, Principa
 export const dispositionMessages = defineMessages({
   /* ---- Compiler bar: declared purpose (E4) ---- */
   compilerPurpose: { id: 'compiler.purpose', defaultMessage: 'Declared purpose', description: 'Label for the required purpose selector beside the compiler question field.' },
+  compilerPurposeNoneDeclaredHint: { id: 'compiler.purposeNoneDeclaredHint', defaultMessage: 'This contract declares no purposes, so none can be named. Declare them on the contract to limit what it may be compiled for.' },
+  compilerPurposeNoneDeclared: { id: 'compiler.purposeNoneDeclared', defaultMessage: 'This contract declares no purposes' },
   compilerPurposeRequired: { id: 'compiler.purposeRequired', defaultMessage: 'Select a purpose' },
   compilerPurposeLoading: { id: 'compiler.purposeLoading', defaultMessage: 'Loading purposes…' },
   compilerPurposeUnavailable: { id: 'compiler.purposeUnavailable', defaultMessage: 'Purpose catalogue unavailable — {detail}' },
