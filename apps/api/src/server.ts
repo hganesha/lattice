@@ -378,6 +378,17 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
     const registry = supabaseStorage
       ? await ContractRegistry.openStorage(supabaseStorage, counterpartyRiskContract, { persistOnOpen: false })
       : (await localStores()).registry
+    /**
+     * `governed_artifacts` has a foreign key on (organization_id, contract_id), and on the
+     * Supabase path the registry opens without persisting, so a seeded reference contract is
+     * visible to the API without having a row. Governing one of those — running assurance,
+     * opening a review, recording a receipt — has to materialize it first or the append fails on
+     * the key. Call this before any contract-scoped governed write.
+     */
+    const materializeContract = async (contractId: string): Promise<void> => {
+      if (supabaseStorage) await registry.ensurePersisted(contractId)
+    }
+
     const evolution = supabaseStorage && supabaseRegistryConfig && requestIdentity
       ? evolutionLedgers(supabaseRegistryConfig, requiredTenantId(requestIdentity), request.headers.authorization ?? '')
       : await evolutionStores(registry)
@@ -705,6 +716,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
         send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
         return
       }
+      await materializeContract(body.contractId)
       send(response, 201, await assuranceStore.append(runAssurance(body.contract), identity.tenantId))
       return
     }
@@ -755,6 +767,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
         send(response, 404, { error: 'REVIEW_TARGET_NOT_FOUND' })
         return
       }
+      await materializeContract(entry.contractId)
       const review = await reviewStore.create({
         contractId: entry.contractId,
         contractVersion: entry.draft.version,
@@ -1067,6 +1080,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
         const intentResolution = await withSpan('lattice.resolve_intent', {}, async () => resolver.resolve(body, runtimeContract))
         const raw = new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) })
         // A dry run is never signed and never raises a runtime approval: it authorizes nothing.
+        if (compileMode !== 'DRY_RUN') await materializeContract(runtimeContract.id)
         const compiled = compileMode === 'DRY_RUN' ? raw : await prepareCompile(raw, runtimeContract, principal, runtimeApprovalStore)
         rememberClarification(compiled, principal, body, intentResolution)
         recordCompileDecision(span, compiled)
@@ -1114,6 +1128,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
         return
       }
       const selectedOperationId = pending.kind === 'ENTITY' ? pending.operationId : body.operationId!
+      await materializeContract(runtimeContract.id)
       const result = await prepareCompile(
         new ContextCompiler(runtimeContract).compile({
           ...pending.request,
@@ -1269,6 +1284,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
       const grantedPermissions = resolveGrantedPermissions(principal)
       const missing = missingPermissions(grantedPermissions, plan.requiredPermissions)
       const startedAt = new Date().toISOString()
+      await materializeContract(contractId)
       if (missing.length > 0) {
         // Recorded for audit, but deliberately not treated as consuming the plan's nonce.
         const receipt = await executionStore.append({

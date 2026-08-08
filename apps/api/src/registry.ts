@@ -268,9 +268,47 @@ export class ContractRegistry {
     return { entry: structuredClone(entry), event: structuredClone(event) }
   }
 
+  /**
+   * Guarantees the rows a governed artifact is about to reference actually exist.
+   *
+   * On the Supabase path the registry opens with `persistOnOpen: false`, so the seeded reference
+   * contracts and their workspaces live in this document without having a row in the database.
+   * `governed_artifacts` has a foreign key on (organization_id, contract_id), so appending an
+   * assurance run — or a review, an approval or a receipt — for one of those contracts fails on
+   * the key rather than on anything the user did.
+   *
+   * Writing the whole document instead would drag every other seeded contract into the tenant's
+   * database as a side effect of running assurance on one of them. This narrows the write to the
+   * contract being used and the workspace it belongs to, which is the smallest set that satisfies
+   * the constraint. The storage's own snapshot filtering makes repeat calls a no-op.
+   */
+  async ensurePersisted(contractId: string): Promise<void> {
+    const entry = this.document.entries[contractId]
+    if (!entry) return
+
+    const workspaces = this.document.workspaces ?? {}
+    const owning = entry.draft.ontologyRef?.workspaceId && workspaces[entry.draft.ontologyRef.workspaceId]
+      ? workspaces[entry.draft.ontologyRef.workspaceId]
+      : Object.values(workspaces).find((workspace) => workspace.contractIds.includes(contractId))
+    // Without a workspace the contract row cannot satisfy its own foreign key either. Let the
+    // append fail and say so, rather than writing a row that cannot exist.
+    if (!owning) return
+
+    await this.write({
+      schemaVersion: this.document.schemaVersion,
+      entries: { [contractId]: structuredClone(entry) },
+      workspaces: { [owning.id]: structuredClone(owning) },
+    })
+  }
+
   private async persist(): Promise<void> {
+    await this.write(structuredClone(this.document))
+  }
+
+  /** Serialized so two concurrent writes cannot interleave against the same storage. */
+  private async write(document: RegistryDocument): Promise<void> {
     this.writeQueue = this.writeQueue.then(async () => {
-      await this.storage.write(structuredClone(this.document))
+      await this.storage.write(document)
     })
     await this.writeQueue
   }

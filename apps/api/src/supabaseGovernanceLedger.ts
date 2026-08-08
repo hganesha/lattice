@@ -1,7 +1,7 @@
 import type { ArtifactChainLink } from '@lattice/contracts'
 import type { ChainedArtifact } from './hashChain.js'
 import type { LedgerStorage } from './governanceLedger.js'
-import { secureProjectUrl, totalFromContentRange, validUuid, type SupabaseRegistryConfig } from './supabaseRegistry.js'
+import { secureProjectUrl, supabaseFailure, totalFromContentRange, validUuid, type SupabaseRegistryConfig } from './supabaseRegistry.js'
 
 /** The `kind` discriminator on `public.governed_artifacts`. */
 export type GovernedArtifactKind =
@@ -87,7 +87,7 @@ export class SupabaseGovernanceLedger<T extends ChainedArtifact> implements Ledg
       headers: { ...this.headers, Prefer: 'count=exact' },
       signal: AbortSignal.timeout(5_000),
     })
-    if (!response.ok) throw new Error(`SUPABASE_LEDGER_READ_FAILED:${this.kind}:${response.status}`)
+    if (!response.ok) throw await supabaseFailure(`SUPABASE_LEDGER_READ_FAILED:${this.kind}`, response)
     const rows = await response.json() as GovernedArtifactRow[]
 
     // A silently truncated ledger reads as a shorter history, which is indistinguishable from
@@ -117,7 +117,7 @@ export class SupabaseGovernanceLedger<T extends ChainedArtifact> implements Ledg
       }),
       signal: AbortSignal.timeout(5_000),
     })
-    if (!response.ok) throw new Error(`SUPABASE_LEDGER_APPEND_FAILED:${this.kind}:${response.status}`)
+    if (!response.ok) throw await supabaseFailure(`SUPABASE_LEDGER_APPEND_FAILED:${this.kind}`, response)
 
     const row = await response.json() as GovernedArtifactRow | GovernedArtifactRow[]
     const stored = Array.isArray(row) ? row[0] : row
