@@ -25,11 +25,20 @@ export class EvalRunStore {
     }
   }
 
-  list(query: { contractId?: string; caseSetId?: string } = {}): EvalRunSummary[] {
+  list(query: { contractId?: string; caseSetId?: string; environment?: string } = {}): EvalRunSummary[] {
     return this.document.runs
-      .filter((run) => (!query.contractId || run.contractId === query.contractId) && (!query.caseSetId || run.caseSetId === query.caseSetId))
+      .filter((run) => (!query.contractId || run.contractId === query.contractId)
+        && (!query.caseSetId || run.caseSetId === query.caseSetId)
+        && (!query.environment || run.environment === query.environment))
       .map((run) => summarizeRun(run))
       .reverse()
+  }
+
+  /** The environments runs actually carry. The filter offers these and never an invented list. */
+  environments(contractId?: string): string[] {
+    return [...new Set(this.document.runs
+      .filter((run) => !contractId || run.contractId === contractId)
+      .map((run) => run.environment))].sort()
   }
 
   all(): EvalRun[] {

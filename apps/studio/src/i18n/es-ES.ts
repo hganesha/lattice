@@ -173,6 +173,8 @@ export const spanishMessages = {
   navDriftSourceHealth: 'Deriva y salud de fuentes',
   navActivity: 'Actividad',
   navSearch: 'Buscar',
+  headerSaving: 'Guardando…',
+  headerAutosavePending: 'Sin guardar — se guardará en breve',
   shareView: 'Compartir vista',
   emptyNoContractTitle: 'Esta superficie necesita un contrato de decisión',
   emptyChooseContract: 'Elegir un contrato existente',

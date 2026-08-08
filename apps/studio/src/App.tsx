@@ -75,6 +75,8 @@ const CommandPalette = lazy(() => import('./CommandPalette').then((module) => ({
 const ACTIVE_CONTRACT_KEY = 'lattice:active-contract'
 const ACTIVE_WORKSPACE_KEY = 'lattice:active-workspace'
 const WELCOME_DISMISSED_KEY = 'lattice:welcome-dismissed'
+/** Long enough that typing does not queue a request per keystroke, short enough to feel automatic. */
+const AUTOSAVE_IDLE_MS = 2000
 
 type CountKind = 'contracts' | 'ontology-bindings' | 'tests' | 'bindings' | 'policies' | 'reviews' | 'evidence'
 
@@ -413,6 +415,19 @@ export function App() {
     else await saveContractDraft()
   }
 
+  /*
+   * Autosave (E22). Debounced on the draft itself, so each edit restarts the clock and a burst of
+   * typing costs one request. It stops after a failure rather than retrying on a timer: the header
+   * reports it, and the Save button is the deliberate retry.
+   */
+  useEffect(() => {
+    if (!draftDirty || saveState !== 'IDLE') return
+    if (workspaceMode ? !workspace : !hasActiveWorkspaceContract) return
+    const timer = window.setTimeout(() => void saveActiveDraft(), AUTOSAVE_IDLE_MS)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftDirty, saveState, workspaceMode, contract, workspace])
+
   function closeWelcome() {
     localStorage.setItem(WELCOME_DISMISSED_KEY, 'true')
     setWelcomeOpen(false)
@@ -474,7 +489,7 @@ export function App() {
         <header>
           <div><div className="eyebrow">{t('contextStudio')} / {workspace?.name ?? contract.domain}</div><h1>{activeNavigation ? t(activeNavigation.label) : t(surface === 'activity' ? 'navActivity' : 'navSharedOntology')}</h1></div>
           <div className="header-actions">
-            {(workspaceMode || hasActiveWorkspaceContract) && <span className={`draft-state ${draftDirty ? 'dirty' : ''}`}>{saveState === 'FAILED' ? t('headerSaveFailed') : draftDirty ? t('unsavedDraft') : t('draftSaved')}</span>}
+            {(workspaceMode || hasActiveWorkspaceContract) && <span className={`draft-state ${saveState === 'SAVING' ? 'saving' : draftDirty ? 'dirty' : ''}`} aria-live="polite">{saveState === 'FAILED' ? t('headerSaveFailed') : saveState === 'SAVING' ? t('headerSaving') : draftDirty ? t('headerAutosavePending') : t('draftSaved')}</span>}
             {(workspaceMode ? Boolean(workspace) : hasActiveWorkspaceContract) && <button className="release" onClick={() => void saveActiveDraft()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}
             <button className="ghost" onClick={() => setIntroOpen(true)}>{t('introOpen')}</button>
             <button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button>

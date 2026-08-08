@@ -56,8 +56,12 @@ export function EvaluationRunsStudio({ contract, workspaceId, detailId, onNaviga
   const [notice, setNotice] = useState('')
   const [caseSetFilter, setCaseSetFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [environmentFilter, setEnvironmentFilter] = useState('')
   const [expandedRunId, setExpandedRunId] = useState('')
-  const runs = useResource<EvalRunSummary[]>(`/v1/eval/runs?contractId=${encodeURIComponent(contract.id)}`)
+  const runs = useResource<EvalRunSummary[]>(`/v1/eval/runs?contractId=${encodeURIComponent(contract.id)}${environmentFilter ? `&environment=${encodeURIComponent(environmentFilter)}` : ''}`)
+  // Offered environments come from runs that exist; an environment nothing ran in is not a choice.
+  const environments = useResource<EvalRunSummary[]>(`/v1/eval/runs?contractId=${encodeURIComponent(contract.id)}`)
+  const environmentOptions = useMemo(() => [...new Set((environments.data ?? []).map((run) => run.environment))].sort(), [environments.data])
   const all = useMemo(() => runs.data ?? [], [runs.data])
   const caseSetIds = useMemo(() => [...new Set(all.map((run) => run.caseSetId))], [all])
   const visible = all.filter((run) => (!caseSetFilter || run.caseSetId === caseSetFilter) && (!statusFilter || run.status === statusFilter))
@@ -90,6 +94,7 @@ export function EvaluationRunsStudio({ contract, workspaceId, detailId, onNaviga
         <div className="surface-filters" aria-label={t('evalRunFiltersLabel')}>
           <label htmlFor="run-case-set">{t('evalRunFilterCaseSet')}<select id="run-case-set" value={caseSetFilter} onChange={(event) => setCaseSetFilter(event.target.value)}><option value="">{t('commonAll')}</option>{caseSetIds.map((id) => <option value={id} key={id}>{id}</option>)}</select></label>
           <label htmlFor="run-status">{t('evalRunFilterStatus')}<select id="run-status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">{t('commonAll')}</option>{(['COMPLETED', 'RUNNING', 'QUEUED', 'CANCELLED', 'FAILED'] as const).map((status) => <option value={status} key={status}>{t(runStatusKey(status))}</option>)}</select></label>
+          {environmentOptions.length > 1 && <label htmlFor="run-environment">{t('evalRunFilterEnvironment')}<select id="run-environment" value={environmentFilter} onChange={(event) => setEnvironmentFilter(event.target.value)}><option value="">{t('commonAll')}</option>{environmentOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>}
         </div>
       </div>
 

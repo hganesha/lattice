@@ -1557,7 +1557,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
   /* ---- Evaluation runs, diff, failure routing (E7, E8, E10) ---- */
 
   if (method === 'GET' && path === '/v1/eval/runs') {
-    send(response, 200, evolution.evalRun.list({ ...optional('contractId', url), ...optional('caseSetId', url) }))
+    send(response, 200, evolution.evalRun.list({ ...optional('contractId', url), ...optional('caseSetId', url), ...optional('environment', url) }))
     return true
   }
 

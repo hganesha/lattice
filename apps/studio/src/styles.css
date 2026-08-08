@@ -82,3 +82,4 @@ header { display: flex; align-items: center; justify-content: space-between; mar
    health footer stays pinned. Without this the last group and the footer overflow the sidebar. */
 .sidebar > nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .sidebar-footer { flex: 0 0 auto; }
+.draft-state.saving { color: var(--info); }
