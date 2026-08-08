@@ -1,6 +1,4 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import {
   autonomyTierDefinitions,
   type DelegationGrant,
@@ -10,16 +8,27 @@ import {
   type PurposeAudience,
   type RiskTier,
 } from '@lattice/contracts'
+import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
 
-interface PrincipalDocument {
-  schemaVersion: '1.0'
-  principals: Principal[]
-}
+/**
+ * Identity and delegation, kept as two append-only ledgers.
+ *
+ * Who a principal is and what they were lent authority to do are the two facts every disposition
+ * cites, so neither can be quietly rewritten: suspending a principal or spending a grant's budget
+ * appends a superseding artifact carrying the same id rather than overwriting the previous one.
+ * Principals and grants stay in separate ledgers because they are separate artifact kinds in the
+ * backing table, and a grant's chain should not be perturbed by directory churn.
+ */
 
-interface DelegationDocument {
-  schemaVersion: '1.0'
-  grants: DelegationGrant[]
-}
+/**
+ * A principal as this ledger stores it.
+ *
+ * `Principal.artifactDigest` is optional on the contract because directories written before
+ * chaining existed have none; the ledger needs one to chain on, so everything appended here
+ * carries it.
+ */
+/** Exported so the server can parameterise the Postgres ledger with the same narrowed shape. */
+export type PrincipalArtifact = Principal & { artifactDigest: string }
 
 export interface CreateDelegationGrantRequest {
   toPrincipalId: string
@@ -90,44 +99,45 @@ function declaredGrants(contractIds: string[]): DelegationGrant[] {
 }
 
 export class PrincipalStore {
-  private writeQueue: Promise<void> = Promise.resolve()
-
-  private constructor(
-    private readonly principalsPath: string,
-    private readonly delegationsPath: string,
-    private principalDocument: PrincipalDocument,
-    private delegationDocument: DelegationDocument,
+  constructor(
+    private readonly principals: LedgerStorage<PrincipalArtifact>,
+    private readonly delegations: LedgerStorage<DelegationGrant>,
   ) {}
 
   static async open(principalsPath: string, delegationsPath: string, workspaceIds: string[], contractIds: string[]): Promise<PrincipalStore> {
-    const principalDocument = await read<PrincipalDocument>(principalsPath, { schemaVersion: '1.0', principals: declaredDirectory(workspaceIds) })
-    const delegationDocument = await read<DelegationDocument>(delegationsPath, { schemaVersion: '1.0', grants: declaredGrants(contractIds) })
-    const store = new PrincipalStore(principalsPath, delegationsPath, principalDocument, delegationDocument)
-    await store.persist()
+    const store = new PrincipalStore(
+      await FileLedgerStorage.open<PrincipalArtifact>(principalsPath, 'principals', 'Principal'),
+      await FileLedgerStorage.open<DelegationGrant>(delegationsPath, 'grants', 'Delegation grant'),
+    )
+    await store.seedDeclared(workspaceIds, contractIds)
     return store
   }
 
-  all(workspaceId?: string): Principal[] {
-    return this.principalDocument.principals
-      .filter((principal) => !workspaceId || principal.workspaceIds.includes(workspaceId))
-      .map((principal) => structuredClone(principal))
+  async all(workspaceId: string | undefined, tenantId: string | undefined): Promise<Principal[]> {
+    const principals = await this.current()
+    return principals.filter((principal) => principal.tenantId === tenantId && (!workspaceId || principal.workspaceIds.includes(workspaceId)))
   }
 
-  get(principalId: string): Principal | undefined {
-    const principal = this.principalDocument.principals.find((candidate) => candidate.id === principalId)
-    return principal ? structuredClone(principal) : undefined
+  async get(principalId: string, tenantId: string | undefined): Promise<Principal | undefined> {
+    const principals = await this.current()
+    return principals.find((candidate) => candidate.id === principalId && candidate.tenantId === tenantId)
   }
 
   /**
    * Principals seen in review, execution and disposition artifacts are recorded as what they
    * verifiably are — a bearer token identity — rather than being guessed into the human directory.
+   *
+   * Only genuinely new identities are appended. Re-recording one already in the directory would
+   * add an artifact per request and bury the ledger under restatements of the same fact.
    */
-  async observe(principalIds: string[], workspaceIds: string[], now = new Date()): Promise<Principal[]> {
+  async observe(principalIds: string[], workspaceIds: string[], tenantId: string | undefined, now = new Date()): Promise<Principal[]> {
+    const known = new Set((await this.all(undefined, tenantId)).map((principal) => principal.id))
     const added: Principal[] = []
     for (const principalId of [...new Set(principalIds)]) {
-      if (!principalId || this.principalDocument.principals.some((candidate) => candidate.id === principalId)) continue
-      const principal: Principal = {
+      if (!principalId || known.has(principalId)) continue
+      const body: Principal = {
         id: principalId,
+        ...(tenantId ? { tenantId } : {}),
         displayName: principalId,
         kind: 'SERVICE',
         roles: ['Bearer token identity'],
@@ -136,35 +146,40 @@ export class PrincipalStore {
         status: 'ACTIVE',
         createdAt: now.toISOString(),
       }
-      this.principalDocument.principals.push(principal)
-      added.push(structuredClone(principal))
+      added.push(await this.principals.append({ ...body, artifactDigest: digest(body) }))
+      known.add(principalId)
     }
-    if (added.length > 0) await this.persist()
     return added
   }
 
-  grants(query: { workspaceId?: string; principalId?: string } = {}, now = new Date()): DelegationGrant[] {
+  async grants(query: { workspaceId?: string; principalId?: string }, tenantId: string | undefined, now = new Date()): Promise<DelegationGrant[]> {
+    // The directory is only needed to answer the workspace question, so it is not read otherwise.
+    const directory = query.workspaceId ? await this.all(undefined, tenantId) : []
     const inWorkspace = (grant: DelegationGrant): boolean => {
-      if (!query.workspaceId) return true
-      const from = this.get(grant.fromPrincipalId)
-      const to = this.get(grant.toPrincipalId)
-      return Boolean(from?.workspaceIds.includes(query.workspaceId) || to?.workspaceIds.includes(query.workspaceId))
+      const workspaceId = query.workspaceId
+      if (!workspaceId) return true
+      const from = directory.find((candidate) => candidate.id === grant.fromPrincipalId)
+      const to = directory.find((candidate) => candidate.id === grant.toPrincipalId)
+      return Boolean(from?.workspaceIds.includes(workspaceId) || to?.workspaceIds.includes(workspaceId))
     }
-    return this.delegationDocument.grants
-      .filter((grant) => inWorkspace(grant) && (!query.principalId || grant.fromPrincipalId === query.principalId || grant.toPrincipalId === query.principalId))
+    const grants = await this.currentGrants()
+    return grants
+      .filter((grant) => grant.tenantId === tenantId && inWorkspace(grant) && (!query.principalId || grant.fromPrincipalId === query.principalId || grant.toPrincipalId === query.principalId))
       .map((grant) => withStatus(grant, now))
   }
 
-  getGrant(grantId: string, now = new Date()): DelegationGrant | undefined {
-    const grant = this.delegationDocument.grants.find((candidate) => candidate.id === grantId)
+  async getGrant(grantId: string, tenantId: string | undefined, now = new Date()): Promise<DelegationGrant | undefined> {
+    const grants = await this.currentGrants()
+    const grant = grants.find((candidate) => candidate.id === grantId && candidate.tenantId === tenantId)
     return grant ? withStatus(grant, now) : undefined
   }
 
-  async createGrant(request: CreateDelegationGrantRequest, fromPrincipalId: string, now = new Date()): Promise<DelegationGrant> {
+  async createGrant(request: CreateDelegationGrantRequest, fromPrincipalId: string, tenantId: string | undefined, now = new Date()): Promise<DelegationGrant> {
     const issuedAt = now.toISOString()
     const expiresAt = request.expiresAt ?? new Date(now.getTime() + (request.validMinutes ?? 60) * 60_000).toISOString()
     const body: Omit<DelegationGrant, 'artifactDigest'> = {
       id: `grant_${randomUUID()}`,
+      ...(tenantId ? { tenantId } : {}),
       fromPrincipalId,
       toPrincipalId: request.toPrincipalId,
       scope: [...request.scope],
@@ -178,38 +193,36 @@ export class PrincipalStore {
       contractIds: [...request.contractIds],
       status: 'ACTIVE',
     }
-    const grant: DelegationGrant = { ...body, artifactDigest: digest(body) }
-    this.delegationDocument.grants.push(grant)
-    await this.persist()
+    const grant = await this.delegations.append({ ...body, artifactDigest: digest(body) })
     return withStatus(grant, now)
   }
 
-  async revokeGrant(grantId: string, rationale: string, now = new Date()): Promise<DelegationGrant> {
-    const index = this.delegationDocument.grants.findIndex((candidate) => candidate.id === grantId)
-    const existing = this.delegationDocument.grants[index]
+  async revokeGrant(grantId: string, rationale: string, tenantId: string | undefined, now = new Date()): Promise<DelegationGrant> {
+    const existing = await this.rawGrant(grantId, tenantId)
     if (!existing) throw new Error('DELEGATION_GRANT_NOT_FOUND')
     if (existing.status === 'REVOKED') throw new Error('DELEGATION_GRANT_ALREADY_REVOKED')
-    const { artifactDigest: _digest, ...body } = existing
+    // The chain link belongs to the row that carried it, so the successor is digested without it.
+    const { artifactDigest: _digest, chain: _chain, ...body } = existing
     const revoked: DelegationGrant = { ...body, scope: [...body.scope, `revoked:${now.toISOString()}:${rationale}`], status: 'REVOKED', artifactDigest: digest({ ...body, status: 'REVOKED' }) }
-    this.delegationDocument.grants[index] = revoked
-    await this.persist()
-    return structuredClone(revoked)
+    // Keyed by the revocation, identified as the grant: a distinct row describing the same grant.
+    return this.delegations.append(revoked, `grant_revocation_${randomUUID()}`)
   }
 
   /** Budget is spent, not estimated: one action consumed per authorizing use. */
-  async consume(grantId: string, now = new Date()): Promise<DelegationGrant | undefined> {
-    const index = this.delegationDocument.grants.findIndex((candidate) => candidate.id === grantId)
-    const existing = this.delegationDocument.grants[index]
+  async consume(grantId: string, tenantId: string | undefined, now = new Date()): Promise<DelegationGrant | undefined> {
+    const existing = await this.rawGrant(grantId, tenantId)
     if (!existing) return undefined
-    const next: DelegationGrant = { ...existing, consumedActions: existing.consumedActions + 1 }
-    this.delegationDocument.grants[index] = next
-    await this.persist()
+    const next = await this.delegations.append(
+      { ...existing, consumedActions: existing.consumedActions + 1 },
+      `grant_consumption_${randomUUID()}`,
+    )
     return withStatus(next, now)
   }
 
   /** The chain the disposition records: who acted, and under whose authority. */
-  chainFor(principalId: string, now = new Date()): PrincipalChainLink[] {
-    const principal = this.get(principalId)
+  async chainFor(principalId: string, tenantId: string | undefined, now = new Date()): Promise<PrincipalChainLink[]> {
+    const directory = await this.all(undefined, tenantId)
+    const principal = directory.find((candidate) => candidate.id === principalId)
     const head: PrincipalChainLink = principal
       ? {
         principalId: principal.id,
@@ -219,10 +232,11 @@ export class PrincipalStore {
         via: principal.kind === 'SERVICE' ? 'SERVICE_ACCOUNT' : 'AUTHENTICATION',
       }
       : { principalId, displayName: principalId, kind: 'SERVICE', role: 'Bearer token identity', via: 'SERVICE_ACCOUNT' }
-    const delegations = this.grants({ principalId }, now)
+    const grants = await this.grants({ principalId }, tenantId, now)
+    const delegations = grants
       .filter((grant) => grant.toPrincipalId === principalId && grant.status === 'ACTIVE')
       .map((grant): PrincipalChainLink => {
-        const from = this.get(grant.fromPrincipalId)
+        const from = directory.find((candidate) => candidate.id === grant.fromPrincipalId)
         return {
           principalId: grant.fromPrincipalId,
           displayName: from?.displayName ?? grant.fromPrincipalId,
@@ -237,20 +251,55 @@ export class PrincipalStore {
     return [head, ...delegations]
   }
 
-  identityGraph(workspaceId: string | undefined, now = new Date()): IdentityGraph {
+  async identityGraph(workspaceId: string | undefined, tenantId: string | undefined, now = new Date()): Promise<IdentityGraph> {
     return {
-      principals: this.all(workspaceId),
-      grants: this.grants(workspaceId ? { workspaceId } : {}, now),
+      principals: await this.all(workspaceId, tenantId),
+      grants: await this.grants(workspaceId ? { workspaceId } : {}, tenantId, now),
       autonomyTiers: [...autonomyTierDefinitions],
     }
   }
 
-  private async persist(): Promise<void> {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await write(this.principalsPath, this.principalDocument)
-      await write(this.delegationsPath, this.delegationDocument)
-    })
-    await this.writeQueue
+  /**
+   * Writes the declared directory and grants once, into a ledger that has never held any.
+   *
+   * They used to be a fallback document written whenever the file was absent. A ledger has no
+   * document to fall back to, so the demo identities are appended like anything else — and only
+   * when the ledger is empty, because seeding a ledger that already has history would restate
+   * facts that are already recorded.
+   */
+  private async seedDeclared(workspaceIds: string[], contractIds: string[]): Promise<void> {
+    if ((await this.principals.list()).length === 0) {
+      for (const principal of declaredDirectory(workspaceIds)) {
+        await this.principals.append({ ...principal, artifactDigest: digest(principal) })
+      }
+    }
+    if ((await this.delegations.list()).length === 0) {
+      for (const grant of declaredGrants(contractIds)) await this.delegations.append(grant)
+    }
+  }
+
+  /** The stored grant, before expiry and exhaustion are derived, which a successor must not inherit. */
+  private async rawGrant(grantId: string, tenantId: string | undefined): Promise<DelegationGrant | undefined> {
+    const grants = await this.currentGrants()
+    return grants.find((candidate) => candidate.id === grantId && candidate.tenantId === tenantId)
+  }
+
+  /**
+   * Folds the principal ledger down to the latest artifact for each principal.
+   *
+   * Ledger order is chain order, so the last artifact bearing a principal's id is its current state.
+   */
+  private async current(): Promise<PrincipalArtifact[]> {
+    const byPrincipal = new Map<string, PrincipalArtifact>()
+    for (const artifact of await this.principals.list()) byPrincipal.set(artifact.id, artifact)
+    return [...byPrincipal.values()]
+  }
+
+  /** Folds the delegation ledger down to the latest artifact for each grant. */
+  private async currentGrants(): Promise<DelegationGrant[]> {
+    const byGrant = new Map<string, DelegationGrant>()
+    for (const artifact of await this.delegations.list()) byGrant.set(artifact.id, artifact)
+    return [...byGrant.values()]
   }
 }
 
@@ -261,23 +310,6 @@ function withStatus(grant: DelegationGrant, now: Date): DelegationGrant {
   if (new Date(clone.expiresAt).getTime() <= now.getTime()) return { ...clone, status: 'EXPIRED' }
   if (clone.consumedActions >= clone.maximumActions) return { ...clone, status: 'EXHAUSTED' }
   return clone
-}
-
-async function read<T>(filePath: string, fallback: T): Promise<T> {
-  try {
-    return JSON.parse(await readFile(filePath, 'utf8')) as T
-  } catch (error) {
-    const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-    if (!missing) throw error
-    return fallback
-  }
-}
-
-async function write(filePath: string, document: unknown): Promise<void> {
-  await mkdir(dirname(filePath), { recursive: true })
-  const temporaryPath = `${filePath}.tmp`
-  await writeFile(temporaryPath, `${JSON.stringify(document, null, 2)}\n`, 'utf8')
-  await rename(temporaryPath, filePath)
 }
 
 function digest(value: unknown): string {

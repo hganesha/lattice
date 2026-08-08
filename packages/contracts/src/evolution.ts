@@ -1,4 +1,5 @@
 import type {
+  ArtifactChainLink,
   EvidenceStrength,
   ImpactLevel,
   RiskTier,
@@ -59,6 +60,10 @@ export interface PrincipalChainLink {
 
 export interface DispositionRecord {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
+  /** Position in this ledger's hash chain, assigned by storage on append. */
+  chain?: ArtifactChainLink
   contractId: string
   contractVersion: string
   workspaceId?: string
@@ -133,6 +138,10 @@ export type AttestationPredicate =
 
 export interface Attestation {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
+  /** Position in this ledger's hash chain, assigned by storage on append. */
+  chain?: ArtifactChainLink
   subjectKind: AttestationSubjectKind
   subjectId: string
   predicateType: AttestationPredicate
@@ -218,6 +227,12 @@ export interface EvalCase {
 
 export interface CaseSet {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
+  /** Position in this ledger's hash chain, assigned by storage on append. */
+  chain?: ArtifactChainLink
+  /** Digest of the artifact as stored. `digest` covers the cases; this covers the whole record. */
+  artifactDigest?: string
   name: string
   description: string
   version: string
@@ -349,6 +364,10 @@ export interface EvalRunSummaryStats {
 
 export interface EvalRun {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
+  /** Position in this ledger's hash chain, assigned by storage on append. */
+  chain?: ArtifactChainLink
   name: string
   caseSetId: string
   caseSetVersion: string
@@ -507,6 +526,10 @@ export interface NegativeDecisionException {
 
 export interface NegativeDecision {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
+  /** Position in this ledger's hash chain, assigned by storage on append. */
+  chain?: ArtifactChainLink
   workspaceId: string
   contractId?: string
   prohibited: {
@@ -597,6 +620,10 @@ export interface CounterfactualResult {
 
 export interface DriftEvent {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
+  /** Position in this ledger's hash chain, assigned by storage on append. */
+  chain?: ArtifactChainLink
   workspaceId: string
   contractId?: string
   kind: DriftKind
@@ -652,6 +679,11 @@ export interface AutonomyTierDefinition {
 
 export interface Principal {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
+  /** Position in this ledger's hash chain, assigned by storage on append. */
+  chain?: ArtifactChainLink
+  artifactDigest?: string
   displayName: string
   kind: PrincipalKind
   roles: string[]
@@ -672,6 +704,10 @@ export interface Principal {
 
 export interface DelegationGrant {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
+  /** Position in this ledger's hash chain, assigned by storage on append. */
+  chain?: ArtifactChainLink
   fromPrincipalId: string
   toPrincipalId: string
   scope: string[]
@@ -699,6 +735,10 @@ export interface IdentityGraph {
 
 export interface EmergencyAuthorization {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
+  /** Position in this ledger's hash chain, assigned by storage on append. */
+  chain?: ArtifactChainLink
   contractId: string
   workspaceId?: string
   requestedBy: string
