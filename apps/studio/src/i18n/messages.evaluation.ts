@@ -296,6 +296,7 @@ export const evaluationMessages = defineMessages({
   evalRunNotFoundTitle: { id: 'evalRun.notFoundTitle', defaultMessage: 'Run not found' },
   evalRunNotFoundDescription: { id: 'evalRun.notFoundDescription', defaultMessage: 'This run id is not in the current contract scope. Return to the run list and pick a run.' },
   evalRunFilterCaseSet: { id: 'evalRun.filterCaseSet', defaultMessage: 'Case set' },
+  evalRunFilterEnvironment: { id: 'evalRun.filter.environment', defaultMessage: 'Environment' },
   evalRunFilterStatus: { id: 'evalRun.filterStatus', defaultMessage: 'Status' },
   evalRunFiltersLabel: { id: 'evalRun.filtersLabel', defaultMessage: 'Run filters' },
   evalRunCaseFiltersLabel: { id: 'evalRun.caseFiltersLabel', defaultMessage: 'Case result filters' },

@@ -4,11 +4,33 @@ import type { LedgerStorage } from './governanceLedger.js'
 import { secureProjectUrl, totalFromContentRange, validUuid, type SupabaseRegistryConfig } from './supabaseRegistry.js'
 
 /** The `kind` discriminator on `public.governed_artifacts`. */
-export type GovernedArtifactKind = 'ASSURANCE_RUN' | 'REVIEW' | 'RUNTIME_APPROVAL' | 'EXECUTION_RECEIPT'
+export type GovernedArtifactKind =
+  | 'ASSURANCE_RUN'
+  | 'REVIEW'
+  | 'RUNTIME_APPROVAL'
+  | 'EXECUTION_RECEIPT'
+  | 'DISPOSITION'
+  | 'ATTESTATION'
+  | 'CASE_SET'
+  | 'EVAL_RUN'
+  | 'NEGATIVE_DECISION'
+  | 'DRIFT_EVENT'
+  | 'PRINCIPAL'
+  | 'DELEGATION_GRANT'
+  | 'EMERGENCY_AUTHORIZATION'
+
+/**
+ * Kinds that are scoped to the organization or a workspace rather than to one contract, matching
+ * `governed_artifacts_contract_scope_check`. A principal or a workspace-level drift event has no
+ * contract to name, and demanding one would mean inventing a scope the artifact does not have.
+ */
+const contractOptionalKinds: ReadonlySet<GovernedArtifactKind> = new Set([
+  'ATTESTATION', 'CASE_SET', 'NEGATIVE_DECISION', 'DRIFT_EVENT', 'PRINCIPAL', 'DELEGATION_GRANT',
+])
 
 interface GovernedArtifactRow {
   id: string
-  contract_id: string
+  contract_id: string | null
   artifact_digest: string
   document: unknown
   chain_sequence: number | null
@@ -80,14 +102,14 @@ export class SupabaseGovernanceLedger<T extends ChainedArtifact> implements Ledg
   async append(record: T, storageKey?: string): Promise<T> {
     const url = new URL('/rest/v1/rpc/append_governed_artifact', this.projectUrl)
     const contractId = this.contractId ?? contractIdOf(record)
-    if (!contractId) throw new Error(`SUPABASE_LEDGER_CONTRACT_REQUIRED:${this.kind}`)
+    if (!contractId && !contractOptionalKinds.has(this.kind)) throw new Error(`SUPABASE_LEDGER_CONTRACT_REQUIRED:${this.kind}`)
 
     const response = await this.fetcher(url, {
       method: 'POST',
       headers: this.headers,
       body: JSON.stringify({
         target_organization_id: this.organizationId,
-        target_contract_id: contractId,
+        target_contract_id: contractId ?? null,
         target_kind: this.kind,
         target_id: storageKey ?? record.id,
         target_artifact_digest: record.artifactDigest,
@@ -105,7 +127,9 @@ export class SupabaseGovernanceLedger<T extends ChainedArtifact> implements Ledg
 
   /** The chain lives in columns so the database can enforce it; the artifact carries it inline. */
   private recordFromRow(row: GovernedArtifactRow): T {
-    const document = this.withContractId(structuredClone(row.document) as T, row.contract_id)
+    const document = row.contract_id === null
+      ? structuredClone(row.document) as T
+      : this.withContractId(structuredClone(row.document) as T, row.contract_id)
     if (row.chain_sequence === null || row.previous_digest === null || row.chain_digest === null) return document
     const chain: ArtifactChainLink = {
       sequence: row.chain_sequence,

@@ -160,6 +160,8 @@ export const messages = defineMessages({
   navDriftSourceHealth: { id: 'nav.driftSourceHealth', defaultMessage: 'Drift & source health' },
   navActivity: { id: 'nav.activity', defaultMessage: 'Activity' },
   navSearch: { id: 'nav.search', defaultMessage: 'Search' },
+  headerSaving: { id: 'app.headerSaving', defaultMessage: 'Saving…' },
+  headerAutosavePending: { id: 'app.headerAutosavePending', defaultMessage: 'Unsaved — saving shortly' },
   shareView: { id: 'app.shareView', defaultMessage: 'Share view' },
   emptyNoContractTitle: { id: 'empty.noContract.title', defaultMessage: 'This surface needs a decision contract' },
   emptyChooseContract: { id: 'empty.chooseContract', defaultMessage: 'Choose an existing contract' },

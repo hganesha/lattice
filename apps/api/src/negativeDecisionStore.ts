@@ -1,51 +1,47 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import type { BindingPreview, CreateNegativeDecisionRequest, NegativeDecision } from '@lattice/contracts'
+import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
 
-interface NegativeDecisionDocument {
-  schemaVersion: '1.0'
-  decisions: NegativeDecision[]
-}
-
+/**
+ * Negative decisions, kept as an append-only ledger.
+ *
+ * Withdrawing one used to rewrite it in place, which is the one thing this record cannot allow: a
+ * mapping was refused, and later permitted, and the point of keeping the refusal is that both are
+ * visible. A withdrawal is now a superseding artifact carrying the same decision id, and the
+ * current state of a decision is the last artifact written for it.
+ */
 export class NegativeDecisionStore {
-  private writeQueue: Promise<void> = Promise.resolve()
-
-  private constructor(private readonly filePath: string, private document: NegativeDecisionDocument) {}
+  constructor(private readonly storage: LedgerStorage<NegativeDecision>) {}
 
   static async open(filePath: string): Promise<NegativeDecisionStore> {
-    try {
-      return new NegativeDecisionStore(filePath, JSON.parse(await readFile(filePath, 'utf8')) as NegativeDecisionDocument)
-    } catch (error) {
-      const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      if (!missing) throw error
-      const store = new NegativeDecisionStore(filePath, { schemaVersion: '1.0', decisions: [] })
-      await store.persist()
-      return store
-    }
+    return new NegativeDecisionStore(await FileLedgerStorage.open<NegativeDecision>(filePath, 'decisions', 'Negative decision'))
   }
 
-  list(query: { workspaceId?: string; contractId?: string } = {}, now = new Date()): NegativeDecision[] {
-    return this.document.decisions
-      .filter((decision) => (!query.workspaceId || decision.workspaceId === query.workspaceId) && (!query.contractId || decision.contractId === query.contractId))
+  async list(query: { workspaceId?: string; contractId?: string } = {}, tenantId: string | undefined, now = new Date()): Promise<NegativeDecision[]> {
+    const decisions = await this.current()
+    return decisions
+      .filter((decision) => decision.tenantId === tenantId && (!query.workspaceId || decision.workspaceId === query.workspaceId) && (!query.contractId || decision.contractId === query.contractId))
       .map((decision) => withStatus(decision, now))
       .reverse()
   }
 
   /** Everything still in force — the set discovery must consult before proposing a mapping. */
-  inForce(now = new Date()): NegativeDecision[] {
-    return this.list({}, now).filter((decision) => decision.status === 'ACTIVE' || decision.status === 'DUE_FOR_REVIEW')
+  async inForce(tenantId: string | undefined, now = new Date()): Promise<NegativeDecision[]> {
+    const decisions = await this.list({}, tenantId, now)
+    return decisions.filter((decision) => decision.status === 'ACTIVE' || decision.status === 'DUE_FOR_REVIEW')
   }
 
-  get(decisionId: string, now = new Date()): NegativeDecision | undefined {
-    const decision = this.document.decisions.find((candidate) => candidate.id === decisionId)
+  async get(decisionId: string, tenantId: string | undefined, now = new Date()): Promise<NegativeDecision | undefined> {
+    const decisions = await this.current()
+    const decision = decisions.find((candidate) => candidate.id === decisionId && candidate.tenantId === tenantId)
     return decision ? withStatus(decision, now) : undefined
   }
 
-  async create(request: CreateNegativeDecisionRequest, decidedBy: string, now = new Date()): Promise<NegativeDecision> {
+  async create(request: CreateNegativeDecisionRequest, decidedBy: string, tenantId: string | undefined, now = new Date()): Promise<NegativeDecision> {
     const decidedAt = now.toISOString()
     const body: Omit<NegativeDecision, 'artifactDigest'> = {
       id: `negative_${randomUUID()}`,
+      ...(tenantId ? { tenantId } : {}),
       workspaceId: request.workspaceId,
       ...(request.contractId ? { contractId: request.contractId } : {}),
       prohibited: structuredClone(request.prohibited),
@@ -61,37 +57,38 @@ export class NegativeDecisionStore {
       status: 'ACTIVE',
     }
     const decision: NegativeDecision = { ...body, artifactDigest: digest(body) }
-    this.document.decisions.push(decision)
-    await this.persist()
-    return withStatus(decision, now)
+    return withStatus(await this.storage.append(decision), now)
   }
 
   /** A negative decision is revisited, never permanent — withdrawal keeps the original rationale visible. */
-  async withdraw(decisionId: string, rationale: string, withdrawnBy: string, now = new Date()): Promise<NegativeDecision> {
-    const index = this.document.decisions.findIndex((candidate) => candidate.id === decisionId)
-    const existing = this.document.decisions[index]
+  async withdraw(decisionId: string, rationale: string, withdrawnBy: string, tenantId: string | undefined, now = new Date()): Promise<NegativeDecision> {
+    const decisions = await this.current()
+    // Read raw rather than through `get`, so the check sees the recorded status and not the
+    // derived one: a decision due for review has not been withdrawn.
+    const existing = decisions.find((candidate) => candidate.id === decisionId && candidate.tenantId === tenantId)
     if (!existing) throw new Error('NEGATIVE_DECISION_NOT_FOUND')
     if (existing.status === 'WITHDRAWN') throw new Error('NEGATIVE_DECISION_ALREADY_WITHDRAWN')
-    const { artifactDigest: _digest, ...body } = existing
-    const withdrawn: NegativeDecision = {
+    // The chain link is dropped: storage assigns the successor its own, and digesting the
+    // predecessor's would leave the new artifact unverifiable.
+    const { artifactDigest: _digest, chain: _chain, ...body } = existing
+    const withdrawn = {
       ...body,
       rationale: `${existing.rationale}\n\nWithdrawn ${now.toISOString()} by ${withdrawnBy}: ${rationale}`,
-      status: 'WITHDRAWN',
-      artifactDigest: digest({ ...body, status: 'WITHDRAWN' }),
+      status: 'WITHDRAWN' as const,
     }
-    this.document.decisions[index] = withdrawn
-    await this.persist()
-    return structuredClone(withdrawn)
+    // Keyed by the withdrawal, identified as the decision: a distinct row describing the same one.
+    return this.storage.append({ ...withdrawn, artifactDigest: digest(withdrawn) }, `withdrawal_${randomUUID()}`)
   }
 
-  private async persist(): Promise<void> {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await mkdir(dirname(this.filePath), { recursive: true })
-      const temporaryPath = `${this.filePath}.tmp`
-      await writeFile(temporaryPath, `${JSON.stringify(this.document, null, 2)}\n`, 'utf8')
-      await rename(temporaryPath, this.filePath)
-    })
-    await this.writeQueue
+  /**
+   * Folds the ledger down to the latest artifact for each decision.
+   *
+   * Ledger order is chain order, so the last artifact bearing a decision's id is its current state.
+   */
+  private async current(): Promise<NegativeDecision[]> {
+    const byDecision = new Map<string, NegativeDecision>()
+    for (const artifact of await this.storage.list()) byDecision.set(artifact.id, artifact)
+    return [...byDecision.values()]
   }
 }
 

@@ -1,12 +1,16 @@
 import { createHash, randomUUID, sign, verify, type KeyObject } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import type { Attestation, AttestationPredicate, AttestationSubjectKind, AttestationVerification } from '@lattice/contracts'
+import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
 
-interface AttestationDocument {
-  schemaVersion: '1.0'
-  attestations: Attestation[]
-}
+/**
+ * An attestation as the ledger stores it.
+ *
+ * `LedgerStorage` chains rows by an artifact digest and an attestation has none of its own:
+ * `payloadDigest` covers the subject, not the attestation that binds it. This digest is taken over
+ * exactly the bytes the signature covers, so the chain and the signature vouch for the same
+ * content rather than for two different views of it.
+ */
+export type StoredAttestation = Attestation & { artifactDigest: string }
 
 /**
  * Structurally satisfied by `PlanSigner`, so an attestation is signed by the same governed key as
@@ -73,44 +77,49 @@ export function canonicalDigest(value: unknown): string {
 /** Strips the back-reference an artifact carries to its own attestations so mint and verify agree. */
 export function attestationPayload(subject: unknown): unknown {
   if (!subject || typeof subject !== 'object' || Array.isArray(subject)) return subject
-  const { attestationIds: _attestationIds, ...rest } = subject as Record<string, unknown>
+  /*
+   * Fields storage assigns after the attestation was minted are excluded, or verification of a
+   * stored artifact could never pass: the attestation covers the record as it was signed, and the
+   * ledger then adds a chain link and stamps the tenant on the row it wrote. `attestationIds` is
+   * excluded for the same reason — the disposition learns its own attestation's id only once that
+   * attestation exists.
+   */
+  const { attestationIds: _attestationIds, chain: _chain, tenantId: _tenantId, ...rest } = subject as Record<string, unknown>
   return rest
 }
 
 export class AttestationStore {
-  private writeQueue: Promise<void> = Promise.resolve()
-
-  private constructor(private readonly filePath: string, private document: AttestationDocument, private readonly signer: AttestationSigner) {}
+  constructor(private readonly storage: LedgerStorage<StoredAttestation>, private readonly signer: AttestationSigner) {}
 
   static async open(filePath: string, signer: AttestationSigner): Promise<AttestationStore> {
-    try {
-      return new AttestationStore(filePath, JSON.parse(await readFile(filePath, 'utf8')) as AttestationDocument, signer)
-    } catch (error) {
-      const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      if (!missing) throw error
-      const store = new AttestationStore(filePath, { schemaVersion: '1.0', attestations: [] }, signer)
-      await store.persist()
-      return store
-    }
+    return new AttestationStore(await FileLedgerStorage.open<StoredAttestation>(filePath, 'attestations', 'Attestation'), signer)
   }
 
-  list(query: { subjectId?: string; subjectKind?: AttestationSubjectKind } = {}): Attestation[] {
-    return this.document.attestations
-      .filter((item) => (!query.subjectId || item.subjectId === query.subjectId) && (!query.subjectKind || item.subjectKind === query.subjectKind))
-      .map((item) => structuredClone(item))
+  async list(query: { subjectId?: string; subjectKind?: AttestationSubjectKind }, tenantId: string | undefined): Promise<Attestation[]> {
+    const attestations = await this.storage.list()
+    return attestations
+      .filter((item) => item.tenantId === tenantId
+        && (!query.subjectId || item.subjectId === query.subjectId)
+        && (!query.subjectKind || item.subjectKind === query.subjectKind))
       .reverse()
   }
 
-  get(attestationId: string): Attestation | undefined {
-    const attestation = this.document.attestations.find((candidate) => candidate.id === attestationId)
-    return attestation ? structuredClone(attestation) : undefined
+  async get(attestationId: string, tenantId: string | undefined): Promise<Attestation | undefined> {
+    const attestations = await this.storage.list()
+    return attestations.find((candidate) => candidate.id === attestationId && candidate.tenantId === tenantId)
   }
 
-  async mint(input: MintAttestationInput): Promise<Attestation> {
+  async mint(input: MintAttestationInput, tenantId: string | undefined): Promise<Attestation> {
+    const attestations = await this.storage.list()
     const payloadDigest = canonicalDigest(attestationPayload(input.subject))
-    const logIndex = this.document.attestations.length
-    const logRoot = chainRoot(this.document.attestations.at(-1)?.logRoot, payloadDigest)
+    // The transparency log is the attestation's own, not the ledger's chain: it counts every
+    // attestation in this ledger in the order they were minted, as the file-backed log did.
+    const logIndex = attestations.length
+    const logRoot = chainRoot(attestations.at(-1)?.logRoot, payloadDigest)
     const body = {
+      // Signed rather than merely stored, so the tenant an attestation was issued under cannot be
+      // rewritten without the signature failing.
+      ...(tenantId ? { tenantId } : {}),
       subjectKind: input.subjectKind,
       subjectId: input.subjectId,
       predicateType: input.predicateType,
@@ -124,24 +133,24 @@ export class AttestationStore {
       logIndex,
       logRoot,
     }
-    const attestation: Attestation = {
+    const attestation: StoredAttestation = {
       id: `att_${randomUUID()}`,
       ...body,
       signatureAlgorithm: 'Ed25519',
       signature: await this.signer.sign(Buffer.from(canonicalJson(body))),
+      artifactDigest: canonicalDigest(body),
     }
-    this.document.attestations.push(attestation)
-    await this.persist()
-    return structuredClone(attestation)
+    return this.storage.append(attestation)
   }
 
   /**
    * Every check is genuinely performed. A check that cannot be performed — an unresolvable
    * subject, an unknown key — reports UNAVAILABLE with an honest message, never PASS.
    */
-  verify(attestationId: string, subject: unknown, currentKeyId: string, now = new Date()): AttestationVerification | undefined {
-    const index = this.document.attestations.findIndex((candidate) => candidate.id === attestationId)
-    const attestation = this.document.attestations[index]
+  async verify(attestationId: string, subject: unknown, currentKeyId: string, tenantId: string | undefined, now = new Date()): Promise<AttestationVerification | undefined> {
+    const attestations = await this.storage.list()
+    const index = attestations.findIndex((candidate) => candidate.id === attestationId && candidate.tenantId === tenantId)
+    const attestation = attestations[index]
     if (!attestation) return undefined
     const checks: AttestationVerification['checks'] = []
 
@@ -149,7 +158,9 @@ export class AttestationStore {
       ? { id: 'KEY_KNOWN', status: 'PASS', message: `Signed with ${attestation.keyId}, which matches the key published at /v1/keys/current.` }
       : { id: 'KEY_KNOWN', status: 'FAIL', message: `Signed with ${attestation.keyId}; /v1/keys/current publishes ${currentKeyId}.` })
 
-    const { id: _id, signature, signatureAlgorithm: _algorithm, ...body } = attestation
+    // `chain` and `artifactDigest` belong to the ledger and are assigned after signing, so they
+    // are not part of the body the signature covers.
+    const { id: _id, signature, signatureAlgorithm: _algorithm, chain: _chain, artifactDigest: _artifactDigest, ...body } = attestation
     const signatureValid = this.signer.verify(Buffer.from(canonicalJson(body)), signature, attestation.keyId)
     checks.push(signatureValid
       ? { id: 'SIGNATURE', status: 'PASS', message: 'Ed25519 signature verifies over the canonical attestation body.' }
@@ -173,7 +184,7 @@ export class AttestationStore {
       ? { id: 'REVOCATION', status: 'FAIL', message: `Revoked at ${attestation.revocation.revokedAt}: ${attestation.revocation.reason}` }
       : { id: 'REVOCATION', status: 'PASS', message: 'No revocation is recorded against this attestation in the local log.' })
 
-    const recomputedRoot = chainRoot(this.document.attestations[index - 1]?.logRoot, attestation.payloadDigest)
+    const recomputedRoot = chainRoot(attestations[index - 1]?.logRoot, attestation.payloadDigest)
     checks.push(recomputedRoot === attestation.logRoot && attestation.logIndex === index
       ? { id: 'LOG_INCLUSION', status: 'PASS', message: `Log entry ${attestation.logIndex} rechains to ${attestation.logRoot.slice(0, 23)}….` }
       : { id: 'LOG_INCLUSION', status: 'FAIL', message: `Log entry ${attestation.logIndex} does not rechain; recomputed ${recomputedRoot.slice(0, 23)}… at position ${index}.` })
@@ -185,16 +196,6 @@ export class AttestationStore {
       keyId: attestation.keyId,
       checks,
     }
-  }
-
-  private async persist(): Promise<void> {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await mkdir(dirname(this.filePath), { recursive: true })
-      const temporaryPath = `${this.filePath}.tmp`
-      await writeFile(temporaryPath, `${JSON.stringify(this.document, null, 2)}\n`, 'utf8')
-      await rename(temporaryPath, this.filePath)
-    })
-    await this.writeQueue
   }
 }
 
