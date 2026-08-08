@@ -34,16 +34,37 @@ describe('Studio shell', () => {
     expect(navigation().getByRole('button', { name: /^Contracts/ })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('groups navigation by job rather than by object type', () => {
+  it('groups navigation by job rather than by object type', async () => {
+    const user = userEvent.setup()
     render(<LatticeI18nProvider><App /></LatticeI18nProvider>)
 
     for (const group of ['Build', 'Operate', 'Govern', 'Assure']) {
-      expect(navigation().getByText(group)).toBeVisible()
+      expect(navigation().getByRole('button', { name: new RegExp(`^${group}`) })).toBeVisible()
     }
-    // The three loops the plan closes each get a surface.
+
+    // Only the group holding the current surface starts expanded, so the other
+    // groups' destinations are reachable in one keystroke rather than standing
+    // open. The three loops the plan closes each still get a surface.
+    expect(navigation().getByRole('button', { name: /^Build/ })).toHaveAttribute('aria-expanded', 'true')
+    expect(navigation().getByRole('button', { name: /^Operate/ })).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(navigation().getByRole('button', { name: /^Operate/ }))
     expect(navigation().getByRole('button', { name: /^Disposition trail/ })).toBeVisible()
+
+    await user.click(navigation().getByRole('button', { name: /^Assure/ }))
     expect(navigation().getByRole('button', { name: /^Evaluations/ })).toBeVisible()
     expect(navigation().getByRole('button', { name: /^Drift & source health/ })).toBeVisible()
+  })
+
+  it('keeps the group holding the current surface expanded', async () => {
+    const user = userEvent.setup()
+    render(<LatticeI18nProvider><App /></LatticeI18nProvider>)
+
+    // Collapsing the group you are standing in would hide your own location.
+    await user.click(navigation().getByRole('button', { name: /^Build/ }))
+
+    expect(navigation().getByRole('button', { name: /^Build/ })).toHaveAttribute('aria-expanded', 'true')
+    expect(navigation().getByRole('button', { name: 'Shared ontology' })).toBeVisible()
   })
 
   it('puts the current surface in the URL so a view is linkable', async () => {

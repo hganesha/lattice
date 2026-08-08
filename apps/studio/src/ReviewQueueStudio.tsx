@@ -97,7 +97,7 @@ export function ReviewQueueStudio({ contract, onChange, onDirtyChange }: ReviewQ
   }
 
   return <section className="review-queue-page">
-    <div className="review-hero"><div><span className="panel-kicker">{t('reviewQueueKicker').toLocaleUpperCase()}</span><h2>{t('reviewQueueTitle')}</h2><p>{t('reviewQueueDescription')}</p></div></div>
+    <div className="surface-hero tint-warning"><div><span className="panel-kicker">{t('reviewQueueKicker').toLocaleUpperCase()}</span><h2>{t('reviewQueueTitle')}</h2><p>{t('reviewQueueDescription')}</p></div></div>
     {notice && <Toast message={notice} closeLabel={t('commonClose')} onDismiss={() => setNotice('')} />}
     <div className="review-stats"><ReviewMetric label={t('reviewActionRequired').toLocaleUpperCase()} value={String(actionCount)} meta={t('reviewDraftRejected')} tone="amber" /><ReviewMetric label={t('reviewOpenReviews').toLocaleUpperCase()} value={String(openCount)} meta={t('reviewAwaitingDecision')} tone="blue" /><ReviewMetric label={t('reviewApproved').toLocaleUpperCase()} value={`${approvedCount} / ${claims.length}`} meta={t('policyReleaseEligible')} tone="green" /><ReviewMetric label={t('reviewDecisionArtifacts').toLocaleUpperCase()} value={String(reviews.filter((review) => review.status === 'DECIDED').length)} meta={t('reviewImmutableHistory')} tone="lime" /></div>
     <div className="review-layout">

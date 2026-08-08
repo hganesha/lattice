@@ -122,9 +122,9 @@ export function SourceBindingStudio({ contract, scope = 'CONTRACT', workspaceId,
   if (editorOpen) return <BindingEditor contract={contract} {...(workspaceId ? { workspaceId } : {})} onCancel={() => setEditorOpen(false)} onApply={applyBinding} />
 
   return <section className="binding-studio-page">
-    <div className="binding-hero">
+    <div className="surface-hero">
       <div><span className="panel-kicker">{t('bindingStudio').toLocaleUpperCase()}</span><h2>{scope === 'ONTOLOGY' ? t('bindingOntologyHeroTitle') : t('bindingHeroTitle')}</h2><p>{scope === 'ONTOLOGY' ? t('bindingOntologyHeroDescription') : t('bindingHeroDescription')}</p></div>
-      <div className="binding-hero-actions"><button className="release" onClick={() => setEditorOpen(true)} disabled={!canCreateBinding}>{t('bindingNew')}</button></div>
+      <div className="surface-hero-actions"><button className="release" onClick={() => setEditorOpen(true)} disabled={!canCreateBinding}>{t('bindingNew')}</button></div>
     </div>
     {notice && <Toast message={notice} closeLabel={t('commonClose')} onDismiss={() => setNotice('')} />}
     {!canCreateBinding && <div className="binding-prerequisite"><span>◇</span><div><b>{t('bindingPrerequisite')}</b><p>{t('bindingPrerequisiteDescription')}</p></div><button className="ghost" onClick={onOpenOntology}>{t('bindingAddPropertiesAction')} →</button></div>}

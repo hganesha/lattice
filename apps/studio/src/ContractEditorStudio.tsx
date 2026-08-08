@@ -82,7 +82,7 @@ export function ContractEditorStudio({ contract, onChange, onDirtyChange, onBack
   }
 
   return <section className="contract-editor-page">
-    <div className="contract-editor-hero">
+    <div className="surface-hero">
       <div>
         <button className="ghost" type="button" onClick={onBack}>← {t('navContracts')}</button>
         <span className="panel-kicker">{t('contractEditorKicker').toLocaleUpperCase()}</span>

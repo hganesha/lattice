@@ -5,6 +5,17 @@ function nav(page: Page) {
   return page.getByRole('navigation')
 }
 
+/**
+ * Navigation is an accordion: only the group holding the current surface is
+ * expanded, so reaching another job's surface means opening its group first.
+ * This mirrors what a user does rather than reaching into hidden markup.
+ */
+async function gotoSurface(page: Page, group: 'Build' | 'Operate' | 'Govern' | 'Assure', name: string | RegExp) {
+  const toggle = nav(page).getByRole('button', { name: new RegExp(`^${group}`) })
+  if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click()
+  await nav(page).getByRole('button', { name }).click()
+}
+
 test('creates a contract scoped to an industry ontology and opens its compiler', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('lattice:welcome-dismissed', 'true'))
   await page.goto('/')
@@ -12,7 +23,7 @@ test('creates a contract scoped to an industry ontology and opens its compiler',
   await page.getByLabel('Industry workspace').selectOption({ label: 'Energy Workspace' })
   await expect(page.getByRole('heading', { name: 'Shared ontology' })).toBeVisible()
   await nav(page).getByRole('button', { name: /^Contracts/ }).click()
-  await page.locator('.contracts-hero').getByRole('button', { name: /New context contract/ }).click()
+  await page.locator('.surface-hero').getByRole('button', { name: /New context contract/ }).click()
 
   await page.getByLabel('Contract name').fill('Dispatch Prioritization E2E')
   await page.getByLabel('Purpose').fill('Prioritize governed field dispatch decisions during a grid disruption.')
@@ -30,7 +41,7 @@ test('creates a contract scoped to an industry ontology and opens its compiler',
   await expect(page.getByRole('heading', { name: 'Choose a decision contract' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Dispatch Prioritization E2E', exact: true, level: 3 })).toBeVisible()
 
-  await nav(page).getByRole('button', { name: 'Compiler' }).click()
+  await gotoSurface(page, 'Operate', 'Compiler')
   await expect(page.getByRole('heading', { name: 'Compiler', level: 1 })).toBeVisible()
 
   // E3: an unpublished contract reaches the money moment via dry run. A brand-new contract
@@ -43,7 +54,7 @@ test('creates a contract scoped to an industry ontology and opens its compiler',
 test('a dry run reaches a disposition without publishing anything', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('lattice:welcome-dismissed', 'true'))
   await page.goto('/')
-  await nav(page).getByRole('button', { name: 'Compiler' }).click()
+  await gotoSurface(page, 'Operate', 'Compiler')
 
   // The seeded counterparty contract declares its purposes, so one must be named.
   await page.getByLabel('Declared purpose').selectOption('internal_analysis')
@@ -81,7 +92,7 @@ test('does not leak governance data across industry workspaces', async ({ page }
   await page.goto('/')
 
   await page.getByLabel('Industry workspace').selectOption({ label: 'Real Estate Workspace' })
-  await nav(page).getByRole('button', { name: /^Policy profiles/ }).click()
+  await gotoSurface(page, 'Govern', /^Policy profiles/)
 
   // E2 replaces the silent redirect (G8): the surface stays put and names the prerequisite.
   await expect(page.getByRole('heading', { name: 'Policy profiles', level: 1 })).toBeVisible()
@@ -97,9 +108,9 @@ test('task-shaped navigation exposes all three loops', async ({ page }) => {
   for (const group of ['Build', 'Operate', 'Govern', 'Assure']) {
     await expect(nav(page).getByText(group, { exact: true })).toBeVisible()
   }
-  await nav(page).getByRole('button', { name: /^Disposition trail/ }).click()
+  await gotoSurface(page, 'Operate', /^Disposition trail/)
   await expect(page).toHaveURL(/\/dispositions$/)
-  await nav(page).getByRole('button', { name: /^Case sets/ }).click()
+  await gotoSurface(page, 'Assure', /^Case sets/)
   await expect(page).toHaveURL(/\/case-sets$/)
   await expect(page.getByRole('heading', { name: 'Case sets', level: 2 })).toBeVisible()
 })

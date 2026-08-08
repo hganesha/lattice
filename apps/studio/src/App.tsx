@@ -32,6 +32,7 @@ import {
   IconUsers,
   IconSiren,
   IconSearch,
+  IconChevronDown,
 } from './icons'
 import { SummaryCard } from './SummaryCard'
 import { AppearanceSettings } from './AppearanceSettings'
@@ -138,6 +139,18 @@ const navigationGroups: ReadonlyArray<{ label: MessageKey; items: readonly NavEn
 
 const allNavigation: readonly NavEntry[] = navigationGroups.flatMap((group) => group.items)
 
+const NAV_GROUPS_KEY = 'lattice:nav-groups-open'
+
+function loadOpenNavGroups(): readonly string[] {
+  try {
+    const saved = localStorage.getItem(NAV_GROUPS_KEY)
+    const parsed: unknown = saved ? JSON.parse(saved) : null
+    return Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === 'string') : []
+  } catch {
+    return []
+  }
+}
+
 /** Named so the empty state can explain the prerequisite instead of silently redirecting (G8). */
 const surfacePrerequisite: Partial<Record<SurfaceId, MessageKey>> = {
   'contract-editor': 'emptyNeedsContractEditor',
@@ -168,6 +181,7 @@ export function App() {
   const [welcomeOpen, setWelcomeOpen] = useState(() => localStorage.getItem(WELCOME_DISMISSED_KEY) !== 'true')
   const [introOpen, setIntroOpen] = useState(false)
   const { collapsed: navigationCollapsed, toggleCollapsed: toggleNavigation } = usePersistentCollapsed('lattice:navigation-collapsed')
+  const [openNavGroups, setOpenNavGroups] = useState<readonly string[]>(loadOpenNavGroups)
   const [pendingNavigation, setPendingNavigation] = useState<{ kind: 'CONTRACT' | 'WORKSPACE'; id: string; target?: SurfaceId }>()
   const [shareState, setShareState] = useState<'IDLE' | 'COPIED' | 'FAILED'>('IDLE')
   const [saveState, setSaveState] = useState<'IDLE' | 'SAVING' | 'FAILED'>('IDLE')
@@ -473,14 +487,39 @@ export function App() {
         <nav>
           <NavItem icon={<IconSearch />} label={t('navSearch')} count="⌘K" onClick={() => setPaletteOpen(true)} />
           <NavItem icon={<IconActivity />} label={t('navActivity')} active={surface === 'activity'} onClick={() => navigateTo('activity')} />
-          {navigationGroups.map((group) => <div key={group.label}>
-            <div className="nav-label">{t(group.label)}</div>
-            {group.items.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={surface === item.surface} onClick={() => navigateTo(item.surface)} key={item.surface} />)}
-            {group.label === 'navGroupBuild' && <>
-              <NavItem icon={<IconDownload />} label={t('ontologyImportSchema')} onClick={() => setImportOpen(true)} />
-              <NavItem icon={<IconPlus />} label={t('navNewContextContract')} onClick={() => setWizardOpen(true)} />
-            </>}
-          </div>)}
+          {navigationGroups.map((group) => {
+            // The group holding the current surface stays open: collapsing the
+            // user's own location is disorienting, so it is not a toggle target.
+            const holdsActive = group.items.some((item) => item.surface === surface)
+            const open = holdsActive || openNavGroups.includes(group.label)
+            const pending = group.items.reduce((total, item) => total + (item.count ? navigationCounts[item.count] : 0), 0)
+            return <div className="nav-group" key={group.label}>
+              <button
+                type="button"
+                className="nav-group-toggle"
+                aria-expanded={open}
+                aria-controls={`nav-group-${group.label}`}
+                onClick={() => setOpenNavGroups((previous) => {
+                  const next = previous.includes(group.label)
+                    ? previous.filter((entry) => entry !== group.label)
+                    : [...previous, group.label]
+                  localStorage.setItem(NAV_GROUPS_KEY, JSON.stringify(next))
+                  return next
+                })}
+              >
+                <span className="nav-label">{t(group.label)}</span>
+                {!open && pending > 0 && <em className="nav-group-count">{pending}</em>}
+                <span className="nav-group-chevron" aria-hidden="true"><IconChevronDown /></span>
+              </button>
+              <div className="nav-group-items" id={`nav-group-${group.label}`} hidden={!open}>
+                {group.items.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={surface === item.surface} onClick={() => navigateTo(item.surface)} key={item.surface} />)}
+                {group.label === 'navGroupBuild' && <>
+                  <NavItem icon={<IconDownload />} label={t('ontologyImportSchema')} onClick={() => setImportOpen(true)} />
+                  <NavItem icon={<IconPlus />} label={t('navNewContextContract')} onClick={() => setWizardOpen(true)} />
+                </>}
+              </div>
+            </div>
+          })}
         </nav>
         <div className="sidebar-footer"><span className={`status-dot ${apiHealth.status.toLocaleLowerCase()}`}/><div><b>{apiHealth.status === 'HEALTHY' ? t('runtimeHealthy') : apiHealth.status === 'OFFLINE' ? t('runtimeOffline') : t('runtimeChecking')}</b><span>{apiHealth.status === 'HEALTHY' ? t('runtimeLatency', { latency: apiHealth.latencyMs ?? 0 }) : apiHealth.status === 'OFFLINE' ? t('runtimeUnreachable') : t('runtimeProbing')}</span></div></div>
       </aside>

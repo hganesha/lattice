@@ -1,0 +1,17 @@
+/* Cascade order for the whole studio. Declared once, before any rule is authored.
+ *
+ * Layer order — not specificity — decides who wins. That is what lets the studio
+ * carry a correction layer without the `!important` war it used to need:
+ *
+ *   vendor      third-party CSS (React Flow). Layered so our styles can win
+ *               without !important; unlayered vendor CSS would beat everything.
+ *   reset       box-sizing, element normalisation.
+ *   tokens      design tokens only. No selectors beyond :root.
+ *   primitives  the reusable design system (surface-kit).
+ *   surfaces    per-surface styles.
+ *   overrides   theme corrections that must win. Shrinking toward zero.
+ */
+@layer vendor, reset, tokens, primitives, surfaces, overrides;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap');
+@import '@xyflow/react/dist/style.css' layer(vendor);

@@ -40,6 +40,11 @@ jobs:
       - name: Verify the source message catalog is current
         run: pnpm --filter @lattice/studio i18n:check
 
+      # Guards the design-system invariants from sota-ux-plan.md §6: no raw hex
+      # outside tokens.css, no !important, no font size below 12px.
+      - name: Check design-system burn-down
+        run: pnpm --filter @lattice/studio ux:check
+
       - name: Fail if extraction changed tracked files
         run: git diff --exit-code
 

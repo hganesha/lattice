@@ -14,9 +14,9 @@ export function ContractsStudio({ contracts, activeContractId, onSelect, onEdit,
   const { t, formatDate } = useMessages()
   const activeContract = contracts.find((contract) => contract.contractId === activeContractId)
   return <section className="contracts-studio-page">
-    <div className="contracts-hero">
+    <div className="surface-hero">
       <div><span className="panel-kicker">{t('contractsKicker').toLocaleUpperCase()}</span><h2>{t('contractsTitle')}</h2><p>{t('contractsDescription')}</p></div>
-      <div className="contracts-hero-actions">
+      <div className="surface-hero-actions">
         <label className="contract-canvas-selector" htmlFor="active-contract">
           <span>{t('activeContract').toLocaleUpperCase()}</span>
           <select id="active-contract" aria-label={t('activeContract')} value={activeContract?.contractId ?? ''} disabled={contracts.length === 0} onChange={(event) => onSelect(event.target.value)}>

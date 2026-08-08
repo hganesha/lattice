@@ -1,9 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import '@xyflow/react/dist/style.css'
+// Declares the cascade order and pulls React Flow into the `vendor` layer.
+// Must stay first: @layer order is fixed by first declaration.
+import './layers.css'
 import { App } from './App'
 import { LatticeI18nProvider } from './i18n/I18nProvider'
 import { LatticeAuthProvider } from './AuthProvider'
+import './reset.css'
+import './tokens.css'
 import './styles.css'
 import './surface-kit.css'
 import './governance.css'
@@ -27,6 +31,7 @@ const theme = savedTheme === 'LIGHT' ? 'light' : savedTheme === 'DARK' ? 'dark' 
 document.documentElement.dataset.theme = theme
 document.documentElement.dataset.themePreference = savedTheme?.toLocaleLowerCase() ?? 'system'
 document.documentElement.dataset.textScale = localStorage.getItem('lattice:text-scale') === 'LARGE' ? 'large' : 'comfortable'
+document.documentElement.dataset.density = localStorage.getItem('lattice:density') === 'COMPACT' ? 'compact' : 'comfortable'
 const savedLocale = localStorage.getItem('lattice:locale')
 document.documentElement.lang = savedLocale === 'es-ES' || savedLocale === 'en-XA' ? savedLocale : 'en-US'
 

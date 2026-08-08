@@ -1,0 +1,23 @@
+/* Element normalisation. Sets no visual opinion beyond making inheritance work.
+ *
+ * `font: inherit` on every form control is what lets the blanket element-level
+ * font-size override in appearance.css be deleted: controls inherit the body
+ * ramp instead of the browser's defaults. */
+
+@layer reset {
+
+  * { box-sizing: border-box; }
+
+  body { margin: 0; }
+
+  h1, h2, h3, h4, p { margin: 0; }
+
+  button, input, textarea, select { font: inherit; color: inherit; }
+
+  button { background: none; }
+
+  /* A default measure for prose. Surfaces opt out where a wider block is
+   * genuinely tabular rather than read left-to-right. */
+  p { max-width: var(--measure); }
+
+}

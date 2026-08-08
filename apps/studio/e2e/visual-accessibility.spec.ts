@@ -73,6 +73,9 @@ test('auto-layout toggles manual movement and authoring opens in a side drawer',
   await entityDrawer.getByLabel('Display name').fill('Lease Charge')
   await entityDrawer.getByLabel('Description').fill('A governed charge assessed under a lease.')
   await entityDrawer.getByLabel('Domain group').selectOption('Property')
+  // The 57-icon grid is collapsed to the current choice, so it has to be opened
+  // before a radio exists to click.
+  await entityDrawer.getByRole('button', { expanded: false }).and(entityDrawer.locator('.icon-picker-current')).click()
   await entityDrawer.getByRole('radiogroup', { name: 'Icon' }).getByRole('radio', { name: 'Document' }).click()
   await entityDrawer.getByRole('button', { name: 'Create type' }).click()
 
