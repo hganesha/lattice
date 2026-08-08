@@ -38,6 +38,7 @@ import {
   type ReviewRequestArtifact,
   type RuntimeApprovalArtifact,
   type ExecutionReceipt,
+  type AttestationSubjectKind,
   type CaseSet,
   type CreateCaseSetRequest,
   type CreateEmergencyAuthorizationRequest,
@@ -47,10 +48,15 @@ import {
   type DeclaredPurpose,
   type DispositionMode,
   type DispositionQuery,
+  type DelegationGrant,
+  type DispositionRecord,
   type DriftActionRequest,
+  type DriftEvent,
+  type EmergencyAuthorization,
   type EmergencyRetrospectiveRequest,
   type EvalCase,
   type EvalRun,
+  type NegativeDecision,
   type ReviewRoutingPlan,
   type RiskTier,
   type RuntimeDecision,
@@ -83,9 +89,9 @@ import { catalogSourceFromEnvironment } from './catalogFederation.js'
 import { openApiDocument } from './openapi.js'
 import { planSignerFromEnvironment } from './signing.js'
 import { recordCompileDecision, recordExecution, registerTelemetry, withSpan } from './telemetry.js'
-import { AttestationStore, predicateForSubject } from './attestations.js'
+import { AttestationStore, predicateForSubject, type StoredAttestation } from './attestations.js'
 import { buildDisposition, DispositionStore } from './dispositionStore.js'
-import { CaseSetStore, summarize } from './caseSetStore.js'
+import { CaseSetStore, summarize, type CaseSetArtifact } from './caseSetStore.js'
 import { counterpartyGoldCaseSet } from './seedCaseSets.js'
 import { EvalRunStore } from './evalStore.js'
 import { buildCompilationRecord, diffEvalRuns, runEvaluation } from './evalHarness.js'
@@ -93,7 +99,7 @@ import { consultNegativeDecisions, NegativeDecisionStore } from './negativeDecis
 import { DriftStore } from './driftStore.js'
 import { detectDrift, sourceHealthFor } from './driftDetector.js'
 import { replayDrift } from './counterfactual.js'
-import { PrincipalStore, type CreateDelegationGrantRequest } from './principalStore.js'
+import { PrincipalStore, type CreateDelegationGrantRequest, type PrincipalArtifact } from './principalStore.js'
 import { EmergencyStore } from './emergencyStore.js'
 import { buildEligibility } from './eligibility.js'
 import { computeBlastRadius } from './blastRadius.js'
@@ -196,13 +202,20 @@ interface EvolutionStores {
 
 let evolutionStoresPromise: Promise<EvolutionStores> | undefined
 
+/**
+ * The evolution ledgers backed by files, opened lazily and only if a route reads them.
+ *
+ * This is the local development path, matching `localStores()`. A deployment with Supabase
+ * configured never reaches it — `evolutionLedgers()` binds the same stores to Postgres per
+ * request instead, so row level security rather than this code decides what is visible.
+ */
 function evolutionStores(registry: ContractRegistry): Promise<EvolutionStores> {
   evolutionStoresPromise ??= (async () => {
     const caseSet = await CaseSetStore.open(join(dataDirectory, 'case-sets.json'))
-    if (caseSet.all().length === 0) await caseSet.seed(counterpartyGoldCaseSet)
+    if ((await caseSet.all(undefined)).length === 0) await caseSet.seed(counterpartyGoldCaseSet, undefined)
     return {
       attestation: await AttestationStore.open(join(dataDirectory, 'attestations.json'), planSigner),
-      disposition: await DispositionStore.open(join(dataDirectory, 'dispositions.json'), join(dataDirectory, 'disposition-archive.json')),
+      disposition: await DispositionStore.open(join(dataDirectory, 'dispositions.json')),
       caseSet,
       evalRun: await EvalRunStore.open(join(dataDirectory, 'eval-runs.json')),
       negativeDecision: await NegativeDecisionStore.open(join(dataDirectory, 'negative-decisions.json')),
@@ -217,6 +230,33 @@ function evolutionStores(registry: ContractRegistry): Promise<EvolutionStores> {
     }
   })()
   return evolutionStoresPromise
+}
+
+/**
+ * The same nine ledgers, backed by Postgres for one request.
+ *
+ * Bound per request rather than per process for the same reason `governanceLedgers` is: the
+ * ledgers read and write under the caller's own token, which is what makes row level security the
+ * thing enforcing tenancy.
+ *
+ * Nothing is seeded here. `PrincipalStore.open` seeds a declared directory for local development,
+ * and writing that demo cast into a real organization's ledger would be inventing people who do
+ * not work there. A deployed directory is built from principals actually observed on requests.
+ */
+function evolutionLedgers(config: SupabaseRegistryConfig, organizationId: string, authorization: string): EvolutionStores {
+  const ledger = <T extends ChainedArtifact>(kind: GovernedArtifactKind) =>
+    new SupabaseGovernanceLedger<T>(config, organizationId, authorization, kind, undefined)
+
+  return {
+    attestation: new AttestationStore(ledger<StoredAttestation>('ATTESTATION'), planSigner),
+    disposition: new DispositionStore(ledger<DispositionRecord>('DISPOSITION')),
+    caseSet: new CaseSetStore(ledger<CaseSetArtifact>('CASE_SET')),
+    evalRun: new EvalRunStore(ledger<EvalRun>('EVAL_RUN')),
+    negativeDecision: new NegativeDecisionStore(ledger<NegativeDecision>('NEGATIVE_DECISION')),
+    drift: new DriftStore(ledger<DriftEvent>('DRIFT_EVENT')),
+    principal: new PrincipalStore(ledger<PrincipalArtifact>('PRINCIPAL'), ledger<DelegationGrant>('DELEGATION_GRANT')),
+    emergency: new EmergencyStore(ledger<EmergencyAuthorization>('EMERGENCY_AUTHORIZATION'), planSigner),
+  }
 }
 
 const authenticator = authenticatorFromEnvironment()
@@ -338,7 +378,10 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
     const registry = supabaseStorage
       ? await ContractRegistry.openStorage(supabaseStorage, counterpartyRiskContract, { persistOnOpen: false })
       : (await localStores()).registry
-    const evolution = await evolutionStores(registry)
+    const evolution = supabaseStorage && supabaseRegistryConfig && requestIdentity
+      ? evolutionLedgers(supabaseRegistryConfig, requiredTenantId(requestIdentity), request.headers.authorization ?? '')
+      : await evolutionStores(registry)
+    const evolutionTenantId = supabaseStorage ? requestIdentity?.tenantId : undefined
 
     if (request.method === 'GET' && url.pathname === '/v1/connectors') {
       if (!await authenticate(request)) {
@@ -617,7 +660,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
       try {
         const preview = previewBindingSource({ ...body, contractId: body.contractId ?? `ontology:${body.workspaceId}` })
         // Annotated, never silently dropped: the caller still sees the proposal and why it is suppressed.
-        const suppressed = consultNegativeDecisions(preview, evolution.negativeDecision.inForce(), {
+        const suppressed = consultNegativeDecisions(preview, await evolution.negativeDecision.inForce(evolutionTenantId), {
           ...(body.contractId ? { contractId: body.contractId } : {}),
           ...(body.workspaceId ? { workspaceId: body.workspaceId } : {}),
           sourceName: body.sourceName,
@@ -752,7 +795,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
             reviewBy: body.structuredRejection.reviewBy,
             ...(body.structuredRejection.exceptions ? { exceptions: body.structuredRejection.exceptions } : {}),
             reviewId: target.id,
-          }, principal.principalId)
+          }, principal.principalId, evolutionTenantId)
           : undefined
         const decided = await reviewStore.decide(reviewDecisionMatch[1], body.decision, body.rationale.trim(), principal.principalId, principal.tenantId, new Date(), {
           ...(body.structuredRejection ? { structuredRejection: body.structuredRejection } : {}),
@@ -765,8 +808,8 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
             predicateType: predicateForSubject.REVIEW_DECISION,
             subject: decided.decision,
             signerId: principal.principalId,
-            signerRoleAtSigning: evolution.principal.get(principal.principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY',
-          })
+            signerRoleAtSigning: (await evolution.principal.get(principal.principalId, evolutionTenantId))?.roles[0] ?? 'BEARER_TOKEN_IDENTITY',
+          }, evolutionTenantId)
         }
         send(response, 201, withRouting(decided))
       } catch (error) {
@@ -1029,7 +1072,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
         recordCompileDecision(span, compiled)
         return compiled
       })
-      const enriched = await recordDisposition(evolution, registry, {
+      const enriched = await recordDisposition(evolution, registry, evolutionTenantId, {
         result,
         contract: runtimeContract,
         question: body.question,
@@ -1085,7 +1128,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
       )
       clarifications.delete(clarificationMatch[1])
       rememberClarification(result, principal, pending.request, pending.intentResolution, selectedOperationId)
-      const enriched = await recordDisposition(evolution, registry, {
+      const enriched = await recordDisposition(evolution, registry, evolutionTenantId, {
         result,
         contract: runtimeContract,
         question: pending.request.question,
@@ -1269,7 +1312,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
       return
     }
 
-    if (await handleEvolutionRoutes({ request, response, url, identity: requestIdentity, registry, evolution, assuranceStore, reviewStore, executionStore })) return
+    if (await handleEvolutionRoutes({ request, response, url, identity: requestIdentity, tenantId: evolutionTenantId, registry, evolution, assuranceStore, reviewStore, executionStore })) return
 
     send(response, 404, { error: 'NOT_FOUND' })
   } catch (error) {
@@ -1382,6 +1425,8 @@ interface EvolutionContext {
   response: ServerResponse
   url: URL
   identity: RequestIdentity | undefined
+  /** The tenant these ledgers are scoped to — `undefined` on the file path, which has no tenants. */
+  tenantId: string | undefined
   registry: ContractRegistry
   evolution: EvolutionStores
   assuranceStore: AssuranceStore
@@ -1394,12 +1439,11 @@ interface EvolutionContext {
  * take the resolved identity rather than re-authenticating. Returning false means "not my route".
  */
 // eslint-disable-next-line complexity
-async function handleEvolutionRoutes({ request, response, url, identity, registry, evolution, assuranceStore, reviewStore, executionStore }: EvolutionContext): Promise<boolean> {
+async function handleEvolutionRoutes({ request, response, url, identity, tenantId, registry, evolution, assuranceStore, reviewStore, executionStore }: EvolutionContext): Promise<boolean> {
   const method = request.method ?? 'GET'
   const path = url.pathname
-  const tenantId = identity?.tenantId
   const principalId = identity?.principalId ?? 'principal_anonymous'
-  const roleOf = (id: string) => evolution.principal.get(id)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY'
+  const roleOf = async (id: string) => (await evolution.principal.get(id, tenantId))?.roles[0] ?? 'BEARER_TOKEN_IDENTITY'
 
   /* ---- Declared purpose and derived risk tier (E4) ---- */
 
@@ -1442,13 +1486,13 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       ...(url.searchParams.get('mode') ? { mode: url.searchParams.get('mode') as DispositionMode } : {}),
       ...(url.searchParams.get('limit') ? { limit: Number(url.searchParams.get('limit')) } : {}),
     }
-    send(response, 200, evolution.disposition.query(query))
+    send(response, 200, (await evolution.disposition.query(query, tenantId)))
     return true
   }
 
   const dispositionMatch = path.match(/^\/v1\/dispositions\/([^/]+)$/)
   if (method === 'GET' && dispositionMatch?.[1]) {
-    const record = evolution.disposition.get(dispositionMatch[1])
+    const record = await evolution.disposition.get(dispositionMatch[1], tenantId)
     if (!record) {
       send(response, 404, { error: 'DISPOSITION_NOT_FOUND' })
       return true
@@ -1458,33 +1502,33 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
   }
 
   if (method === 'GET' && path === '/v1/retention') {
-    send(response, 200, evolution.disposition.retention())
+    send(response, 200, await evolution.disposition.retention(tenantId))
     return true
   }
 
   /* ---- Attestations (E16) ---- */
 
   if (method === 'GET' && path === '/v1/attestations') {
-    send(response, 200, evolution.attestation.list({ ...optional('subjectId', url), ...(url.searchParams.get('subjectKind') ? { subjectKind: url.searchParams.get('subjectKind') as Parameters<typeof evolution.attestation.list>[0] extends { subjectKind?: infer K } ? K : never } : {}) }))
+    send(response, 200, await evolution.attestation.list({ ...optional('subjectId', url), ...(url.searchParams.get('subjectKind') ? { subjectKind: url.searchParams.get('subjectKind') as AttestationSubjectKind } : {}) }, tenantId))
     return true
   }
 
   const attestationVerifyMatch = path.match(/^\/v1\/attestations\/([^/]+)\/verify$/)
   if (method === 'POST' && attestationVerifyMatch?.[1]) {
-    const attestation = evolution.attestation.get(attestationVerifyMatch[1])
+    const attestation = await evolution.attestation.get(attestationVerifyMatch[1], tenantId)
     if (!attestation) {
       send(response, 404, { error: 'ATTESTATION_NOT_FOUND' })
       return true
     }
-    const subject = await resolveAttestationSubject({ request, response, url, identity, registry, evolution, assuranceStore, reviewStore, executionStore }, attestation.subjectKind, attestation.subjectId)
-    const verification = evolution.attestation.verify(attestation.id, subject, planSigner.activeKeyId)
+    const subject = await resolveAttestationSubject({ request, response, url, identity, tenantId, registry, evolution, assuranceStore, reviewStore, executionStore }, attestation.subjectKind, attestation.subjectId)
+    const verification = await evolution.attestation.verify(attestation.id, subject, planSigner.activeKeyId, tenantId)
     send(response, verification?.verified ? 200 : 422, verification)
     return true
   }
 
   const attestationMatch = path.match(/^\/v1\/attestations\/([^/]+)$/)
   if (method === 'GET' && attestationMatch?.[1]) {
-    const attestation = evolution.attestation.get(attestationMatch[1])
+    const attestation = await evolution.attestation.get(attestationMatch[1], tenantId)
     if (!attestation) {
       send(response, 404, { error: 'ATTESTATION_NOT_FOUND' })
       return true
@@ -1496,7 +1540,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
   /* ---- Case sets (E6) ---- */
 
   if (method === 'GET' && path === '/v1/case-sets') {
-    send(response, 200, evolution.caseSet.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
+    send(response, 200, await evolution.caseSet.list({ ...optional('workspaceId', url), ...optional('contractId', url) }, tenantId))
     return true
   }
 
@@ -1506,13 +1550,13 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       send(response, 400, { error: 'INVALID_CASE_SET', message: 'A name and a scope are required.' })
       return true
     }
-    send(response, 201, await evolution.caseSet.create(body))
+    send(response, 201, await evolution.caseSet.create(body, tenantId))
     return true
   }
 
   const caseSetCasesMatch = path.match(/^\/v1\/case-sets\/([^/]+)\/cases$/)
   if (caseSetCasesMatch?.[1]) {
-    const caseSet = evolution.caseSet.get(caseSetCasesMatch[1])
+    const caseSet = await evolution.caseSet.get(caseSetCasesMatch[1], tenantId)
     if (!caseSet) {
       send(response, 404, { error: 'CASE_SET_NOT_FOUND' })
       return true
@@ -1527,14 +1571,14 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
         send(response, 400, { error: 'INVALID_EVAL_CASE', message: 'A case id and question are required.' })
         return true
       }
-      send(response, 200, await evolution.caseSet.upsertCase(caseSet.id, body.case))
+      send(response, 200, await evolution.caseSet.upsertCase(caseSet.id, body.case, tenantId))
       return true
     }
   }
 
   const caseSetMatch = path.match(/^\/v1\/case-sets\/([^/]+)$/)
   if (caseSetMatch?.[1]) {
-    const caseSet = evolution.caseSet.get(caseSetMatch[1])
+    const caseSet = await evolution.caseSet.get(caseSetMatch[1], tenantId)
     if (!caseSet) {
       send(response, 404, { error: 'CASE_SET_NOT_FOUND' })
       return true
@@ -1549,7 +1593,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
         send(response, 400, { error: 'CASE_SET_ID_MISMATCH' })
         return true
       }
-      send(response, 200, await evolution.caseSet.replace(caseSet.id, body.caseSet))
+      send(response, 200, await evolution.caseSet.replace(caseSet.id, body.caseSet, tenantId))
       return true
     }
   }
@@ -1557,13 +1601,13 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
   /* ---- Evaluation runs, diff, failure routing (E7, E8, E10) ---- */
 
   if (method === 'GET' && path === '/v1/eval/runs') {
-    send(response, 200, evolution.evalRun.list({ ...optional('contractId', url), ...optional('caseSetId', url), ...optional('environment', url) }))
+    send(response, 200, await evolution.evalRun.list({ ...optional('contractId', url), ...optional('caseSetId', url), ...optional('environment', url) }, tenantId))
     return true
   }
 
   if (method === 'POST' && path === '/v1/eval/runs') {
     const body = await readJson<CreateEvalRunRequest>(request)
-    const caseSet = evolution.caseSet.get(body.caseSetId ?? '')
+    const caseSet = await evolution.caseSet.get(body.caseSetId ?? '', tenantId)
     const entry = registry.get(body.contractId ?? '')
     if (!caseSet || !entry) {
       send(response, 404, { error: caseSet ? 'CONTRACT_NOT_FOUND' : 'CASE_SET_NOT_FOUND' })
@@ -1588,22 +1632,22 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       environment: body.environment ?? 'local',
       triggeredBy: principalId,
       ...(tenantId ? { tenantId } : {}),
-      principalChain: evolution.principal.chainFor(principalId),
+      principalChain: await evolution.principal.chainFor(principalId, tenantId),
       ...(body.baselineRunId ? { baselineRunId: body.baselineRunId } : {}),
       now,
     })
-    for (const record of dispositions) await evolution.disposition.append(record)
+    for (const record of dispositions) await evolution.disposition.append(record, tenantId)
     const evidence = evidenceForEvalRun(run)
-    const stored = await evolution.evalRun.append({ ...run, evidenceRecordId: evidence.id })
-    await evolution.attestation.mint({ subjectKind: 'EVAL_RUN', subjectId: stored.id, predicateType: predicateForSubject.EVAL_RUN, subject: stored, signerId: principalId, signerRoleAtSigning: evolution.principal.get(principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' })
+    const stored = await evolution.evalRun.append({ ...run, evidenceRecordId: evidence.id }, tenantId)
+    await evolution.attestation.mint({ subjectKind: 'EVAL_RUN', subjectId: stored.id, predicateType: predicateForSubject.EVAL_RUN, subject: stored, signerId: principalId, signerRoleAtSigning: (await evolution.principal.get(principalId, tenantId))?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' }, tenantId)
     send(response, 201, stored)
     return true
   }
 
   const evalDiffMatch = path.match(/^\/v1\/eval\/runs\/([^/]+)\/diff$/)
   if (method === 'GET' && evalDiffMatch?.[1]) {
-    const candidate = evolution.evalRun.get(evalDiffMatch[1])
-    const baseline = evolution.evalRun.get(url.searchParams.get('baseline') ?? '')
+    const candidate = await evolution.evalRun.get(evalDiffMatch[1], tenantId)
+    const baseline = await evolution.evalRun.get(url.searchParams.get('baseline') ?? '', tenantId)
     if (!candidate || !baseline) {
       send(response, 404, { error: candidate ? 'BASELINE_RUN_NOT_FOUND' : 'EVAL_RUN_NOT_FOUND' })
       return true
@@ -1614,7 +1658,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
 
   const evalCancelMatch = path.match(/^\/v1\/eval\/runs\/([^/]+)\/cancel$/)
   if (method === 'POST' && evalCancelMatch?.[1]) {
-    const run = evolution.evalRun.get(evalCancelMatch[1])
+    const run = await evolution.evalRun.get(evalCancelMatch[1], tenantId)
     if (!run) {
       send(response, 404, { error: 'EVAL_RUN_NOT_FOUND' })
       return true
@@ -1623,13 +1667,13 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       send(response, 409, { error: 'EVAL_RUN_ALREADY_FINISHED' })
       return true
     }
-    send(response, 200, await evolution.evalRun.replace({ ...run, status: 'CANCELLED', completedAt: new Date().toISOString() }))
+    send(response, 200, await evolution.evalRun.replace({ ...run, status: 'CANCELLED', completedAt: new Date().toISOString() }, tenantId))
     return true
   }
 
   const evalRunMatch = path.match(/^\/v1\/eval\/runs\/([^/]+)$/)
   if (method === 'GET' && evalRunMatch?.[1]) {
-    const run = evolution.evalRun.get(evalRunMatch[1])
+    const run = await evolution.evalRun.get(evalRunMatch[1], tenantId)
     if (!run) {
       send(response, 404, { error: 'EVAL_RUN_NOT_FOUND' })
       return true
@@ -1653,7 +1697,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       workspaceId: workspaceIdFor(entry),
       targetKind: review.targetKind,
       targetId: review.targetId,
-      dispositions: evolution.disposition.all().filter((record) => record.contractId === entry.contractId),
+      dispositions: (await evolution.disposition.all(tenantId)).filter((record) => record.contractId === entry.contractId),
     }))
     return true
   }
@@ -1695,7 +1739,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
   /* ---- Negative decisions (E13) ---- */
 
   if (method === 'GET' && path === '/v1/negative-decisions') {
-    send(response, 200, evolution.negativeDecision.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
+    send(response, 200, await evolution.negativeDecision.list({ ...optional('workspaceId', url), ...optional('contractId', url) }, tenantId))
     return true
   }
 
@@ -1705,7 +1749,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       send(response, 400, { error: 'INVALID_NEGATIVE_DECISION', message: 'A workspace, a prohibited subject, a rationale, and a review-by date are required.' })
       return true
     }
-    send(response, 201, await evolution.negativeDecision.create(body, principalId))
+    send(response, 201, await evolution.negativeDecision.create(body, principalId, tenantId))
     return true
   }
 
@@ -1717,7 +1761,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       return true
     }
     try {
-      send(response, 200, await evolution.negativeDecision.withdraw(negativeWithdrawMatch[1], body.rationale.trim(), principalId))
+      send(response, 200, await evolution.negativeDecision.withdraw(negativeWithdrawMatch[1], body.rationale.trim(), principalId, tenantId))
     } catch (error) {
       send(response, 404, { error: error instanceof Error ? error.message : 'NEGATIVE_DECISION_NOT_FOUND' })
     }
@@ -1726,7 +1770,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
 
   const negativeMatch = path.match(/^\/v1\/negative-decisions\/([^/]+)$/)
   if (method === 'GET' && negativeMatch?.[1]) {
-    const decision = evolution.negativeDecision.get(negativeMatch[1])
+    const decision = await evolution.negativeDecision.get(negativeMatch[1], tenantId)
     if (!decision) {
       send(response, 404, { error: 'NEGATIVE_DECISION_NOT_FOUND' })
       return true
@@ -1738,7 +1782,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
   /* ---- Drift, source health, counterfactual replay (E14) ---- */
 
   if (method === 'GET' && path === '/v1/drift') {
-    send(response, 200, evolution.drift.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
+    send(response, 200, await evolution.drift.list({ ...optional('workspaceId', url), ...optional('contractId', url) }, tenantId))
     return true
   }
 
@@ -1747,7 +1791,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
     const detected = registry.list()
       .filter((entry) => !body.workspaceId || workspaceIdFor(entry) === body.workspaceId)
       .flatMap((entry) => detectDrift(entry, registry.getWorkspace(workspaceIdFor(entry))))
-    send(response, 200, await evolution.drift.upsertMany(detected))
+    send(response, 200, await evolution.drift.upsertMany(detected, tenantId))
     return true
   }
 
@@ -1757,13 +1801,13 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
       return true
     }
-    send(response, 200, sourceHealthFor(entry.draft, evolution.drift.list({ contractId: entry.contractId })))
+    send(response, 200, sourceHealthFor(entry.draft, await evolution.drift.list({ contractId: entry.contractId }, tenantId)))
     return true
   }
 
   const driftReplayMatch = path.match(/^\/v1\/drift\/([^/]+)\/replay$/)
   if (method === 'POST' && driftReplayMatch?.[1]) {
-    const event = evolution.drift.get(driftReplayMatch[1])
+    const event = await evolution.drift.get(driftReplayMatch[1], tenantId)
     const entry = event?.contractId ? registry.get(event.contractId) : undefined
     if (!event || !entry) {
       send(response, 404, { error: 'DRIFT_EVENT_NOT_FOUND' })
@@ -1771,18 +1815,18 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
     }
     const counterfactual = replayDrift({
       event,
-      dispositions: evolution.disposition.all().filter((record) => record.contractId === entry.contractId && record.mode === 'AUTHORIZED'),
+      dispositions: (await evolution.disposition.all(tenantId)).filter((record) => record.contractId === entry.contractId && record.mode === 'AUTHORIZED'),
       contract: entry.draft,
       ...(tenantId ? { tenantId } : {}),
     })
-    await evolution.drift.replace({ ...event, counterfactual })
+    await evolution.drift.replace({ ...event, counterfactual }, tenantId)
     send(response, 200, counterfactual)
     return true
   }
 
   const driftActionMatch = path.match(/^\/v1\/drift\/([^/]+)\/actions$/)
   if (method === 'POST' && driftActionMatch?.[1]) {
-    const event = evolution.drift.get(driftActionMatch[1])
+    const event = await evolution.drift.get(driftActionMatch[1], tenantId)
     if (!event) {
       send(response, 404, { error: 'DRIFT_EVENT_NOT_FOUND' })
       return true
@@ -1806,13 +1850,13 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       }, principalId, tenantId)
     }
     const status = body.action === 'ACKNOWLEDGE' ? 'ACKNOWLEDGED' as const : body.action === 'RESOLVE' ? 'RESOLVED' as const : body.action === 'ALLOW_READ_ONLY' ? 'ACKNOWLEDGED' as const : event.status
-    send(response, 200, await evolution.drift.replace({ ...event, status }))
+    send(response, 200, await evolution.drift.replace({ ...event, status }, tenantId))
     return true
   }
 
   const driftMatch = path.match(/^\/v1\/drift\/([^/]+)$/)
   if (method === 'GET' && driftMatch?.[1]) {
-    const event = evolution.drift.get(driftMatch[1])
+    const event = await evolution.drift.get(driftMatch[1], tenantId)
     if (!event) {
       send(response, 404, { error: 'DRIFT_EVENT_NOT_FOUND' })
       return true
@@ -1835,9 +1879,9 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       contract: entry.draft,
       assuranceRuns: await assuranceStore.list(entry.contractId, tenantId),
       reviews: await reviewStore.list(entry.contractId, tenantId),
-      driftEvents: evolution.drift.list({ contractId: entry.contractId }),
-      dispositions: evolution.disposition.all().filter((record) => record.contractId === entry.contractId),
-      autonomousGrantAvailable: evolution.principal.grants({ workspaceId }).some((grant) => grant.status === 'ACTIVE' && grant.riskTierCeiling === 'OPERATIONAL_ACTION'),
+      driftEvents: await evolution.drift.list({ contractId: entry.contractId }, tenantId),
+      dispositions: (await evolution.disposition.all(tenantId)).filter((record) => record.contractId === entry.contractId),
+      autonomousGrantAvailable: (await evolution.principal.grants({ workspaceId }, tenantId)).some((grant) => grant.status === 'ACTIVE' && grant.riskTierCeiling === 'OPERATIONAL_ACTION'),
     }))
     return true
   }
@@ -1847,25 +1891,25 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
   if (method === 'GET' && path === '/v1/session') {
     // A bearer identity that is not in the declared directory is recorded as exactly what it
     // verifiably is, so the session always resolves to a real Principal rather than a chain link.
-    if (!evolution.principal.get(principalId)) {
-      await evolution.principal.observe([principalId], registry.listWorkspaces().map((workspace) => workspace.id))
+    if (!await evolution.principal.get(principalId, tenantId)) {
+      await evolution.principal.observe([principalId], registry.listWorkspaces().map((workspace) => workspace.id), tenantId)
     }
-    send(response, 200, { principal: evolution.principal.get(principalId), chain: evolution.principal.chainFor(principalId) })
+    send(response, 200, { principal: await evolution.principal.get(principalId, tenantId), chain: await evolution.principal.chainFor(principalId, tenantId) })
     return true
   }
 
   if (method === 'GET' && path === '/v1/principals') {
-    send(response, 200, evolution.principal.all(url.searchParams.get('workspaceId') ?? undefined))
+    send(response, 200, await evolution.principal.all(url.searchParams.get('workspaceId') ?? undefined, tenantId))
     return true
   }
 
   if (method === 'GET' && path === '/v1/identity-graph') {
-    send(response, 200, evolution.principal.identityGraph(url.searchParams.get('workspaceId') ?? undefined))
+    send(response, 200, await evolution.principal.identityGraph(url.searchParams.get('workspaceId') ?? undefined, tenantId))
     return true
   }
 
   if (method === 'GET' && path === '/v1/delegations') {
-    send(response, 200, evolution.principal.grants({ ...optional('workspaceId', url), ...optional('principalId', url) }))
+    send(response, 200, await evolution.principal.grants({ ...optional('workspaceId', url), ...optional('principalId', url) }, tenantId))
     return true
   }
 
@@ -1875,7 +1919,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       send(response, 400, { error: 'INVALID_DELEGATION', message: 'A delegate, at least one scope, and a maximum action budget are required.' })
       return true
     }
-    send(response, 201, await evolution.principal.createGrant(body, principalId))
+    send(response, 201, await evolution.principal.createGrant(body, principalId, tenantId))
     return true
   }
 
@@ -1887,7 +1931,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       return true
     }
     try {
-      send(response, 200, await evolution.principal.revokeGrant(grantRevokeMatch[1], body.rationale.trim()))
+      send(response, 200, await evolution.principal.revokeGrant(grantRevokeMatch[1], body.rationale.trim(), tenantId))
     } catch (error) {
       send(response, 404, { error: error instanceof Error ? error.message : 'GRANT_NOT_FOUND' })
     }
@@ -1896,7 +1940,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
 
   const principalMatch = path.match(/^\/v1\/principals\/([^/]+)$/)
   if (method === 'GET' && principalMatch?.[1]) {
-    const principal = evolution.principal.get(principalMatch[1])
+    const principal = await evolution.principal.get(principalMatch[1], tenantId)
     if (!principal) {
       send(response, 404, { error: 'PRINCIPAL_NOT_FOUND' })
       return true
@@ -1908,10 +1952,10 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
   /* ---- Emergency authorization and its retrospective queue (E18) ---- */
 
   if (method === 'GET' && path === '/v1/emergency-authorizations') {
-    send(response, 200, evolution.emergency.list({
+    send(response, 200, await evolution.emergency.list({
       ...optional('contractId', url), ...optional('workspaceId', url),
       ...(url.searchParams.get('status') ? { status: url.searchParams.get('status') as Parameters<typeof evolution.emergency.list>[0] extends { status?: infer S } ? S : never } : {}),
-    }))
+    }, tenantId))
     return true
   }
 
@@ -1926,8 +1970,8 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       send(response, 400, { error: 'INVALID_EMERGENCY_REQUEST', message: 'A justification of at least 80 characters, an action budget, a validity window, at least one approver role, and at least one compensating control are required.' })
       return true
     }
-    const authorization = await evolution.emergency.create(body, principalId)
-    await evolution.attestation.mint({ subjectKind: 'EMERGENCY_AUTHORIZATION', subjectId: authorization.id, predicateType: predicateForSubject.EMERGENCY_AUTHORIZATION, subject: authorization, signerId: principalId, signerRoleAtSigning: evolution.principal.get(principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' })
+    const authorization = await evolution.emergency.create(body, principalId, tenantId)
+    await evolution.attestation.mint({ subjectKind: 'EMERGENCY_AUTHORIZATION', subjectId: authorization.id, predicateType: predicateForSubject.EMERGENCY_AUTHORIZATION, subject: authorization, signerId: principalId, signerRoleAtSigning: (await evolution.principal.get(principalId, tenantId))?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' }, tenantId)
     send(response, 201, authorization)
     return true
   }
@@ -1940,7 +1984,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       return true
     }
     try {
-      send(response, 200, await evolution.emergency.approve(emergencyApprovalMatch[1], body.role, body.rationale.trim(), principalId))
+      send(response, 200, await evolution.emergency.approve(emergencyApprovalMatch[1], body.role, body.rationale.trim(), principalId, tenantId))
     } catch (error) {
       const message = error instanceof Error ? error.message : 'EMERGENCY_APPROVAL_FAILED'
       send(response, message === 'EMERGENCY_AUTHORIZATION_NOT_FOUND' ? 404 : 409, { error: message })
@@ -1956,7 +2000,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       return true
     }
     try {
-      send(response, 200, await evolution.emergency.recordRetrospective(emergencyRetrospectiveMatch[1], body, principalId))
+      send(response, 200, await evolution.emergency.recordRetrospective(emergencyRetrospectiveMatch[1], body, principalId, tenantId))
     } catch (error) {
       send(response, 404, { error: error instanceof Error ? error.message : 'EMERGENCY_AUTHORIZATION_NOT_FOUND' })
     }
@@ -1965,7 +2009,7 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
 
   const emergencyMatch = path.match(/^\/v1\/emergency-authorizations\/([^/]+)$/)
   if (method === 'GET' && emergencyMatch?.[1]) {
-    const authorization = evolution.emergency.get(emergencyMatch[1])
+    const authorization = await evolution.emergency.get(emergencyMatch[1], tenantId)
     if (!authorization) {
       send(response, 404, { error: 'EMERGENCY_AUTHORIZATION_NOT_FOUND' })
       return true
@@ -1984,14 +2028,14 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       ...(contractId ? { contractId } : {}),
       limit: Math.min(Number(url.searchParams.get('limit') ?? 50), 200),
       entries: registry.list(),
-      dispositions: evolution.disposition.all(),
+      dispositions: await evolution.disposition.all(tenantId),
       assuranceRuns: (await Promise.all(registry.list().map((entry) => assuranceStore.list(entry.contractId, tenantId)))).flat(),
-      evalRuns: evolution.evalRun.list(),
-      driftEvents: evolution.drift.all(),
+      evalRuns: await evolution.evalRun.list({}, tenantId),
+      driftEvents: await evolution.drift.all(tenantId),
       reviews: (await Promise.all(registry.list().map((entry) => reviewStore.list(entry.contractId, tenantId)))).flat(),
-      emergencyAuthorizations: evolution.emergency.list(),
-      negativeDecisions: evolution.negativeDecision.list(),
-      viewer: { principalId, roles: evolution.principal.get(principalId)?.roles ?? [] },
+      emergencyAuthorizations: await evolution.emergency.list({}, tenantId),
+      negativeDecisions: await evolution.negativeDecision.list({}, tenantId),
+      viewer: { principalId, roles: (await evolution.principal.get(principalId, tenantId))?.roles ?? [] },
     }))
     return true
   }
@@ -2003,12 +2047,12 @@ async function handleEvolutionRoutes({ request, response, url, identity, registr
       ...(workspaceId ? { workspaceId } : {}),
       workspaces: registry.listWorkspaces(),
       entries: registry.list(),
-      dispositions: evolution.disposition.all(),
-      evalRuns: evolution.evalRun.list(),
-      caseSets: evolution.caseSet.all().map((caseSet) => summarize(caseSet)),
+      dispositions: await evolution.disposition.all(tenantId),
+      evalRuns: await evolution.evalRun.list({}, tenantId),
+      caseSets: (await evolution.caseSet.all(tenantId)).map((caseSet) => summarize(caseSet)),
       reviews: (await Promise.all(registry.list().map((entry) => reviewStore.list(entry.contractId, tenantId)))).flat(),
-      driftEvents: evolution.drift.all(),
-      principals: evolution.principal.all(workspaceId),
+      driftEvents: await evolution.drift.all(tenantId),
+      principals: await evolution.principal.all(workspaceId, tenantId),
     }))
     return true
   }
@@ -2072,11 +2116,10 @@ function evidenceForEvalRun(run: EvalRun) {
 
 /** Resolves the artifact an attestation covers so verification recomputes a real digest. */
 async function resolveAttestationSubject(context: EvolutionContext, subjectKind: string, subjectId: string): Promise<unknown> {
-  const { registry, evolution, assuranceStore, reviewStore, executionStore } = context
-  const tenantId = context.identity?.tenantId
-  if (subjectKind === 'DISPOSITION') return evolution.disposition.get(subjectId)
-  if (subjectKind === 'EVAL_RUN') return evolution.evalRun.get(subjectId)
-  if (subjectKind === 'EMERGENCY_AUTHORIZATION') return evolution.emergency.get(subjectId)
+  const { registry, evolution, assuranceStore, reviewStore, executionStore, tenantId } = context
+  if (subjectKind === 'DISPOSITION') return await evolution.disposition.get(subjectId, tenantId)
+  if (subjectKind === 'EVAL_RUN') return await evolution.evalRun.get(subjectId, tenantId)
+  if (subjectKind === 'EMERGENCY_AUTHORIZATION') return await evolution.emergency.get(subjectId, tenantId)
   if (subjectKind === 'ASSURANCE_RUN') return assuranceStore.get(subjectId, tenantId)
   if (subjectKind === 'EXECUTION') {
     const receipts = (await Promise.all(registry.list().map((entry) => executionStore.list(entry.contractId, tenantId)))).flat()
@@ -2104,7 +2147,7 @@ interface RecordDispositionInput {
  * Every compile persists — resolved, clarification, approval, abstention and denial alike.
  * Without this the core output of the product does not survive a second keystroke (G1).
  */
-async function recordDisposition(evolution: EvolutionStores, registry: ContractRegistry, { result, contract, question, mode, purposeId, principalId, latencyMs, clarificationId }: RecordDispositionInput): Promise<CompileResponse> {
+async function recordDisposition(evolution: EvolutionStores, registry: ContractRegistry, tenantId: string | undefined, { result, contract, question, mode, purposeId, principalId, latencyMs, clarificationId }: RecordDispositionInput): Promise<CompileResponse> {
   const now = new Date()
   const plan = result.plan ?? result.pendingPlan
   const operationId = plan?.operation
@@ -2130,15 +2173,15 @@ async function recordDisposition(evolution: EvolutionStores, registry: ContractR
     ...(result.approval ? { approvalId: result.approval.id } : {}),
     ...(clarificationId ?? result.clarification?.id ? { clarificationId: clarificationId ?? result.clarification!.id } : {}),
     principalId,
-    principalChain: evolution.principal.chainFor(principalId),
+    principalChain: await evolution.principal.chainFor(principalId, tenantId),
     compilation,
     evidenceRefs: plan?.evidenceRefs ?? [],
     latencyMs,
     createdAt: now.toISOString(),
     provenance: 'RE_EXECUTED',
   })
-  const attestation = await evolution.attestation.mint({ subjectKind: 'DISPOSITION', subjectId: record.id, predicateType: predicateForSubject.DISPOSITION, subject: record, signerId: principalId, signerRoleAtSigning: evolution.principal.get(principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' })
-  const stored = await evolution.disposition.append({ ...record, attestationIds: [attestation.id] })
+  const attestation = await evolution.attestation.mint({ subjectKind: 'DISPOSITION', subjectId: record.id, predicateType: predicateForSubject.DISPOSITION, subject: record, signerId: principalId, signerRoleAtSigning: (await evolution.principal.get(principalId, tenantId))?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' }, tenantId)
+  const stored = await evolution.disposition.append({ ...record, attestationIds: [attestation.id] }, tenantId)
   return {
     ...result,
     dispositionId: stored.id,

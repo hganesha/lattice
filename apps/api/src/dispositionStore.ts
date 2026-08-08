@@ -1,20 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import type { DispositionPage, DispositionQuery, DispositionRecord, RetentionPolicy } from '@lattice/contracts'
+import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
 
-interface DispositionDocument {
-  schemaVersion: '1.0'
-  records: DispositionRecord[]
-}
-
-interface ArchiveDocument {
-  schemaVersion: '1.0'
-  archivedCount: number
-  records: DispositionRecord[]
-}
-
-/** Decision §11.3 — the trail is capped, then archived, never silently dropped. */
+/** Decision §11.3 — the trail is capped, then aged out of view, never silently dropped. */
 export const retentionDays = 90
 export const retentionMaximumRecords = 5000
 
@@ -34,85 +22,80 @@ export function buildDisposition(input: DispositionInput): DispositionRecord {
   return { ...body, artifactDigest: `sha256:${createHash('sha256').update(JSON.stringify(digestable)).digest('hex')}` }
 }
 
+/**
+ * The disposition trail, kept as an append-only ledger.
+ *
+ * Retention used to *move* overflow into a second archive file, and that cannot survive the move
+ * to a ledger: relocating a row breaks the hash chain it belongs to, and the storage seam has no
+ * delete for exactly that reason. So retention is now read-side only. Every disposition ever
+ * appended stays in the ledger; the reads surface only what the policy still retains, and
+ * `archivedCount` reports how many have aged out of the window rather than how many were moved.
+ * Nothing is deleted — including any `disposition-archive.json` an earlier build left behind,
+ * which is no longer read or written.
+ */
 export class DispositionStore {
-  private writeQueue: Promise<void> = Promise.resolve()
+  constructor(private readonly storage: LedgerStorage<DispositionRecord>) {}
 
-  private constructor(
-    private readonly filePath: string,
-    private readonly archivePath: string,
-    private document: DispositionDocument,
-    private archive: ArchiveDocument,
-  ) {}
-
-  static async open(filePath: string, archivePath: string): Promise<DispositionStore> {
-    const document = await readDocument<DispositionDocument>(filePath, { schemaVersion: '1.0', records: [] })
-    const archive = await readDocument<ArchiveDocument>(archivePath, { schemaVersion: '1.0', archivedCount: 0, records: [] })
-    const store = new DispositionStore(filePath, archivePath, document, archive)
-    await store.persist()
-    return store
+  static async open(filePath: string): Promise<DispositionStore> {
+    return new DispositionStore(await FileLedgerStorage.open<DispositionRecord>(filePath, 'records', 'Disposition'))
   }
 
-  all(): DispositionRecord[] {
-    return this.document.records.map((record) => structuredClone(record))
+  async all(tenantId: string | undefined): Promise<DispositionRecord[]> {
+    return (await this.retained(tenantId)).records
   }
 
-  get(dispositionId: string): DispositionRecord | undefined {
-    const record = this.document.records.find((candidate) => candidate.id === dispositionId)
-    return record ? structuredClone(record) : undefined
+  async get(dispositionId: string, tenantId: string | undefined): Promise<DispositionRecord | undefined> {
+    const { records } = await this.retained(tenantId)
+    return records.find((candidate) => candidate.id === dispositionId)
   }
 
-  async append(record: DispositionRecord): Promise<DispositionRecord> {
-    this.document.records.push(structuredClone(record))
-    await this.enforceRetention(new Date())
-    await this.persist()
-    return structuredClone(record)
+  async append(record: DispositionRecord, tenantId: string | undefined): Promise<DispositionRecord> {
+    return this.storage.append({ ...record, ...(tenantId ? { tenantId } : {}) })
   }
 
-  query(query: DispositionQuery): DispositionPage {
+  async query(query: DispositionQuery, tenantId: string | undefined): Promise<DispositionPage> {
     const limit = Math.min(Math.max(Math.trunc(query.limit ?? defaultPageSize), 1), maximumPageSize)
-    const matched = this.document.records
+    const { records } = await this.retained(tenantId)
+    const matched = records
       .filter((record) => matches(record, query))
       .sort((left, right) => (left.createdAt === right.createdAt ? right.id.localeCompare(left.id) : right.createdAt.localeCompare(left.createdAt)))
     const offset = query.cursor ? matched.findIndex((record) => record.id === query.cursor) + 1 : 0
     const page = matched.slice(offset, offset + limit)
     const nextCursor = offset + limit < matched.length ? page.at(-1)?.id : undefined
     return {
-      records: page.map((record) => structuredClone(record)),
+      records: page,
       total: matched.length,
       ...(nextCursor ? { nextCursor } : {}),
     }
   }
 
-  retention(): RetentionPolicy {
-    const oldest = [...this.document.records].sort((left, right) => left.createdAt.localeCompare(right.createdAt))[0]
+  async retention(tenantId: string | undefined): Promise<RetentionPolicy> {
+    const { records, beyondWindow } = await this.retained(tenantId)
+    const oldest = [...records].sort((left, right) => left.createdAt.localeCompare(right.createdAt))[0]
     return {
       dispositionRetentionDays: retentionDays,
       dispositionMaximumRecords: retentionMaximumRecords,
-      archivedCount: this.archive.archivedCount,
+      archivedCount: beyondWindow,
       ...(oldest ? { oldestRetainedAt: oldest.createdAt } : {}),
     }
   }
 
-  /** Overflow moves to the archive file and is counted. Nothing is deleted. */
-  private async enforceRetention(now: Date): Promise<void> {
-    const cutoff = now.getTime() - retentionDays * 24 * 60 * 60_000
-    const ordered = [...this.document.records].sort((left, right) => left.createdAt.localeCompare(right.createdAt))
-    const overflowByAge = ordered.filter((record) => new Date(record.createdAt).getTime() < cutoff)
-    const overflowByCount = ordered.slice(0, Math.max(0, ordered.length - retentionMaximumRecords))
-    const overflowIds = new Set([...overflowByAge, ...overflowByCount].map((record) => record.id))
-    if (overflowIds.size === 0) return
-    const archived = this.document.records.filter((record) => overflowIds.has(record.id))
-    this.document.records = this.document.records.filter((record) => !overflowIds.has(record.id))
-    this.archive = { ...this.archive, archivedCount: this.archive.archivedCount + archived.length, records: [...this.archive.records, ...archived] }
-    await writeDocument(this.archivePath, this.archive)
-  }
-
-  private async persist(): Promise<void> {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await writeDocument(this.filePath, this.document)
-      await writeDocument(this.archivePath, this.archive)
-    })
-    await this.writeQueue
+  /**
+   * The tenant's dispositions that the policy still surfaces, in ledger order.
+   *
+   * Age and count are applied together, as the archiving pass applied them: anything older than
+   * the window falls out first, then the oldest of what remains until the cap is met. Scoping to
+   * the tenant before applying the cap keeps one tenant's volume from pushing another tenant's
+   * records out of view, which a single shared file could not distinguish.
+   */
+  private async retained(tenantId: string | undefined): Promise<{ records: DispositionRecord[]; beyondWindow: number }> {
+    const owned = (await this.storage.list()).filter((record) => record.tenantId === tenantId)
+    const cutoff = Date.now() - retentionDays * 24 * 60 * 60_000
+    const withinAge = [...owned]
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+      .filter((record) => new Date(record.createdAt).getTime() >= cutoff)
+    const kept = new Set(withinAge.slice(Math.max(0, withinAge.length - retentionMaximumRecords)).map((record) => record.id))
+    return { records: owned.filter((record) => kept.has(record.id)), beyondWindow: owned.length - kept.size }
   }
 }
 
@@ -127,21 +110,4 @@ function matches(record: DispositionRecord, query: DispositionQuery): boolean {
   if (query.from && record.createdAt < query.from) return false
   if (query.to && record.createdAt > query.to) return false
   return true
-}
-
-async function readDocument<T>(filePath: string, fallback: T): Promise<T> {
-  try {
-    return JSON.parse(await readFile(filePath, 'utf8')) as T
-  } catch (error) {
-    const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-    if (!missing) throw error
-    return fallback
-  }
-}
-
-async function writeDocument(filePath: string, document: unknown): Promise<void> {
-  await mkdir(dirname(filePath), { recursive: true })
-  const temporaryPath = `${filePath}.tmp`
-  await writeFile(temporaryPath, `${JSON.stringify(document, null, 2)}\n`, 'utf8')
-  await rename(temporaryPath, filePath)
 }

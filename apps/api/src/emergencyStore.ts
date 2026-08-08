@@ -1,58 +1,53 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import type { CreateEmergencyAuthorizationRequest, EmergencyAuthorization, EmergencyRetrospectiveRequest } from '@lattice/contracts'
 import { canonicalJson, type AttestationSigner } from './attestations.js'
-
-interface EmergencyDocument {
-  schemaVersion: '1.0'
-  authorizations: EmergencyAuthorization[]
-}
+import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
 
 /**
  * Break-glass (E18): a signed, time-boxed, identity-bound artifact. The grant path and the
  * retrospective queue live in the same store because a break-glass without a review queue is
  * just a bypass.
+ *
+ * Kept as an append-only ledger, because a bypass whose record can be edited afterwards is
+ * indistinguishable from one that never happened. Approving a grant and reviewing it in
+ * retrospect each append a superseding artifact carrying the same authorization id, so the
+ * sequence of approvals — and the gap before the retrospective — survives in the ledger.
  */
 export class EmergencyStore {
-  private writeQueue: Promise<void> = Promise.resolve()
-
-  private constructor(private readonly filePath: string, private document: EmergencyDocument, private readonly signer: AttestationSigner) {}
+  constructor(private readonly storage: LedgerStorage<EmergencyAuthorization>, private readonly signer: AttestationSigner) {}
 
   static async open(filePath: string, signer: AttestationSigner): Promise<EmergencyStore> {
-    try {
-      return new EmergencyStore(filePath, JSON.parse(await readFile(filePath, 'utf8')) as EmergencyDocument, signer)
-    } catch (error) {
-      const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      if (!missing) throw error
-      const store = new EmergencyStore(filePath, { schemaVersion: '1.0', authorizations: [] }, signer)
-      await store.persist()
-      return store
-    }
+    return new EmergencyStore(
+      await FileLedgerStorage.open<EmergencyAuthorization>(filePath, 'authorizations', 'Emergency authorization'),
+      signer,
+    )
   }
 
-  list(query: { contractId?: string; workspaceId?: string; status?: EmergencyAuthorization['status'] } = {}, now = new Date()): EmergencyAuthorization[] {
-    return this.document.authorizations
-      .filter((item) => (!query.contractId || item.contractId === query.contractId) && (!query.workspaceId || item.workspaceId === query.workspaceId))
+  async list(query: { contractId?: string; workspaceId?: string; status?: EmergencyAuthorization['status'] }, tenantId: string | undefined, now = new Date()): Promise<EmergencyAuthorization[]> {
+    const authorizations = await this.current()
+    return authorizations
+      .filter((item) => item.tenantId === tenantId && (!query.contractId || item.contractId === query.contractId) && (!query.workspaceId || item.workspaceId === query.workspaceId))
       .map((item) => withStatus(item, now))
       .filter((item) => !query.status || item.status === query.status)
       .reverse()
   }
 
   /** Every grant lands here, used or not. */
-  retrospectiveQueue(now = new Date()): EmergencyAuthorization[] {
-    return this.list({}, now).filter((item) => !item.retrospective && item.status !== 'PENDING')
+  async retrospectiveQueue(tenantId: string | undefined, now = new Date()): Promise<EmergencyAuthorization[]> {
+    const authorizations = await this.list({}, tenantId, now)
+    return authorizations.filter((item) => !item.retrospective && item.status !== 'PENDING')
   }
 
-  get(authorizationId: string, now = new Date()): EmergencyAuthorization | undefined {
-    const authorization = this.document.authorizations.find((candidate) => candidate.id === authorizationId)
+  async get(authorizationId: string, tenantId: string | undefined, now = new Date()): Promise<EmergencyAuthorization | undefined> {
+    const authorization = await this.raw(authorizationId, tenantId)
     return authorization ? withStatus(authorization, now) : undefined
   }
 
-  async create(request: CreateEmergencyAuthorizationRequest, requestedBy: string, now = new Date()): Promise<EmergencyAuthorization> {
+  async create(request: CreateEmergencyAuthorizationRequest, requestedBy: string, tenantId: string | undefined, now = new Date()): Promise<EmergencyAuthorization> {
     const requestedAt = now.toISOString()
     const body = {
       id: `emergency_${randomUUID()}`,
+      ...(tenantId ? { tenantId } : {}),
       contractId: request.contractId,
       ...(request.workspaceId ? { workspaceId: request.workspaceId } : {}),
       requestedBy,
@@ -68,53 +63,62 @@ export class EmergencyStore {
       status: 'PENDING' as const,
       keyId: this.signer.activeKeyId,
     }
-    const authorization: EmergencyAuthorization = {
+    const authorization = await this.storage.append({
       ...body,
       signature: await this.signer.sign(Buffer.from(canonicalJson(body))),
       artifactDigest: digest(body),
-    }
-    this.document.authorizations.push(authorization)
-    await this.persist()
+    })
     return withStatus(authorization, now)
   }
 
-  async approve(authorizationId: string, role: string, rationale: string, principalId: string, now = new Date()): Promise<EmergencyAuthorization> {
-    const index = this.document.authorizations.findIndex((candidate) => candidate.id === authorizationId)
-    const existing = this.document.authorizations[index]
+  async approve(authorizationId: string, role: string, rationale: string, principalId: string, tenantId: string | undefined, now = new Date()): Promise<EmergencyAuthorization> {
+    const existing = await this.raw(authorizationId, tenantId)
     if (!existing) throw new Error('EMERGENCY_AUTHORIZATION_NOT_FOUND')
     if (existing.status === 'REVOKED' || existing.status === 'DENIED') throw new Error('EMERGENCY_AUTHORIZATION_CLOSED')
     if (!existing.requiredApproverRoles.includes(role)) throw new Error('EMERGENCY_APPROVER_ROLE_NOT_REQUIRED')
     if (existing.approvals.some((approval) => approval.role === role)) throw new Error('EMERGENCY_ROLE_ALREADY_APPROVED')
     const approvals = [...existing.approvals, { principalId, role, approvedAt: now.toISOString(), rationale }]
     const complete = existing.requiredApproverRoles.every((required) => approvals.some((approval) => approval.role === required))
-    const next: EmergencyAuthorization = { ...existing, approvals, status: complete ? 'ACTIVE' : 'PENDING' }
-    this.document.authorizations[index] = next
-    await this.persist()
+    // Keyed by the approval, identified as the authorization: a distinct row for the same grant.
+    // The signature and digest stay as minted, because they attest to the grant that was asked
+    // for; re-signing each approval would make the artifact vouch for its own later state.
+    const next = await this.storage.append(
+      { ...existing, approvals, status: complete ? 'ACTIVE' : 'PENDING' },
+      `emergency_approval_${randomUUID()}`,
+    )
     return withStatus(next, now)
   }
 
-  async recordRetrospective(authorizationId: string, request: EmergencyRetrospectiveRequest, reviewedBy: string, now = new Date()): Promise<EmergencyAuthorization> {
-    const index = this.document.authorizations.findIndex((candidate) => candidate.id === authorizationId)
-    const existing = this.document.authorizations[index]
+  async recordRetrospective(authorizationId: string, request: EmergencyRetrospectiveRequest, reviewedBy: string, tenantId: string | undefined, now = new Date()): Promise<EmergencyAuthorization> {
+    const existing = await this.raw(authorizationId, tenantId)
     if (!existing) throw new Error('EMERGENCY_AUTHORIZATION_NOT_FOUND')
     if (existing.retrospective) throw new Error('EMERGENCY_RETROSPECTIVE_ALREADY_RECORDED')
-    const next: EmergencyAuthorization = {
-      ...existing,
-      retrospective: { reviewedBy, reviewedAt: now.toISOString(), verdict: request.verdict, notes: request.notes },
-    }
-    this.document.authorizations[index] = next
-    await this.persist()
+    const next = await this.storage.append(
+      {
+        ...existing,
+        retrospective: { reviewedBy, reviewedAt: now.toISOString(), verdict: request.verdict, notes: request.notes },
+      },
+      `emergency_retrospective_${randomUUID()}`,
+    )
     return withStatus(next, now)
   }
 
-  private async persist(): Promise<void> {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await mkdir(dirname(this.filePath), { recursive: true })
-      const temporaryPath = `${this.filePath}.tmp`
-      await writeFile(temporaryPath, `${JSON.stringify(this.document, null, 2)}\n`, 'utf8')
-      await rename(temporaryPath, this.filePath)
-    })
-    await this.writeQueue
+  /** The stored artifact, before expiry is derived, which a successor must not inherit as its status. */
+  private async raw(authorizationId: string, tenantId: string | undefined): Promise<EmergencyAuthorization | undefined> {
+    const authorizations = await this.current()
+    return authorizations.find((candidate) => candidate.id === authorizationId && candidate.tenantId === tenantId)
+  }
+
+  /**
+   * Folds the ledger down to the latest artifact for each authorization.
+   *
+   * Ledger order is chain order, so the last artifact bearing an authorization's id is its
+   * current state.
+   */
+  private async current(): Promise<EmergencyAuthorization[]> {
+    const byAuthorization = new Map<string, EmergencyAuthorization>()
+    for (const artifact of await this.storage.list()) byAuthorization.set(artifact.id, artifact)
+    return [...byAuthorization.values()]
   }
 }
 

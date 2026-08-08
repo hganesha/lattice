@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict'
 import { generateKeyPairSync } from 'node:crypto'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { counterpartyRiskContract, type CaseSet, type ContextContract, type ContractRegistryEntry, type EvalCase, type EvalRun } from '@lattice/contracts'
 import { AttestationStore, createSigner, predicateForSubject } from './attestations.js'
 import { buildDisposition, DispositionStore } from './dispositionStore.js'
+import { CaseSetStore } from './caseSetStore.js'
 import { diffEvalRuns, runEvaluation } from './evalHarness.js'
 import { detectDrift } from './driftDetector.js'
 import { replayDrift } from './counterfactual.js'
@@ -191,6 +192,7 @@ test('attestation verification passes a good signature and fails a tampered payl
   const { privateKey, publicKey } = generateKeyPairSync('ed25519')
   const signer = createSigner('test-key', privateKey, publicKey)
   const store = await AttestationStore.open(join(directory, 'attestations.json'), signer)
+  const tenantId = 'tenant_a'
   const subject = { id: 'disp_1', decision: 'RESOLVED', question: 'Show Arcadia Capital exposure.' }
 
   const attestation = await store.mint({
@@ -200,24 +202,24 @@ test('attestation verification passes a good signature and fails a tampered payl
     subject,
     signerId: 'principal_test',
     signerRoleAtSigning: 'DATA_STEWARD',
-  })
+  }, tenantId)
 
-  const good = store.verify(attestation.id, subject, 'test-key')
+  const good = await store.verify(attestation.id, subject, 'test-key', tenantId)
   assert.equal(good?.verified, true)
-  assert.ok(good.checks.every((check) => check.status !== 'FAIL'))
+  assert.ok(good?.checks.every((check) => check.status !== 'FAIL'))
 
-  const tampered = store.verify(attestation.id, { ...subject, decision: 'DENIED' }, 'test-key')
+  const tampered = await store.verify(attestation.id, { ...subject, decision: 'DENIED' }, 'test-key', tenantId)
   assert.equal(tampered?.verified, false)
-  assert.ok(tampered.checks.some((check) => check.id === 'PAYLOAD_DIGEST' && check.status === 'FAIL'))
+  assert.ok(tampered?.checks.some((check) => check.id === 'PAYLOAD_DIGEST' && check.status === 'FAIL'))
 
   // An unknown signing key must never report PASS.
-  const wrongKey = store.verify(attestation.id, subject, 'rotated-key')
+  const wrongKey = await store.verify(attestation.id, subject, 'rotated-key', tenantId)
   assert.ok(wrongKey?.checks.some((check) => check.id === 'KEY_KNOWN' && check.status === 'FAIL'))
 })
 
 test('the disposition trail paginates and archives rather than dropping records', async () => {
   const directory = await scratch()
-  const store = await DispositionStore.open(join(directory, 'dispositions.json'), join(directory, 'archive.json'))
+  const store = await DispositionStore.open(join(directory, 'dispositions.json'))
   const base = {
     contractId: 'contract-a',
     contractVersion: '1.0.0',
@@ -238,18 +240,70 @@ test('the disposition trail paginates and archives rather than dropping records'
     provenance: 'RE_EXECUTED' as const,
   }
   for (let index = 0; index < 30; index += 1) {
-    await store.append(buildDisposition({ ...base, question: `q${index}`, createdAt: new Date(now.getTime() + index * 1000).toISOString() }))
+    await store.append(buildDisposition({ ...base, question: `q${index}`, createdAt: new Date(now.getTime() + index * 1000).toISOString() }), undefined)
   }
 
-  const page = store.query({ contractId: 'contract-a', limit: 10 })
+  const page = await store.query({ contractId: 'contract-a', limit: 10 }, undefined)
   assert.equal(page.records.length, 10)
   assert.equal(page.total, 30)
   assert.ok(page.nextCursor)
 
-  const second = store.query({ contractId: 'contract-a', limit: 10, cursor: page.nextCursor })
+  const second = await store.query({ contractId: 'contract-a', limit: 10, ...(page.nextCursor ? { cursor: page.nextCursor } : {}) }, undefined)
   assert.equal(second.records.length, 10)
   assert.notEqual(second.records[0]?.id, page.records[0]?.id)
 
-  assert.equal(store.query({ contractId: 'contract-a', decision: 'DENIED' }).total, 0)
-  assert.equal(store.retention().dispositionRetentionDays, 90)
+  assert.equal((await store.query({ contractId: 'contract-a', decision: 'DENIED' }, undefined)).total, 0)
+  assert.equal((await store.retention(undefined)).dispositionRetentionDays, 90)
+})
+
+test('a case-set edit appends a superseding artifact instead of overwriting', async () => {
+  const directory = await scratch()
+  const path = join(directory, 'case-sets.json')
+  const store = await CaseSetStore.open(path)
+  const seeded = await store.seed(caseSetOf([goldCase()]), 'tenant_a')
+  await store.upsertCase(seeded.id, goldCase({ id: 'case-second' }), 'tenant_a')
+
+  // The ledger holds both states and the store folds them to the latest.
+  const ledger = JSON.parse(await readFile(path, 'utf8')) as { caseSets: Array<{ id: string; chain: { sequence: number } }> }
+  assert.equal(ledger.caseSets.length, 2, 'an edit appends rather than replaces')
+  assert.deepEqual(ledger.caseSets.map((entry) => entry.chain.sequence), [0, 1])
+  assert.equal(ledger.caseSets[0]?.id, ledger.caseSets[1]?.id, 'both artifacts describe the same case set')
+
+  const current = await store.get(seeded.id, 'tenant_a')
+  assert.equal(current?.cases.length, 2, 'reads see only the latest state')
+
+  // Tenancy is enforced on read, not merely recorded.
+  assert.equal(await store.get(seeded.id, 'tenant_b'), undefined)
+})
+
+test('a disposition is only visible to the tenant that wrote it', async () => {
+  const directory = await scratch()
+  const store = await DispositionStore.open(join(directory, 'dispositions.json'))
+  const base = {
+    contractId: 'contract-a',
+    contractVersion: '1.0.0',
+    mode: 'AUTHORIZED' as const,
+    authorizing: true,
+    question: 'q',
+    purposeId: 'internal_analysis',
+    purposeLabel: 'Internal analysis',
+    riskTier: 'ANALYTICAL' as const,
+    riskDerivation: { riskTier: 'ANALYTICAL' as const, purposeId: 'internal_analysis', purposeTier: 'ANALYTICAL' as const, reason: 'fixture', minimumEvidenceStrength: 'MODERATE' as const, maximumEvidenceAgeMinutes: 1440, approvalRequired: false },
+    decision: 'RESOLVED' as const,
+    reasonCodes: [],
+    explanation: [],
+    principalId: 'principal_test',
+    principalChain: [],
+    compilation: { contract: { id: 'contract-a', version: '1.0.0', digest: 'sha256:a' }, bindings: [], policies: [], metrics: [], compilerVersion: 'test', evaluatedAt: now.toISOString() },
+    evidenceRefs: [],
+    latencyMs: 1,
+    createdAt: now.toISOString(),
+    provenance: 'RE_EXECUTED' as const,
+  }
+  await store.append(buildDisposition(base), 'tenant_a')
+  await store.append(buildDisposition({ ...base, question: 'other' }), 'tenant_b')
+
+  assert.equal((await store.query({ contractId: 'contract-a' }, 'tenant_a')).total, 1)
+  assert.equal((await store.query({ contractId: 'contract-a' }, 'tenant_b')).total, 1)
+  assert.equal((await store.query({ contractId: 'contract-a' }, undefined)).total, 0)
 })
