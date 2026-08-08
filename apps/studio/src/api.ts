@@ -44,3 +44,35 @@ export function setActiveOrganizationId(organizationId: string): void {
 export function clearActiveOrganizationId(): void {
   sessionStorage.removeItem(ACTIVE_ORGANIZATION_KEY)
 }
+
+export interface ApiError extends Error {
+  status: number
+  code?: string
+}
+
+/**
+ * Thin typed fetch used by the evolution and evaluation surfaces: attaches the same identity and
+ * organization headers as every other call, parses JSON, and surfaces the API's own error code so a
+ * surface can show what actually failed instead of a generic message.
+ */
+export async function apiFetch<T>(path: string, init: RequestInit & { json?: unknown; developmentToken?: string } = {}): Promise<T> {
+  const { json, headers, developmentToken, ...rest } = init
+  const response = await fetch(`${API_URL}${path}`, {
+    ...rest,
+    headers: {
+      ...apiAuthHeaders(developmentToken),
+      ...(json === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(headers as Record<string, string> | undefined),
+    },
+    ...(json === undefined ? {} : { body: JSON.stringify(json) }),
+  })
+  const text = await response.text()
+  const payload = text ? JSON.parse(text) as T & { error?: string; message?: string } : undefined
+  if (!response.ok) {
+    const error = new Error(payload?.message ?? payload?.error ?? `Request failed with ${response.status}`) as ApiError
+    error.status = response.status
+    if (payload?.error) error.code = payload.error
+    throw error
+  }
+  return payload as T
+}

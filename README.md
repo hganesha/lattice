@@ -20,6 +20,17 @@ The workspace includes published **counterparty exposure assurance**, **grid out
 - `@lattice/api`: dependency-light HTTP API with OIDC/JWKS-verified identity, a persistent contract registry, immutable assurance and review artifacts, versioned releases, digest-backed release diffs, audited active-pointer rollback, safe draft restoration, runtime suspension, Ed25519 plan signing, plan verification, and clarification continuation.
 - `@lattice/studio`: a React context studio with a draggable ontology canvas, schema Import Studio, Source Binding Studio, Policy Studio, Assurance Studio, Review Queue, Evidence Registry, Release Management, field mapping validation, publish gates, registry-backed drafts, and live question compilation.
 
+Three loops are now closed end to end:
+
+1. **Author** — ontology → bindings → contract → assurance → review → release.
+2. **Operate** — declared purpose → dry-run or authorized compile → persisted disposition with
+   version pins and a verifiable attestation → drift detection → counterfactual replay.
+3. **Prove** — versioned gold case sets → evaluation runs scored against five hard gates and five
+   weighted dimensions → baseline diff with a CI verdict → every failure routed back into loop 1.
+
+Two rules hold throughout: a case or run that fails a hard gate has **no** weighted score rather
+than a low one, and no figure is rendered that was not computed from real state.
+
 ## Start locally
 
 Requires Node.js 22+ and pnpm.
@@ -344,6 +355,38 @@ HTTP transport, and the identity model. To drive an agent's own tool list from a
 `projectGovernedTools` in `@lattice/contracts` emits each governed operation as an
 Anthropic- or OpenAI-shaped tool definition carrying its risk tier, required permissions, and
 approval requirement.
+### Evolution and evaluation surface
+
+Added by `lattice-evolution-and-evaluation-design-implementation-plan.md`. Compile gains `mode`
+(`DRY_RUN` / `AUTHORIZED`) and `purposeId`; every compile now persists a disposition.
+
+| Route | Purpose |
+|---|---|
+| `GET /v1/purposes` | The closed purpose taxonomy for a domain. Purpose is declared, never inferred. |
+| `POST /v1/risk-tier` | Derive the risk tier from `purpose × contract × operation` before compiling. |
+| `GET /v1/dispositions` | Filterable, cursor-paginated decision trail (dry-run and authorized alike). |
+| `GET /v1/dispositions/:id` | One disposition: intent, principal chain, version pins, evidence, provenance. |
+| `GET /v1/retention` | Trail retention policy and archived count. |
+| `GET /v1/attestations` · `POST /v1/attestations/:id/verify` | Signed attestations and honest six-check verification. |
+| `GET/POST /v1/case-sets` · `PUT /v1/case-sets/:id` · `POST /v1/case-sets/:id/cases` | Versioned gold datasets. |
+| `GET/POST /v1/eval/runs` · `GET /v1/eval/runs/:id` · `POST /v1/eval/runs/:id/cancel` | Evaluation execution and results. |
+| `GET /v1/eval/runs/:id/diff?baseline=` | Per-case baseline diff with a CI-quotable verdict. |
+| `GET /v1/reviews?workspaceId=` | Cross-contract review inbox with approval routing. |
+| `GET /v1/reviews/:id/blast-radius` · `POST /v1/reviews/:id/delegate` | What breaks if this changes; out-of-office delegation. |
+| `GET/POST /v1/negative-decisions` · `POST /v1/negative-decisions/:id/withdraw` | Negative knowledge registry. |
+| `GET /v1/drift` · `POST /v1/drift/scan` · `POST /v1/drift/:id/replay` · `POST /v1/drift/:id/actions` | Drift events and counterfactual replay. |
+| `GET /v1/source-health` | Freshness and drift pressure per bound source. |
+| `GET /v1/eligibility` | Per-use eligibility matrix. Never a composite trust score. |
+| `GET /v1/principals` · `GET /v1/delegations` · `POST /v1/delegations` · `GET /v1/identity-graph` · `GET /v1/session` | Principals, delegation, autonomy tiers. |
+| `POST /v1/emergency-authorizations` (+ `/approvals`, `/retrospective`) | Break-glass grants and their retrospective queue. |
+| `GET /v1/activity` · `GET /v1/search` | Merged activity stream and scoped entity search. |
+
+### Studio routes
+
+Every surface is linkable: `/w/:workspaceId/c/:contractId/:surface`, plus addressable detail routes
+`/dispositions/:id`, `/reviews/:id`, `/runs/:id`, `/case-sets/:id`, `/drift/:id`,
+`/principals/:id`. Legacy `?contract=` and `?workspace=` links still resolve. Navigation is
+job-shaped — **Build / Operate / Govern / Assure** — rather than object-shaped.
 
 ## Repository layout
 
@@ -360,6 +403,7 @@ packages/
   importer-core/       OpenAPI/JSON Schema proposal engine
 docs/
   architecture.md      Product and technical architecture
+  prototypes/          Archived design references (not built or deployed)
 ```
 
 ## Next slices

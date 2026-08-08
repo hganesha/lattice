@@ -1,3 +1,15 @@
+import type {
+  BlastRadius,
+  CompilationRecord,
+  DispositionMode,
+  PurposeAudience,
+  Reversibility,
+  FourAxisState,
+  ReviewRoutingPlan,
+  RiskTierDerivation,
+  StructuredRejection,
+} from './evolution.js'
+
 export type EvidenceStatus =
   | 'DECLARED'
   | 'DIRECTLY_EVIDENCED'
@@ -256,6 +268,10 @@ export interface SourceBinding {
   healthStatus?: 'NOT_TESTED' | 'VALID' | 'WARNING' | 'INVALID'
   executionMode?: 'SIMULATED' | 'HTTP' | 'CONNECTOR'
   samplePayload?: Record<string, unknown>
+  /** Four orthogonal axes (E11). Derived when absent; persisted once a steward sets it. */
+  state?: Partial<FourAxisState>
+  /** Certification claim used by the eligibility matrix and by certification-loss drift. */
+  certification?: { authority: string; level: string; certifiedAt: string; expiresAt?: string }
 }
 
 export interface BindingParameter {
@@ -423,6 +439,9 @@ export interface ReviewDecisionArtifact {
   decidedAt: string
   decidedBy: string
   artifactDigest: string
+  /** Typed capture recorded alongside a rejection (E13). */
+  structuredRejection?: StructuredRejection
+  negativeDecisionId?: string
 }
 
 export interface ReviewRequestArtifact {
@@ -431,6 +450,7 @@ export interface ReviewRequestArtifact {
   tenantId?: string
   contractId: string
   contractVersion: string
+  workspaceId?: string
   targetKind: ReviewTargetKind
   targetId: string
   targetLabel: string
@@ -441,6 +461,10 @@ export interface ReviewRequestArtifact {
   evidenceRefs: string[]
   artifactDigest: string
   decision?: ReviewDecisionArtifact
+  /** Approval routing: parallel vs sequential, quorum, delegation, SLA (E12). */
+  routingPlan?: ReviewRoutingPlan
+  /** What depends on this target and what breaks if it changes (E17). */
+  blastRadius?: BlastRadius
 }
 
 export interface CreateReviewRequest {
@@ -500,6 +524,18 @@ export interface DeclaredPurpose {
   jurisdictions?: string[]
   /** How long a result compiled under this purpose may be retained downstream. */
   retentionDays?: number
+  /** Who ultimately sees the answer. Used by delegation audience checks (E4). */
+  audience?: PurposeAudience
+  /** Whether an action taken on this answer can be undone. */
+  reversibility?: Reversibility
+  /**
+   * Floor risk tier the purpose itself contributes. An operation may raise the derived tier above
+   * this and can never lower it. Absent on a contract-declared purpose, which floors at
+   * INFORMATIONAL until a steward sets one.
+   */
+  baseRiskTier?: RiskTier
+  /** Domains this purpose is offered for. Empty or absent means every domain. */
+  domains?: string[]
 }
 
 export interface GuardrailPolicy {
@@ -655,6 +691,8 @@ export interface ContextContract {
   policies: GuardrailPolicy[]
   tests: ContextTest[]
   schemaLayout?: Record<string, { x: number; y: number }>
+  /** Four orthogonal axes (E11). Derived when absent. */
+  state?: Partial<FourAxisState>
 }
 
 export interface ContractRelease {
@@ -816,10 +854,15 @@ export interface CompileRequest {
   question: string
   contractId?: string
   contractVersion?: string
-  /** Identifier of a purpose the contract declares. Required where policy demands one. */
+  /**
+   * Identifier of a declared purpose — either one the contract declares or one from the global
+   * taxonomy in `purposes.ts`. The risk tier is derived from it and never from the question text.
+   */
   purposeId?: string
   /** Free-text statement of why the answer is needed, recorded alongside the declared purpose. */
   purpose?: string
+  /** DRY_RUN compiles against the draft and returns a non-authorizing disposition (E3). */
+  mode?: DispositionMode
   asOf?: string
   selections?: Record<string, string>
 }
@@ -949,6 +992,14 @@ export interface CompileResponse {
   plan?: SignedExecutionPlan | UnsignedExecutionPlan
   pendingPlan?: UnsignedExecutionPlan
   approval?: RuntimeApprovalArtifact
+  /** Identifier of the persisted disposition this compile produced (E5). */
+  dispositionId?: string
+  mode?: DispositionMode
+  /** False for a dry-run: the result explains, it does not authorize. */
+  authorizing?: boolean
+  purposeId?: string
+  riskDerivation?: RiskTierDerivation
+  compilation?: CompilationRecord
 }
 
 export type RuntimeApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'RESUMED' | 'EXPIRED'

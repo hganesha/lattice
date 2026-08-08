@@ -23,6 +23,15 @@ import {
   IconDownload,
   IconPlus,
   IconLoader,
+  IconHistory,
+  IconActivity,
+  IconFlask,
+  IconTarget,
+  IconRadar,
+  IconBan,
+  IconUsers,
+  IconSiren,
+  IconSearch,
 } from './icons'
 import { SummaryCard } from './SummaryCard'
 import { AppearanceSettings } from './AppearanceSettings'
@@ -31,7 +40,9 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { IndustryWorkspaceIcon } from './IndustryWorkspaceIcon'
 import { AccountControl } from './AccountControl'
 import { IntroDialog } from './IntroDialog'
-import { API_URL, apiAuthHeaders } from './api'
+import { EmptyState } from './SurfaceState'
+import { API_URL, apiAuthHeaders, apiFetch } from './api'
+import { buildPath, navigate, navigateToPath, useRoute, workspaceSurfaces, type SurfaceId } from './router'
 import { useMessages, type MessageKey } from './i18n/messages'
 import { PanelCollapseButton, usePersistentCollapsed } from './PanelCollapseButton'
 
@@ -39,7 +50,6 @@ const WorkspaceOntologyStudio = lazy(() => import('./WorkspaceOntologyStudio').t
 const NewContractWizard = lazy(() => import('./NewContractWizard').then((module) => ({ default: module.NewContractWizard })))
 const SourceBindingStudio = lazy(() => import('./SourceBindingStudio').then((module) => ({ default: module.SourceBindingStudio })))
 const AssuranceStudio = lazy(() => import('./AssuranceStudio').then((module) => ({ default: module.AssuranceStudio })))
-const ReviewQueueStudio = lazy(() => import('./ReviewQueueStudio').then((module) => ({ default: module.ReviewQueueStudio })))
 const PolicyStudio = lazy(() => import('./PolicyStudio').then((module) => ({ default: module.PolicyStudio })))
 const RuntimeStudio = lazy(() => import('./RuntimeStudio').then((module) => ({ default: module.RuntimeStudio })))
 const EvidenceRegistryStudio = lazy(() => import('./EvidenceRegistryStudio').then((module) => ({ default: module.EvidenceRegistryStudio })))
@@ -47,59 +57,127 @@ const ReleaseManagementStudio = lazy(() => import('./ReleaseManagementStudio').t
 const RuntimeApprovalStudio = lazy(() => import('./RuntimeApprovalStudio').then((module) => ({ default: module.RuntimeApprovalStudio })))
 const ContractsStudio = lazy(() => import('./ContractsStudio').then((module) => ({ default: module.ContractsStudio })))
 const ContractEditorStudio = lazy(() => import('./ContractEditorStudio').then((module) => ({ default: module.ContractEditorStudio })))
+const IntegrationsStudio = lazy(() => import('./IntegrationsStudio').then((module) => ({ default: module.IntegrationsStudio })))
 const ImportStudio = lazy(() => import('./ImportStudio').then((module) => ({ default: module.ImportStudio })))
 const WelcomeStudio = lazy(() => import('./WelcomeStudio').then((module) => ({ default: module.WelcomeStudio })))
-const IntegrationsStudio = lazy(() => import('./IntegrationsStudio').then((module) => ({ default: module.IntegrationsStudio })))
+const DispositionTrailStudio = lazy(() => import('./DispositionTrailStudio').then((module) => ({ default: module.DispositionTrailStudio })))
+const ExecutionsStudio = lazy(() => import('./ExecutionsStudio').then((module) => ({ default: module.ExecutionsStudio })))
+const CaseSetStudio = lazy(() => import('./CaseSetStudio').then((module) => ({ default: module.CaseSetStudio })))
+const EvaluationRunsStudio = lazy(() => import('./EvaluationRunsStudio').then((module) => ({ default: module.EvaluationRunsStudio })))
+const ReviewInboxStudio = lazy(() => import('./ReviewInboxStudio').then((module) => ({ default: module.ReviewInboxStudio })))
+const NegativeDecisionStudio = lazy(() => import('./NegativeDecisionStudio').then((module) => ({ default: module.NegativeDecisionStudio })))
+const DriftStudio = lazy(() => import('./DriftStudio').then((module) => ({ default: module.DriftStudio })))
+const IdentitiesStudio = lazy(() => import('./IdentitiesStudio').then((module) => ({ default: module.IdentitiesStudio })))
+const EmergencyAuthStudio = lazy(() => import('./EmergencyAuthStudio').then((module) => ({ default: module.EmergencyAuthStudio })))
+const ActivityFeedStudio = lazy(() => import('./ActivityFeedStudio').then((module) => ({ default: module.ActivityFeedStudio })))
+const CommandPalette = lazy(() => import('./CommandPalette').then((module) => ({ default: module.CommandPalette })))
 
 const ACTIVE_CONTRACT_KEY = 'lattice:active-contract'
 const ACTIVE_WORKSPACE_KEY = 'lattice:active-workspace'
 const WELCOME_DISMISSED_KEY = 'lattice:welcome-dismissed'
 
-type StudioMode = 'ontology' | 'ontology-bindings' | 'runtime' | 'runtime-approvals' | 'bindings' | 'assurance' | 'policies' | 'reviews' | 'evidence' | 'releases' | 'contracts' | 'contract-editor' | 'integrations'
 type CountKind = 'contracts' | 'ontology-bindings' | 'tests' | 'bindings' | 'policies' | 'reviews' | 'evidence'
 
-const workspaceNavigation: ReadonlyArray<{ mode: StudioMode; icon: ReactNode; label: MessageKey; count?: CountKind }> = [
-  { mode: 'ontology', icon: <IconNetwork />, label: 'navSharedOntology' },
-  { mode: 'ontology-bindings', icon: <IconLink />, label: 'navOntologyBindings', count: 'ontology-bindings' },
-  { mode: 'contracts', icon: <IconFileText />, label: 'navContracts', count: 'contracts' },
+interface NavEntry {
+  surface: SurfaceId
+  icon: ReactNode
+  label: MessageKey
+  count?: CountKind
+}
+
+/**
+ * Task-shaped information architecture (E2, fixes G9). The object-centric list —
+ * Ontology / Bindings / Contracts / Compiler / Assurance / Policies / … — is a correct
+ * data model and a useless job model. These four groups are the jobs.
+ */
+const navigationGroups: ReadonlyArray<{ label: MessageKey; items: readonly NavEntry[] }> = [
+  {
+    label: 'navGroupBuild',
+    items: [
+      { surface: 'ontology', icon: <IconNetwork />, label: 'navSharedOntology' },
+      { surface: 'ontology-bindings', icon: <IconLink />, label: 'navOntologyBindings', count: 'ontology-bindings' },
+      { surface: 'contracts', icon: <IconFileText />, label: 'navContracts', count: 'contracts' },
+      { surface: 'contract-editor', icon: <IconFileText />, label: 'navContractEditor' },
+      { surface: 'bindings', icon: <IconPlug />, label: 'navSourceBindings', count: 'bindings' },
+    ],
+  },
+  {
+    label: 'navGroupOperate',
+    items: [
+      { surface: 'compiler', icon: <IconPlay />, label: 'navCompiler' },
+      { surface: 'dispositions', icon: <IconHistory />, label: 'navDispositionTrail' },
+      { surface: 'executions', icon: <IconActivity />, label: 'navExecutions' },
+      { surface: 'integrations', icon: <IconPlug />, label: 'navIntegrations' },
+      { surface: 'runtime-approvals', icon: <IconUserCheck />, label: 'navRuntimeApprovals' },
+      { surface: 'emergency', icon: <IconSiren />, label: 'navEmergencyAuthorization' },
+    ],
+  },
+  {
+    label: 'navGroupGovern',
+    items: [
+      { surface: 'reviews', icon: <IconInbox />, label: 'navReviewInbox', count: 'reviews' },
+      { surface: 'policies', icon: <IconScale />, label: 'navPolicyProfiles', count: 'policies' },
+      { surface: 'evidence', icon: <IconFileSearch />, label: 'navEvidenceRegistry', count: 'evidence' },
+      { surface: 'negative-decisions', icon: <IconBan />, label: 'navNegativeDecisions' },
+      { surface: 'identities', icon: <IconUsers />, label: 'navIdentities' },
+      { surface: 'releases', icon: <IconGitBranch />, label: 'navReleaseHistory' },
+    ],
+  },
+  {
+    label: 'navGroupAssure',
+    items: [
+      { surface: 'assurance', icon: <IconShieldCheck />, label: 'navAssurance', count: 'tests' },
+      { surface: 'evaluations', icon: <IconFlask />, label: 'navEvaluations' },
+      { surface: 'case-sets', icon: <IconTarget />, label: 'navCaseSets' },
+      { surface: 'drift', icon: <IconRadar />, label: 'navDriftSourceHealth' },
+    ],
+  },
 ]
 
-const contractNavigation: ReadonlyArray<{ mode: StudioMode; icon: ReactNode; label: MessageKey; count?: CountKind }> = [
-  { mode: 'runtime', icon: <IconPlay />, label: 'navCompiler' },
-  { mode: 'assurance', icon: <IconShieldCheck />, label: 'navAssurance', count: 'tests' },
-  { mode: 'bindings', icon: <IconPlug />, label: 'navSourceBindings', count: 'bindings' },
-]
+const allNavigation: readonly NavEntry[] = navigationGroups.flatMap((group) => group.items)
 
-const governanceNavigation: ReadonlyArray<{ mode: StudioMode; icon: ReactNode; label: MessageKey; count?: CountKind }> = [
-  { mode: 'runtime-approvals', icon: <IconUserCheck />, label: 'navRuntimeApprovals' },
-  { mode: 'policies', icon: <IconScale />, label: 'navPolicyProfiles', count: 'policies' },
-  { mode: 'reviews', icon: <IconInbox />, label: 'navReviewQueue', count: 'reviews' },
-  { mode: 'evidence', icon: <IconFileSearch />, label: 'navEvidenceRegistry', count: 'evidence' },
-  { mode: 'releases', icon: <IconGitBranch />, label: 'navReleaseHistory' },
-  { mode: 'integrations', icon: <IconPlug />, label: 'navIntegrations' },
-]
+/** Named so the empty state can explain the prerequisite instead of silently redirecting (G8). */
+const surfacePrerequisite: Partial<Record<SurfaceId, MessageKey>> = {
+  'contract-editor': 'emptyNeedsContractEditor',
+  compiler: 'emptyNeedsContractCompiler',
+  bindings: 'emptyNeedsContractBindings',
+  assurance: 'emptyNeedsContractAssurance',
+  policies: 'emptyNeedsContractPolicies',
+  evidence: 'emptyNeedsContractEvidence',
+  releases: 'emptyNeedsContractReleases',
+  dispositions: 'emptyNeedsContractDispositions',
+  executions: 'emptyNeedsContractExecutions',
+  'runtime-approvals': 'emptyNeedsContractApprovals',
+  evaluations: 'emptyNeedsContractEvaluations',
+  emergency: 'emptyNeedsContractEmergency',
+}
 
 export function App() {
   const { t } = useMessages()
-  const { collapsed: navigationCollapsed, toggleCollapsed: toggleNavigation } = usePersistentCollapsed('lattice:navigation-collapsed')
+  const route = useRoute()
   const [contract, setContract] = useState<ContextContract>(loadContractDraft)
-  const [studioMode, setStudioMode] = useState<StudioMode>('ontology')
-  const [draftDirty, setDraftDirty] = useState(false)
+  const [dirtySurfaces, setDirtySurfaces] = useState<Partial<Record<SurfaceId, boolean>>>({})
   const [contracts, setContracts] = useState<ContractSummary[]>([])
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([])
   const [workspace, setWorkspace] = useState<IndustryWorkspace>()
   const [wizardOpen, setWizardOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
   const [welcomeOpen, setWelcomeOpen] = useState(() => localStorage.getItem(WELCOME_DISMISSED_KEY) !== 'true')
   const [introOpen, setIntroOpen] = useState(false)
-  const [pendingNavigation, setPendingNavigation] = useState<{ kind: 'CONTRACT' | 'WORKSPACE'; id: string; mode?: StudioMode }>()
+  const { collapsed: navigationCollapsed, toggleCollapsed: toggleNavigation } = usePersistentCollapsed('lattice:navigation-collapsed')
+  const [pendingNavigation, setPendingNavigation] = useState<{ kind: 'CONTRACT' | 'WORKSPACE'; id: string; target?: SurfaceId }>()
   const [shareState, setShareState] = useState<'IDLE' | 'COPIED' | 'FAILED'>('IDLE')
   const [saveState, setSaveState] = useState<'IDLE' | 'SAVING' | 'FAILED'>('IDLE')
   const [apiHealth, setApiHealth] = useState<{ status: 'CHECKING' | 'HEALTHY' | 'OFFLINE'; latencyMs?: number }>({ status: 'CHECKING' })
+
+  const surface = route.surface
+  const draftDirty = Object.values(dirtySurfaces).some(Boolean)
   const reviewQueueCount = contract.entityTypes.filter((type) => ['DRAFT', 'IN_REVIEW', 'REJECTED'].includes(type.approvalStatus)).length + contract.bindings.filter((binding) => ['DRAFT', 'IN_REVIEW', 'REJECTED'].includes(binding.approvalStatus)).length + contract.policies.filter((policy) => ['DRAFT', 'IN_REVIEW', 'REJECTED'].includes(policy.approvalStatus)).length
   const runtimeStatus = contracts.find((summary) => summary.contractId === contract.id)?.runtimeStatus ?? (contract.releaseStatus === 'PUBLISHED' ? 'ACTIVE' : 'NO_RELEASE')
   const workspaceContracts = contracts.filter((summary) => !workspace || summary.workspaceId === workspace.id)
-  const hasActiveWorkspaceContract = workspaceContracts.some((summary) => summary.contractId === contract.id)
+  const viewedContractId = route.contractId ?? contract.id
+  const hasActiveWorkspaceContract = workspaceContracts.some((summary) => summary.contractId === viewedContractId)
   const navigationCounts: Record<CountKind, number> = {
     contracts: workspaceContracts.length,
     'ontology-bindings': workspace?.ontology.bindings?.length ?? 0,
@@ -109,14 +187,23 @@ export function App() {
     reviews: hasActiveWorkspaceContract ? reviewQueueCount : 0,
     evidence: hasActiveWorkspaceContract ? contract.evidence.length : 0,
   }
-  const activeNavigation = [...workspaceNavigation, ...contractNavigation, ...governanceNavigation].find((item) => item.mode === studioMode)
-    ?? { mode: 'contract-editor' as const, icon: <IconFileText />, label: 'contractEditorNav' as const }
-  const workspaceMode = studioMode === 'ontology' || studioMode === 'ontology-bindings'
+  const activeNavigation = allNavigation.find((item) => item.surface === surface)
+  const workspaceMode = surface === 'ontology' || surface === 'ontology-bindings'
+  const contractRequired = !workspaceSurfaces.includes(surface) && !route.detailId
+  const contractMissing = contractRequired && !hasActiveWorkspaceContract
   const summaryCards = buildSummaryCards({ t, workspaceMode, workspace, workspaceContracts, contract, hasActiveWorkspaceContract, draftDirty, runtimeStatus })
 
   useEffect(() => {
     const controller = new AbortController()
-    const activeContractId = new URL(window.location.href).searchParams.get('contract') ?? localStorage.getItem(ACTIVE_CONTRACT_KEY) ?? counterpartyRiskContract.id
+    const initial = new URL(window.location.href)
+    /*
+     * The path as it was when this started. Restoring the last active contract is only correct
+     * while the user has not gone anywhere: these fetches can land after a contract has been
+     * created or selected, and applying a stale result then silently throws that away.
+     */
+    const startedAtPath = window.location.pathname
+    const superseded = () => window.location.pathname !== startedAtPath
+    const activeContractId = initial.searchParams.get('contract') ?? currentContractIdFromPath() ?? localStorage.getItem(ACTIVE_CONTRACT_KEY) ?? counterpartyRiskContract.id
     void Promise.all([
       fetch(`${API_URL}/v1/contracts`, { headers: apiAuthHeaders(), signal: controller.signal }),
       fetch(`${API_URL}/v1/contracts/${activeContractId}`, { headers: apiAuthHeaders(), signal: controller.signal }),
@@ -125,15 +212,23 @@ export function App() {
         if (listResponse.ok) setContracts(await listResponse.json() as ContractSummary[])
         const workspaceSummaries = workspaceListResponse.ok ? await workspaceListResponse.json() as WorkspaceSummary[] : []
         setWorkspaces(workspaceSummaries)
+        if (superseded()) return
         if (entryResponse.ok) {
           const entry = await entryResponse.json() as ContractRegistryEntry
           setContract(entry.draft)
           localStorage.setItem('lattice:contract-draft', JSON.stringify(entry.draft))
-          const workspaceId = new URL(window.location.href).searchParams.get('workspace') ?? localStorage.getItem(ACTIVE_WORKSPACE_KEY) ?? entry.draft.ontologyRef?.workspaceId ?? workspaceSummaries.find((item) => item.domain === entry.draft.domain)?.id
+          const workspaceId = initial.searchParams.get('workspace') ?? currentWorkspaceIdFromPath() ?? localStorage.getItem(ACTIVE_WORKSPACE_KEY) ?? entry.draft.ontologyRef?.workspaceId ?? workspaceSummaries.find((item) => item.domain === entry.draft.domain)?.id
           if (workspaceId) {
             const workspaceResponse = await fetch(`${API_URL}/v1/workspaces/${workspaceId}`, { headers: apiAuthHeaders(), signal: controller.signal })
-            if (workspaceResponse.ok) setWorkspace(await workspaceResponse.json() as IndustryWorkspace)
+            if (workspaceResponse.ok) {
+              const loaded = await workspaceResponse.json() as IndustryWorkspace
+              if (superseded()) return
+              setWorkspace(loaded)
+              navigate({ workspaceId: loaded.id, contractId: entry.contractId, surface: parseRouteSurface() }, { replace: true })
+              return
+            }
           }
+          if (!superseded()) navigate({ contractId: entry.contractId, surface: parseRouteSurface() }, { replace: true })
         }
       })
       .catch(() => undefined)
@@ -157,19 +252,58 @@ export function App() {
     return () => { controller.abort(); window.clearInterval(interval) }
   }, [])
 
-  async function selectContract(contractId: string, skipDirtyCheck = false, mode?: StudioMode) {
-    if (!skipDirtyCheck && draftDirty) {
-      setPendingNavigation({ kind: 'CONTRACT', id: contractId, ...(mode ? { mode } : {}) })
-      return
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === 'k') {
+        event.preventDefault()
+        setPaletteOpen((open) => !open)
+      }
     }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  /** A deep link that names a different contract than the loaded one wins. */
+  useEffect(() => {
+    if (!route.contractId || route.contractId === contract.id) return
+    void loadContract(route.contractId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.contractId])
+
+  useEffect(() => {
+    if (!route.workspaceId || route.workspaceId === workspace?.id) return
+    if (!workspaces.some((summary) => summary.id === route.workspaceId)) return
+    void loadWorkspace(route.workspaceId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.workspaceId, workspaces.length])
+
+  function setSurfaceDirty(target: SurfaceId, dirty: boolean) {
+    setDirtySurfaces((current) => current[target] === dirty ? current : { ...current, [target]: dirty })
+  }
+
+  async function loadContract(contractId: string) {
     const response = await fetch(`${API_URL}/v1/contracts/${contractId}`, { headers: apiAuthHeaders() })
     if (!response.ok) return
     const entry = await response.json() as ContractRegistryEntry
     setContract(entry.draft)
-    setDraftDirty(false)
+    setDirtySurfaces({})
     localStorage.setItem(ACTIVE_CONTRACT_KEY, entry.contractId)
     localStorage.setItem('lattice:contract-draft', JSON.stringify(entry.draft))
-    if (mode) setStudioMode(mode)
+  }
+
+  async function loadWorkspace(workspaceId: string) {
+    const response = await fetch(`${API_URL}/v1/workspaces/${workspaceId}`, { headers: apiAuthHeaders() })
+    if (!response.ok) return
+    setWorkspace(await response.json() as IndustryWorkspace)
+    localStorage.setItem(ACTIVE_WORKSPACE_KEY, workspaceId)
+  }
+
+  function selectContract(contractId: string, skipDirtyCheck = false, target?: SurfaceId) {
+    if (!skipDirtyCheck && draftDirty) {
+      setPendingNavigation({ kind: 'CONTRACT', id: contractId, ...(target ? { target } : {}) })
+      return
+    }
+    navigate({ ...(workspace ? { workspaceId: workspace.id } : {}), contractId, surface: target ?? surface })
   }
 
   async function selectWorkspace(workspaceId: string, skipDirtyCheck = false) {
@@ -177,24 +311,23 @@ export function App() {
       setPendingNavigation({ kind: 'WORKSPACE', id: workspaceId })
       return
     }
-    const response = await fetch(`${API_URL}/v1/workspaces/${workspaceId}`, { headers: apiAuthHeaders() })
-    if (!response.ok) return
-    const nextWorkspace = await response.json() as IndustryWorkspace
-    setWorkspace(nextWorkspace)
-    setDraftDirty(false)
-    setStudioMode('ontology')
-    localStorage.setItem(ACTIVE_WORKSPACE_KEY, workspaceId)
-    const nextContract = contracts.find((item) => item.workspaceId === nextWorkspace.id)
-    if (nextContract && nextContract.contractId !== contract.id) await selectContract(nextContract.contractId, true)
-    if (!nextContract) localStorage.removeItem(ACTIVE_CONTRACT_KEY)
+    await loadWorkspace(workspaceId)
+    const nextContract = contracts.find((item) => item.workspaceId === workspaceId)
+    setDirtySurfaces({})
+    if (nextContract) {
+      if (nextContract.contractId !== contract.id) await loadContract(nextContract.contractId)
+      navigate({ workspaceId, contractId: nextContract.contractId, surface: 'ontology' })
+    } else {
+      localStorage.removeItem(ACTIVE_CONTRACT_KEY)
+      navigate({ workspaceId, surface: 'ontology' })
+    }
   }
 
   async function handleContractCreated(entry: ContractRegistryEntry) {
     const listResponse = await fetch(`${API_URL}/v1/contracts`, { headers: apiAuthHeaders() })
     if (listResponse.ok) setContracts(await listResponse.json() as ContractSummary[])
     setContract(entry.draft)
-    setDraftDirty(false)
-    setStudioMode('contracts')
+    setDirtySurfaces({})
     setWizardOpen(false)
     localStorage.setItem(ACTIVE_CONTRACT_KEY, entry.contractId)
     localStorage.setItem('lattice:contract-draft', JSON.stringify(entry.draft))
@@ -203,11 +336,12 @@ export function App() {
       const response = await fetch(`${API_URL}/v1/workspaces/${workspaceId}`, { headers: apiAuthHeaders() })
       if (response.ok) setWorkspace(await response.json() as IndustryWorkspace)
     }
+    navigate({ ...(workspaceId ? { workspaceId } : {}), contractId: entry.contractId, surface: 'contracts' })
   }
 
   async function handleRegistryChange(entry: ContractRegistryEntry) {
     setContract(entry.draft)
-    setDraftDirty(false)
+    setDirtySurfaces({})
     localStorage.setItem('lattice:contract-draft', JSON.stringify(entry.draft))
     const listResponse = await fetch(`${API_URL}/v1/contracts`, { headers: apiAuthHeaders() })
     if (listResponse.ok) setContracts(await listResponse.json() as ContractSummary[])
@@ -237,10 +371,9 @@ export function App() {
     })
   }
 
-  async function shareContract() {
-    const url = new URL(window.location.href)
-    url.searchParams.set('contract', contract.id)
-    window.history.replaceState({}, '', url)
+  /** Shares the current *view*, not just the contract (E1). */
+  async function shareView() {
+    const url = new URL(buildPath({ ...(workspace ? { workspaceId: workspace.id } : {}), ...(hasActiveWorkspaceContract ? { contractId: contract.id } : {}), surface, ...(route.detailId ? { detailId: route.detailId } : {}) }), window.location.origin)
     try {
       await navigator.clipboard.writeText(url.toString())
       setShareState('COPIED')
@@ -254,13 +387,8 @@ export function App() {
     if (workspaceMode || !draftDirty || saveState === 'SAVING') return
     setSaveState('SAVING')
     try {
-      const response = await fetch(`${API_URL}/v1/contracts/${contract.id}`, {
-        method: 'PUT',
-        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contract }),
-      })
-      if (!response.ok) throw new Error(`Registry returned ${response.status}`)
-      await handleRegistryChange(await response.json() as ContractRegistryEntry)
+      const entry = await apiFetch<ContractRegistryEntry>(`/v1/contracts/${contract.id}`, { method: 'PUT', json: { contract } })
+      await handleRegistryChange(entry)
       setSaveState('IDLE')
     } catch {
       setSaveState('FAILED')
@@ -271,15 +399,9 @@ export function App() {
     if (!workspace || !workspaceMode || !draftDirty || saveState === 'SAVING') return
     setSaveState('SAVING')
     try {
-      const response = await fetch(`${API_URL}/v1/workspaces/${workspace.id}/ontology`, {
-        method: 'PUT',
-        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ontology: workspace.ontology }),
-      })
-      if (!response.ok) throw new Error(`Registry returned ${response.status}`)
-      const updated = await response.json() as IndustryWorkspace
+      const updated = await apiFetch<IndustryWorkspace>(`/v1/workspaces/${workspace.id}/ontology`, { method: 'PUT', json: { ontology: workspace.ontology } })
       handleWorkspaceChange(updated)
-      setDraftDirty(false)
+      setDirtySurfaces({})
       setSaveState('IDLE')
     } catch {
       setSaveState('FAILED')
@@ -297,22 +419,26 @@ export function App() {
   }
 
   async function exploreExample(contractId: string) {
-    await selectContract(contractId, true, 'runtime')
+    await loadContract(contractId)
     closeWelcome()
+    const summary = contracts.find((item) => item.contractId === contractId)
+    navigate({ ...(summary?.workspaceId ? { workspaceId: summary.workspaceId } : {}), contractId, surface: 'compiler' })
   }
 
   function confirmNavigation() {
     const pending = pendingNavigation
     setPendingNavigation(undefined)
+    setDirtySurfaces({})
     if (!pending) return
-    if (pending.kind === 'CONTRACT') void selectContract(pending.id, true, pending.mode)
+    if (pending.kind === 'CONTRACT') selectContract(pending.id, true, pending.target)
     else void selectWorkspace(pending.id, true)
   }
 
-  function navigateTo(mode: StudioMode) {
-    const contractRequired = !workspaceNavigation.some((item) => item.mode === mode)
-    setStudioMode(contractRequired && !hasActiveWorkspaceContract ? 'contracts' : mode)
+  function navigateTo(target: SurfaceId, detailId?: string) {
+    navigate({ ...(workspace ? { workspaceId: workspace.id } : {}), ...(hasActiveWorkspaceContract ? { contractId: contract.id } : {}), surface: target, ...(detailId ? { detailId } : {}) })
   }
+
+  const surfaceNavigation = { onNavigate: navigateTo, onNavigatePath: navigateToPath }
 
   return (
     <div className={`shell ${navigationCollapsed ? 'nav-collapsed' : ''}`}>
@@ -330,27 +456,30 @@ export function App() {
         </div>
         <div className="workspace-switcher"><span className="workspace-icon"><IndustryWorkspaceIcon domain={workspace?.domain} /></span><div><label htmlFor="active-workspace">{t('industryWorkspace')}</label><select id="active-workspace" value={workspace?.id ?? ''} onChange={(event) => void selectWorkspace(event.target.value)}>{!workspace && <option value="">{t('workspaceLoading')}</option>}{workspaces.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select><span>{workspace ? t('workspaceFoundationMeta', { types: workspace.ontology.entityTypes.length, contracts: workspace.contractIds.length }) : t('crossIndustryPlane')}</span></div></div>
         <nav>
-          {workspaceNavigation.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={studioMode === item.mode} onClick={() => navigateTo(item.mode)} key={item.mode} />)}
-          <div className="nav-label">{t('contractWorkspace')}</div>
-          {contractNavigation.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={studioMode === item.mode} onClick={() => navigateTo(item.mode)} key={item.mode} />)}
-          <NavItem icon={<IconDownload />} label={t('ontologyImportSchema')} onClick={() => setImportOpen(true)} />
-          <div className="nav-label">{t('navGovernance')}</div>
-          {governanceNavigation.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={studioMode === item.mode} onClick={() => navigateTo(item.mode)} key={item.mode} />)}
-          <NavItem icon={<IconPlus />} label={t('navNewContextContract')} onClick={() => setWizardOpen(true)} />
+          <NavItem icon={<IconSearch />} label={t('navSearch')} count="⌘K" onClick={() => setPaletteOpen(true)} />
+          <NavItem icon={<IconActivity />} label={t('navActivity')} active={surface === 'activity'} onClick={() => navigateTo('activity')} />
+          {navigationGroups.map((group) => <div key={group.label}>
+            <div className="nav-label">{t(group.label)}</div>
+            {group.items.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={surface === item.surface} onClick={() => navigateTo(item.surface)} key={item.surface} />)}
+            {group.label === 'navGroupBuild' && <>
+              <NavItem icon={<IconDownload />} label={t('ontologyImportSchema')} onClick={() => setImportOpen(true)} />
+              <NavItem icon={<IconPlus />} label={t('navNewContextContract')} onClick={() => setWizardOpen(true)} />
+            </>}
+          </div>)}
         </nav>
         <div className="sidebar-footer"><span className={`status-dot ${apiHealth.status.toLocaleLowerCase()}`}/><div><b>{apiHealth.status === 'HEALTHY' ? t('runtimeHealthy') : apiHealth.status === 'OFFLINE' ? t('runtimeOffline') : t('runtimeChecking')}</b><span>{apiHealth.status === 'HEALTHY' ? t('runtimeLatency', { latency: apiHealth.latencyMs ?? 0 }) : apiHealth.status === 'OFFLINE' ? t('runtimeUnreachable') : t('runtimeProbing')}</span></div></div>
       </aside>
 
       <main>
         <header>
-          <div><div className="eyebrow">{t('contextStudio')} / {workspace?.name ?? contract.domain}</div><h1>{t(activeNavigation.label)}</h1></div>
+          <div><div className="eyebrow">{t('contextStudio')} / {workspace?.name ?? contract.domain}</div><h1>{activeNavigation ? t(activeNavigation.label) : t(surface === 'activity' ? 'navActivity' : 'navSharedOntology')}</h1></div>
           <div className="header-actions">
             {(workspaceMode || hasActiveWorkspaceContract) && <span className={`draft-state ${draftDirty ? 'dirty' : ''}`}>{saveState === 'FAILED' ? t('headerSaveFailed') : draftDirty ? t('unsavedDraft') : t('draftSaved')}</span>}
             {(workspaceMode ? Boolean(workspace) : hasActiveWorkspaceContract) && <button className="release" onClick={() => void saveActiveDraft()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}
             <button className="ghost" onClick={() => setIntroOpen(true)}>{t('introOpen')}</button>
             <button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button>
             <AppearanceSettings />
-            {hasActiveWorkspaceContract && <button className="ghost" onClick={() => void shareContract()} title={shareState === 'FAILED' ? t('linkClipboardDenied') : undefined}>{shareState === 'COPIED' ? t('linkCopied') : shareState === 'FAILED' ? t('linkReady') : t('share')}</button>}
+            <button className="ghost" onClick={() => void shareView()} title={shareState === 'FAILED' ? t('linkClipboardDenied') : undefined}>{shareState === 'COPIED' ? t('linkCopied') : shareState === 'FAILED' ? t('linkReady') : t('shareView')}</button>
             <AccountControl />
           </div>
         </header>
@@ -359,25 +488,92 @@ export function App() {
           {summaryCards.map((card) => <SummaryCard {...card} key={card.label} />)}
         </section>
 
-        <Suspense fallback={<StudioLoading label={t(activeNavigation.label)} />}>
-          {studioMode === 'ontology' ? workspace ? <WorkspaceOntologyStudio key={workspace.id} workspace={workspace} seedContract={contract} onWorkspaceDraftChange={setWorkspace} onDirtyChange={setDraftDirty} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'ontology-bindings' ? workspace ? <SourceBindingStudio contract={workspaceBindingContract(workspace, contract)} scope="ONTOLOGY" workspaceId={workspace.id} onChange={(next) => { setWorkspace((current) => current ? { ...current, ontology: { ...current.ontology, bindings: next.bindings } } : current); setDraftDirty(true) }} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : <div className="runtime-empty"><span aria-hidden="true"><IconLoader /></span><h3>{t('workspaceLoading')}</h3></div> : studioMode === 'contracts' ? <ContractsStudio contracts={workspaceContracts} activeContractId={contract.id} onSelect={(id) => void selectContract(id, false, 'runtime')} onEdit={(id) => void selectContract(id, false, 'contract-editor')} onCreate={() => setWizardOpen(true)} /> : studioMode === 'contract-editor' ? <ContractEditorStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onBack={() => setStudioMode('contracts')} /> : studioMode === 'runtime-approvals' ? <RuntimeApprovalStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenReviews={() => setStudioMode('reviews')} onOpenAssurance={() => setStudioMode('assurance')} onManageRelease={() => setStudioMode('releases')} /> : studioMode === 'bindings' ? <SourceBindingStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} onOpenOntology={() => setStudioMode('ontology')} /> : studioMode === 'assurance' ? <AssuranceStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'policies' ? <PolicyStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'reviews' ? <ReviewQueueStudio contract={contract} onChange={setContract} onDirtyChange={setDraftDirty} /> : studioMode === 'integrations' ? <IntegrationsStudio /> : studioMode === 'evidence' ? <EvidenceRegistryStudio contract={contract} /> : studioMode === 'releases' ? <ReleaseManagementStudio contract={contract} onRegistryChange={(entry) => void handleRegistryChange(entry)} onManageDraft={() => setStudioMode('contract-editor')} /> : <RuntimeStudio key={contract.id} contract={contract} runtimeStatus={runtimeStatus} onChange={setContract} onDirtyChange={setDraftDirty} onManageRelease={() => setStudioMode('releases')} onOpenAssurance={() => setStudioMode('assurance')} />}
+        <Suspense fallback={<StudioLoading label={activeNavigation ? t(activeNavigation.label) : t('navActivity')} />}>
+          {contractMissing
+            ? <EmptyState title={t('emptyNoContractTitle')} description={t(surfacePrerequisite[surface] ?? 'emptyNeedsContractGeneric')} icon={<IconFileText />} actionLabel={t('contractsNew')} onAction={() => setWizardOpen(true)} {...(workspaceContracts.length > 0 ? { secondaryLabel: t('emptyChooseContract'), onSecondary: () => navigateTo('contracts') } : {})} />
+            : renderSurface()}
         </Suspense>
       </main>
       <Suspense fallback={null}>
+        {paletteOpen && <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} {...(workspace ? { workspaceId: workspace.id } : {})} contracts={workspaceContracts} onNavigatePath={navigateToPath} onSelectContract={(id) => selectContract(id)} />}
         {wizardOpen && <NewContractWizard {...(workspace ? { workspace } : {})} onClose={() => setWizardOpen(false)} onCreated={(entry) => void handleContractCreated(entry)} />}
         {importOpen && <ImportStudio contract={workspace ? workspaceBindingContract(workspace, contract) : contract} onClose={() => setImportOpen(false)} onApply={(next) => {
           if (workspace) setWorkspace({ ...workspace, ontology: { ...workspace.ontology, entityTypes: next.entityTypes, relationshipTypes: next.relationshipTypes, schemaLayout: next.schemaLayout ?? {} } })
           else setContract(next)
-          setDraftDirty(true)
+          setSurfaceDirty('ontology', true)
           setImportOpen(false)
-          setStudioMode('ontology')
+          navigateTo('ontology')
         }} />}
+        {introOpen && <IntroDialog onClose={() => setIntroOpen(false)} />}
         {welcomeOpen && <WelcomeStudio contracts={contracts} onClose={closeWelcome} onExplore={(id) => void exploreExample(id)} onCreate={() => { closeWelcome(); setWizardOpen(true) }} />}
       </Suspense>
-      {introOpen && <IntroDialog onClose={() => setIntroOpen(false)} />}
       {pendingNavigation && <ConfirmDialog title={t('discardChangesTitle')} description={t('discardChanges')} cancelLabel={t('commonCancel')} confirmLabel={t('discardChangesConfirm')} onCancel={() => setPendingNavigation(undefined)} onConfirm={confirmNavigation} />}
     </div>
   )
+
+  function renderSurface(): ReactNode {
+    switch (surface) {
+      case 'ontology':
+        return workspace ? <WorkspaceOntologyStudio key={workspace.id} workspace={workspace} seedContract={contract} onWorkspaceDraftChange={setWorkspace} onDirtyChange={(dirty) => setSurfaceDirty('ontology', dirty)} /> : <StudioLoading label={t('workspaceLoading')} />
+      case 'ontology-bindings':
+        return workspace ? <SourceBindingStudio contract={workspaceBindingContract(workspace, contract)} scope="ONTOLOGY" workspaceId={workspace.id} onChange={(next) => { setWorkspace((current) => current ? { ...current, ontology: { ...current.ontology, bindings: next.bindings } } : current); setSurfaceDirty('ontology-bindings', true) }} onDirtyChange={(dirty) => setSurfaceDirty('ontology-bindings', dirty)} onOpenOntology={() => navigateTo('ontology')} /> : <StudioLoading label={t('workspaceLoading')} />
+      case 'contracts':
+        return <ContractsStudio contracts={workspaceContracts} activeContractId={contract.id} onSelect={(id) => selectContract(id, false, 'compiler')} onEdit={(id) => selectContract(id, false, 'contract-editor')} onCreate={() => setWizardOpen(true)} />
+      case 'contract-editor':
+        return <ContractEditorStudio contract={contract} onChange={setContract} onDirtyChange={(dirty) => setSurfaceDirty('contract-editor', dirty)} onBack={() => navigateTo('contracts')} />
+      case 'integrations':
+        return <IntegrationsStudio />
+      case 'bindings':
+        return <SourceBindingStudio contract={contract} onChange={setContract} onDirtyChange={(dirty) => setSurfaceDirty('bindings', dirty)} onOpenOntology={() => navigateTo('ontology')} />
+      case 'compiler':
+        return <RuntimeStudio key={contract.id} contract={contract} runtimeStatus={runtimeStatus} onChange={setContract} onDirtyChange={(dirty) => setSurfaceDirty('compiler', dirty)} onManageRelease={() => navigateTo('releases')} onOpenAssurance={() => navigateTo('assurance')} {...surfaceNavigation} />
+      case 'dispositions':
+        return <DispositionTrailStudio contract={contract} {...(workspace ? { workspaceId: workspace.id } : {})} {...(route.detailId ? { detailId: route.detailId } : {})} {...surfaceNavigation} />
+      case 'executions':
+        return <ExecutionsStudio contract={contract} {...surfaceNavigation} />
+      case 'runtime-approvals':
+        return <RuntimeApprovalStudio contract={contract} onChange={setContract} onDirtyChange={(dirty) => setSurfaceDirty('runtime-approvals', dirty)} onOpenReviews={() => navigateTo('reviews')} onOpenAssurance={() => navigateTo('assurance')} onManageRelease={() => navigateTo('releases')} />
+      case 'emergency':
+        return <EmergencyAuthStudio {...(workspace ? { workspaceId: workspace.id } : {})} contract={contract} {...(route.detailId ? { detailId: route.detailId } : {})} {...surfaceNavigation} />
+      case 'reviews':
+        return <ReviewInboxStudio {...(workspace ? { workspaceId: workspace.id } : {})} contracts={workspaceContracts} activeContractId={contract.id} {...(route.detailId ? { detailId: route.detailId } : {})} onSelectContract={(id) => selectContract(id)} {...surfaceNavigation} />
+      case 'policies':
+        return <PolicyStudio contract={contract} onChange={setContract} onDirtyChange={(dirty) => setSurfaceDirty('policies', dirty)} />
+      case 'evidence':
+        return <EvidenceRegistryStudio contract={contract} />
+      case 'negative-decisions':
+        return <NegativeDecisionStudio {...(workspace ? { workspaceId: workspace.id } : {})} contract={contract} {...(route.detailId ? { detailId: route.detailId } : {})} {...surfaceNavigation} />
+      case 'identities':
+        return <IdentitiesStudio {...(workspace ? { workspaceId: workspace.id } : {})} {...(route.detailId ? { detailId: route.detailId } : {})} {...surfaceNavigation} />
+      case 'releases':
+        return <ReleaseManagementStudio contract={contract} onRegistryChange={(entry) => void handleRegistryChange(entry)} onManageDraft={() => navigateTo('contracts')} />
+      case 'assurance':
+        return <AssuranceStudio contract={contract} onChange={setContract} onDirtyChange={(dirty) => setSurfaceDirty('assurance', dirty)} />
+      case 'evaluations':
+        return <EvaluationRunsStudio contract={contract} {...(workspace ? { workspaceId: workspace.id } : {})} {...(route.detailId ? { detailId: route.detailId } : {})} {...surfaceNavigation} />
+      case 'case-sets':
+        return <CaseSetStudio contract={contract} {...(workspace ? { workspaceId: workspace.id } : {})} {...(route.detailId ? { detailId: route.detailId } : {})} {...surfaceNavigation} />
+      case 'drift':
+        return <DriftStudio {...(workspace ? { workspaceId: workspace.id } : {})} contract={contract} {...(route.detailId ? { detailId: route.detailId } : {})} {...surfaceNavigation} />
+      case 'activity':
+        return <ActivityFeedStudio {...(workspace ? { workspaceId: workspace.id } : {})} contract={contract} onNavigatePath={navigateToPath} />
+    }
+  }
+}
+
+function parseRouteSurface(): SurfaceId {
+  return new URL(window.location.href).pathname.split('/').filter(Boolean).find((segment) => (['ontology', 'ontology-bindings', 'contracts', 'bindings', 'compiler', 'dispositions', 'executions', 'runtime-approvals', 'reviews', 'policies', 'evidence', 'negative-decisions', 'releases', 'assurance', 'evaluations', 'case-sets', 'drift', 'identities', 'emergency', 'activity'] as string[]).includes(segment)) as SurfaceId | undefined ?? 'ontology'
+}
+
+function currentContractIdFromPath(): string | undefined {
+  const segments = window.location.pathname.split('/').filter(Boolean)
+  const index = segments.indexOf('c')
+  return index >= 0 && segments[index + 1] ? decodeURIComponent(segments[index + 1]!) : undefined
+}
+
+function currentWorkspaceIdFromPath(): string | undefined {
+  const segments = window.location.pathname.split('/').filter(Boolean)
+  return segments[0] === 'w' && segments[1] ? decodeURIComponent(segments[1]) : undefined
 }
 
 function StudioLoading({ label }: { label: string }) {
@@ -389,6 +585,7 @@ interface SummaryCardModel {
   value: string
   meta: string
   tone: 'amber' | 'blue' | 'green' | 'lime'
+  onClick?: () => void
 }
 
 interface SummaryCardContext {
@@ -403,12 +600,14 @@ interface SummaryCardContext {
 }
 
 function buildSummaryCards({ t, workspaceMode, workspace, workspaceContracts, contract, hasActiveWorkspaceContract, draftDirty, runtimeStatus }: SummaryCardContext): SummaryCardModel[] {
+  const go = (surface: SurfaceId) => () => navigate({ ...(workspace ? { workspaceId: workspace.id } : {}), ...(hasActiveWorkspaceContract ? { contractId: contract.id } : {}), surface })
   if (workspaceMode) return [
     {
       label: t('summaryOntologyStatus'),
       value: workspace?.ontology.releaseStatus === 'PUBLISHED' && !draftDirty ? t('statusPublished') : t('statusDraft'),
       meta: `v${workspace?.ontology.version ?? '0.0.0'} · ${t('workspaceOntologyFoundation')}`,
       tone: draftDirty || workspace?.ontology.releaseStatus === 'UNPUBLISHED' ? 'amber' : 'green',
+      onClick: go('ontology'),
     },
     {
       label: t('summaryEntityTypes'),
@@ -417,18 +616,21 @@ function buildSummaryCards({ t, workspaceMode, workspace, workspaceContracts, co
         ? t('workspaceGeneratedMeta', { forms: workspace.ontologyGeneration.sourceFormCount, mapped: workspace.ontologyGeneration.mappedPercent })
         : t('workspaceSharedAcrossContracts', { count: workspace?.contractIds.length ?? 0 }),
       tone: 'lime',
+      onClick: go('ontology'),
     },
     {
       label: t('summaryRelationships'),
       value: String(workspace?.ontology.relationshipTypes.length ?? 0),
       meta: t('typedDirectional'),
       tone: 'blue',
+      onClick: go('ontology'),
     },
     {
       label: t('summaryContracts'),
       value: String(workspaceContracts.length),
       meta: t('workspaceDecisionContracts'),
       tone: 'blue',
+      onClick: go('contracts'),
     },
   ]
 
@@ -441,24 +643,28 @@ function buildSummaryCards({ t, workspaceMode, workspace, workspaceContracts, co
       value: noContract ? t('statusNoContract') : runtimeStatus === 'SUSPENDED' ? t('statusSuspended') : contractDraft ? t('statusDraft') : t('statusPublished'),
       meta: noContract ? t('contractsCreateFirst') : `${contract.version} · ${runtimeStatus === 'SUSPENDED' ? t('runtimePaused') : draftDirty ? t('unpublishedChanges') : t('registrySynchronized')}`,
       tone: noContract || runtimeStatus === 'SUSPENDED' || contractDraft ? 'amber' : 'green',
+      onClick: go('releases'),
     },
     {
       label: t('summaryEntityTypes'),
       value: String(noContract ? 0 : contract.entityTypes.length),
       meta: t('contractsScope'),
       tone: 'lime',
+      onClick: go('ontology'),
     },
     {
       label: t('summaryRelationships'),
       value: String(noContract ? 0 : contract.relationshipTypes.length),
       meta: t('typedDirectional'),
       tone: 'blue',
+      onClick: go('ontology'),
     },
     {
       label: t('summaryAssurance'),
       value: noContract ? '0 / 0' : `${contract.tests.filter((test) => test.status === 'PASS').length} / ${contract.tests.length}`,
       meta: noTests ? t('noTestsConfigured') : t('structuralGatesPassing'),
       tone: noTests ? 'amber' : 'green',
+      onClick: go('assurance'),
     },
   ]
 }

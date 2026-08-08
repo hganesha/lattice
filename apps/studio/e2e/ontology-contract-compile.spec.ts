@@ -1,4 +1,9 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+/** The summary cards are click-through buttons now, so nav lookups must be scoped (E23). */
+function nav(page: Page) {
+  return page.getByRole('navigation')
+}
 
 test('creates a contract scoped to an industry ontology and opens its compiler', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('lattice:welcome-dismissed', 'true'))
@@ -6,7 +11,7 @@ test('creates a contract scoped to an industry ontology and opens its compiler',
 
   await page.getByLabel('Industry workspace').selectOption({ label: 'Energy Workspace' })
   await expect(page.getByRole('heading', { name: 'Shared ontology' })).toBeVisible()
-  await page.getByRole('button', { name: /^Contracts/ }).click()
+  await nav(page).getByRole('button', { name: /^Contracts/ }).click()
   await page.locator('.contracts-hero').getByRole('button', { name: /New context contract/ }).click()
 
   await page.getByLabel('Contract name').fill('Dispatch Prioritization E2E')
@@ -23,11 +28,36 @@ test('creates a contract scoped to an industry ontology and opens its compiler',
   await page.getByRole('button', { name: 'Create contract →' }).click()
 
   await expect(page.getByRole('heading', { name: 'Choose a decision contract' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Dispatch Prioritization E2E' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Dispatch Prioritization E2E', exact: true, level: 3 })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Compiler' }).click()
+  await nav(page).getByRole('button', { name: 'Compiler' }).click()
   await expect(page.getByRole('heading', { name: 'Compiler', level: 1 })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Publish to compile ⌘↵' })).toBeDisabled()
+
+  // E3: an unpublished contract reaches the money moment via dry run. A brand-new contract
+  // declares no purposes yet, so the selector says so and does not block the compile.
+  await expect(page.getByLabel('Declared purpose')).toBeDisabled()
+  await expect(page.getByText(/This contract declares no purposes, so none can be named/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Dry-run compile ⌘↵' })).toBeEnabled()
+})
+
+test('a dry run reaches a disposition without publishing anything', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('lattice:welcome-dismissed', 'true'))
+  await page.goto('/')
+  await nav(page).getByRole('button', { name: 'Compiler' }).click()
+
+  // The seeded counterparty contract declares its purposes, so one must be named.
+  await page.getByLabel('Declared purpose').selectOption('internal_analysis')
+  await expect(page.getByText('Derived from purpose × contract × operation.')).toBeVisible()
+  await page.getByRole('button', { name: 'Dry-run compile ⌘↵' }).click()
+
+  // A dry-run result must read unmistakably as non-authorizing (E3).
+  await expect(page.getByText('Dry run — this result authorizes nothing')).toBeVisible()
+  await page.getByRole('button', { name: 'Open disposition' }).click()
+
+  // Every compile persists, and the record is addressable by URL (E5, fixes G1/G2).
+  await expect(page).toHaveURL(/\/dispositions\/disp_/)
+  await expect(page.getByText('VERSION PINS').first()).toBeVisible()
+  await expect(page.getByText('Dry run — non-authorizing')).toBeVisible()
 })
 
 test('compiles a published example from the first-run guide', async ({ page }) => {
@@ -41,6 +71,8 @@ test('compiles a published example from the first-run guide', async ({ page }) =
   await guide.getByRole('button', { name: 'Open compiler →' }).click()
 
   await expect(page.getByRole('heading', { name: 'Compiler', level: 1 })).toBeVisible()
+  await page.getByRole('button', { name: 'Authorized' }).click()
+  await page.getByLabel('Declared purpose').selectOption('situational_awareness')
   await expect(page.getByRole('button', { name: 'Compile context ⌘↵' })).toBeEnabled()
 })
 
@@ -49,11 +81,25 @@ test('does not leak governance data across industry workspaces', async ({ page }
   await page.goto('/')
 
   await page.getByLabel('Industry workspace').selectOption({ label: 'Real Estate Workspace' })
-  await page.getByRole('button', { name: /^Policy profiles/ }).click()
+  await nav(page).getByRole('button', { name: /^Policy profiles/ }).click()
 
-  await expect(page.getByRole('heading', { name: 'Contracts', level: 1 })).toBeVisible()
-  await expect(page.getByLabel('Active contract')).toBeDisabled()
-  await expect(page.getByLabel('Active contract')).toContainText('No contracts in this industry')
+  // E2 replaces the silent redirect (G8): the surface stays put and names the prerequisite.
+  await expect(page.getByRole('heading', { name: 'Policy profiles', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'This surface needs a decision contract' })).toBeVisible()
+  await expect(page.getByText(/Policy profiles set the evidence and approval thresholds/)).toBeVisible()
   await expect(page.getByText('Grid Outage Response')).toHaveCount(0)
-  await expect(page.getByText('No contract', { exact: true })).toBeVisible()
+})
+
+test('task-shaped navigation exposes all three loops', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('lattice:welcome-dismissed', 'true'))
+  await page.goto('/')
+
+  for (const group of ['Build', 'Operate', 'Govern', 'Assure']) {
+    await expect(nav(page).getByText(group, { exact: true })).toBeVisible()
+  }
+  await nav(page).getByRole('button', { name: /^Disposition trail/ }).click()
+  await expect(page).toHaveURL(/\/dispositions$/)
+  await nav(page).getByRole('button', { name: /^Case sets/ }).click()
+  await expect(page).toHaveURL(/\/case-sets$/)
+  await expect(page.getByRole('heading', { name: 'Case sets', level: 2 })).toBeVisible()
 })

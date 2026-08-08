@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import type { CreateReviewRequest, ReviewDecisionArtifact, ReviewDecisionValue, ReviewRequestArtifact } from '@lattice/contracts'
+import type { CreateReviewRequest, ReviewDecisionArtifact, ReviewDecisionValue, ReviewRequestArtifact, StructuredRejection } from '@lattice/contracts'
 import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
 
 /**
@@ -11,6 +11,12 @@ import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
  * the current state of a review is the last artifact written for it. That also means the record
  * of who opened a review survives the decision, which overwriting destroyed.
  */
+/** Typed capture recorded alongside a rejection, and the negative decision it produced (E13). */
+export interface DecisionExtras {
+  structuredRejection?: StructuredRejection
+  negativeDecisionId?: string
+}
+
 export class ReviewStore {
   constructor(private readonly storage: LedgerStorage<ReviewRequestArtifact>) {}
 
@@ -42,7 +48,7 @@ export class ReviewStore {
     })
   }
 
-  async decide(reviewId: string, decision: ReviewDecisionValue, rationale: string, decidedBy: string, tenantId: string | undefined, now = new Date()): Promise<ReviewRequestArtifact> {
+  async decide(reviewId: string, decision: ReviewDecisionValue, rationale: string, decidedBy: string, tenantId: string | undefined, now = new Date(), extras: DecisionExtras = {}): Promise<ReviewRequestArtifact> {
     const review = await this.get(reviewId, tenantId)
     if (!review) throw new Error('REVIEW_NOT_FOUND')
     if (review.status === 'DECIDED') throw new Error('REVIEW_ALREADY_DECIDED')
@@ -51,7 +57,15 @@ export class ReviewStore {
     if (review.submittedBy === decidedBy) throw new Error('REVIEW_SEPARATION_REQUIRED')
     const decidedAt = now.toISOString()
     const unsignedDecision = { reviewId, decision, rationale, decidedAt, decidedBy }
-    const artifact: ReviewDecisionArtifact = { id: `decision_${randomUUID()}`, ...unsignedDecision, artifactDigest: digest(unsignedDecision) }
+    // The rejection capture rides on the artifact but stays out of the digest: the digest covers
+    // the decision itself, and the negative decision id is only known after it is created.
+    const artifact: ReviewDecisionArtifact = {
+      id: `decision_${randomUUID()}`,
+      ...unsignedDecision,
+      artifactDigest: digest(unsignedDecision),
+      ...(extras.structuredRejection ? { structuredRejection: extras.structuredRejection } : {}),
+      ...(extras.negativeDecisionId ? { negativeDecisionId: extras.negativeDecisionId } : {}),
+    }
     // Keyed by the decision, identified as the review: a distinct row describing the same review.
     return this.storage.append({ ...review, status: 'DECIDED', decision: artifact }, artifact.id)
   }

@@ -1,4 +1,5 @@
 import type { ContractSummary } from '@lattice/contracts'
+import { EligibilityMatrixPanel } from './EligibilityMatrixPanel'
 import { useMessages } from './i18n/messages'
 
 interface ContractsStudioProps {
@@ -36,5 +37,6 @@ export function ContractsStudio({ contracts, activeContractId, onSelect, onEdit,
       <dl><div><dt>{t('contractsScope')}</dt><dd>{contract.conceptScopeCount}</dd></div><div><dt>{t('contractsOntology')}</dt><dd>v{contract.ontologyVersion}</dd></div><div><dt>{t('contractsReleases')}</dt><dd>{contract.releaseCount}</dd></div></dl>
       <footer><span>{contract.latestRelease ? `v${contract.latestRelease.version}` : t('contractsNoRelease')}</span><time>{formatDate(contract.updatedAt, { dateStyle: 'medium', timeStyle: 'short' })}</time></footer>
     </button>)}</div>
+    {activeContract && <EligibilityMatrixPanel contractId={activeContract.contractId} />}
   </section>
 }

@@ -70,3 +70,15 @@ header { display: flex; align-items: center; justify-content: space-between; mar
 .icon-picker-option svg{width:15px;height:15px}
 .icon-picker-option.selected{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
 @media(max-width:1250px){.icon-picker-grid{grid-template-columns:repeat(6,1fr)}}
+/* Actionable summary cards (E23) — every card click-throughs to its surface. */
+.summary-card.actionable { border-top: 0; border-bottom: 0; border-left: 0; background: transparent; color: inherit; font: inherit; width: 100%; text-align: left; cursor: pointer; transition: background .15s; }
+.summary-card.actionable:hover { background: var(--surface-raised); }
+.summary-card.actionable:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* Keyboard-shortcut chip reuses the nav count slot. */
+.nav-item em { font-variant-numeric: tabular-nums; }
+
+/* The four job groups make the nav taller than the viewport on short screens: it scrolls, and the
+   health footer stays pinned. Without this the last group and the footer overflow the sidebar. */
+.sidebar > nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.sidebar-footer { flex: 0 0 auto; }

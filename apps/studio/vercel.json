@@ -5,6 +5,7 @@
   "rewrites": [
     { "source": "/health", "destination": "/api/lattice?__lattice_path=/health" },
     { "source": "/openapi.json", "destination": "/api/lattice?__lattice_path=/openapi.json" },
-    { "source": "/v1/:path*", "destination": "/api/lattice?__lattice_path=/v1/:path*" }
+    { "source": "/v1/:path*", "destination": "/api/lattice?__lattice_path=/v1/:path*" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

@@ -1,0 +1,54 @@
+/* Shared surface primitives: hero, metrics, empty/loading/error, pagination, chips, tables. */
+
+.surface-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); padding: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); margin-bottom: var(--space-4); }
+.surface-hero h2 { margin: var(--space-2) 0 var(--space-1); font: 600 var(--text-xl) Manrope, sans-serif; letter-spacing: -.2px; }
+.surface-hero p { margin: 0; max-width: 74ch; color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.55; }
+.surface-hero-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+
+.surface-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
+.surface-metric { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); text-align: left; }
+.surface-metric > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.surface-metric span { color: var(--text-muted); font: 500 var(--text-xs) 'DM Mono', monospace; letter-spacing: .8px; text-transform: uppercase; }
+.surface-metric b { font: 600 var(--text-2xl) Manrope, sans-serif; letter-spacing: -.6px; }
+.surface-metric small { color: var(--text-secondary); font-size: var(--text-xs); }
+.surface-metric.actionable { cursor: pointer; transition: border-color .15s, background .15s; }
+.surface-metric.actionable:hover { border-color: var(--border-strong); background: var(--surface-raised); }
+.surface-metric.actionable:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.mini-dot { width: 7px; height: 7px; border-radius: var(--radius-pill); flex-shrink: 0; }
+.mini-dot.green { background: var(--success); }
+.mini-dot.lime { background: var(--accent); }
+.mini-dot.amber { background: var(--warning); }
+.mini-dot.blue { background: var(--info); }
+.mini-dot.red { background: var(--danger); }
+.mini-dot.violet { background: var(--governance); }
+.mini-dot.muted { background: var(--text-muted); }
+
+.surface-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-6) var(--space-5); text-align: center; border: 1px dashed var(--border); border-radius: var(--radius-lg); background: var(--surface); min-height: 220px; }
+.surface-state h3 { margin: 0; font: 600 var(--text-lg) Manrope, sans-serif; }
+.surface-state p { margin: 0; max-width: 58ch; color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.55; }
+.surface-state-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--surface-soft); color: var(--text-secondary); font-size: var(--text-lg); }
+.surface-state.error .surface-state-icon { background: var(--danger-soft); color: var(--danger); }
+.surface-state.loading .surface-state-icon { color: var(--accent); animation: surface-spin 1.1s linear infinite; }
+.surface-state-actions { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+@keyframes surface-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .surface-state.loading .surface-state-icon { animation: none; } }
+
+.surface-pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); color: var(--text-muted); font-size: var(--text-xs); }
+.surface-pagination div { display: flex; gap: var(--space-2); }
+
+.surface-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--surface-soft); color: var(--text-secondary); font: 500 var(--text-xs) 'DM Mono', monospace; letter-spacing: .4px; white-space: nowrap; }
+.surface-chip.green { border-color: var(--success); background: var(--success-soft); color: var(--success); }
+.surface-chip.amber { border-color: var(--warning); background: var(--warning-soft); color: var(--warning); }
+.surface-chip.red { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
+.surface-chip.blue { border-color: var(--info); background: var(--info-soft); color: var(--info); }
+.surface-chip.violet { border-color: var(--governance); background: var(--governance-soft); color: var(--governance); }
+.surface-chip.lime { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.surface-chip.muted { color: var(--text-muted); }
+
+.surface-filters { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
+.surface-filters label { display: flex; align-items: center; gap: var(--space-2); color: var(--text-muted); font: 500 var(--text-xs) 'DM Mono', monospace; letter-spacing: .6px; text-transform: uppercase; }
+.surface-filters select, .surface-filters input { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-raised); color: var(--text); padding: var(--space-1) var(--space-2); font-size: var(--text-sm); }
+.surface-filters select:focus-visible, .surface-filters input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+.surface-scroll { overflow-x: auto; }

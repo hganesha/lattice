@@ -8,7 +8,10 @@ import { previewBindingSource, previewImport } from '@lattice/importer-core'
 import {
   connectorCatalog,
   counterpartyRiskContract,
+  defaultPurposeId,
+  deriveRiskTier,
   materializeSimulatedContext,
+  purposesForDomain,
   type AssuranceRunRequest,
   type CompileRequest,
   type CompileResponse,
@@ -35,6 +38,23 @@ import {
   type ReviewRequestArtifact,
   type RuntimeApprovalArtifact,
   type ExecutionReceipt,
+  type CaseSet,
+  type CreateCaseSetRequest,
+  type CreateEmergencyAuthorizationRequest,
+  type CreateEvalRunRequest,
+  type CreateNegativeDecisionRequest,
+  type ContractRegistryEntry,
+  type DeclaredPurpose,
+  type DispositionMode,
+  type DispositionQuery,
+  type DriftActionRequest,
+  type EmergencyRetrospectiveRequest,
+  type EvalCase,
+  type EvalRun,
+  type ReviewRoutingPlan,
+  type RiskTier,
+  type RuntimeDecision,
+  type StructuredRejection,
 } from '@lattice/contracts'
 import { executeBindings, type ExecuteBindingsOptions } from './adapters.js'
 import { runAssurance } from './assurance.js'
@@ -63,6 +83,22 @@ import { catalogSourceFromEnvironment } from './catalogFederation.js'
 import { openApiDocument } from './openapi.js'
 import { planSignerFromEnvironment } from './signing.js'
 import { recordCompileDecision, recordExecution, registerTelemetry, withSpan } from './telemetry.js'
+import { AttestationStore, predicateForSubject } from './attestations.js'
+import { buildDisposition, DispositionStore } from './dispositionStore.js'
+import { CaseSetStore, summarize } from './caseSetStore.js'
+import { counterpartyGoldCaseSet } from './seedCaseSets.js'
+import { EvalRunStore } from './evalStore.js'
+import { buildCompilationRecord, diffEvalRuns, runEvaluation } from './evalHarness.js'
+import { consultNegativeDecisions, NegativeDecisionStore } from './negativeDecisionStore.js'
+import { DriftStore } from './driftStore.js'
+import { detectDrift, sourceHealthFor } from './driftDetector.js'
+import { replayDrift } from './counterfactual.js'
+import { PrincipalStore, type CreateDelegationGrantRequest } from './principalStore.js'
+import { EmergencyStore } from './emergencyStore.js'
+import { buildEligibility } from './eligibility.js'
+import { computeBlastRadius } from './blastRadius.js'
+import { buildActivity } from './activity.js'
+import { search } from './search.js'
 
 const port = Number(process.env.PORT ?? 8787)
 /**
@@ -137,6 +173,52 @@ function localStores(): Promise<LocalStores> {
   }))()
   return localStoresPromise
 }
+/**
+ * The evolution and evaluation ledgers.
+ *
+ * Opened lazily and only if a route reads them, exactly like `localStores()`. These are
+ * file-backed on every path, including the deployed one: unlike the five governance ledgers there
+ * are no Supabase tables for dispositions, attestations, case sets, evaluation runs, negative
+ * decisions, drift events, principals or emergency grants yet. On a serverless platform that means
+ * they live for one invocation. Adding them to `supabaseGovernanceLedger.ts` and
+ * `supabase/migrations/` is the outstanding work to make these surfaces durable in production.
+ */
+interface EvolutionStores {
+  attestation: AttestationStore
+  disposition: DispositionStore
+  caseSet: CaseSetStore
+  evalRun: EvalRunStore
+  negativeDecision: NegativeDecisionStore
+  drift: DriftStore
+  principal: PrincipalStore
+  emergency: EmergencyStore
+}
+
+let evolutionStoresPromise: Promise<EvolutionStores> | undefined
+
+function evolutionStores(registry: ContractRegistry): Promise<EvolutionStores> {
+  evolutionStoresPromise ??= (async () => {
+    const caseSet = await CaseSetStore.open(join(dataDirectory, 'case-sets.json'))
+    if (caseSet.all().length === 0) await caseSet.seed(counterpartyGoldCaseSet)
+    return {
+      attestation: await AttestationStore.open(join(dataDirectory, 'attestations.json'), planSigner),
+      disposition: await DispositionStore.open(join(dataDirectory, 'dispositions.json'), join(dataDirectory, 'disposition-archive.json')),
+      caseSet,
+      evalRun: await EvalRunStore.open(join(dataDirectory, 'eval-runs.json')),
+      negativeDecision: await NegativeDecisionStore.open(join(dataDirectory, 'negative-decisions.json')),
+      drift: await DriftStore.open(join(dataDirectory, 'drift-events.json')),
+      principal: await PrincipalStore.open(
+        join(dataDirectory, 'principals.json'),
+        join(dataDirectory, 'delegations.json'),
+        registry.listWorkspaces().map((workspace) => workspace.id),
+        registry.list().map((entry) => entry.contractId),
+      ),
+      emergency: await EmergencyStore.open(join(dataDirectory, 'emergency-authorizations.json'), planSigner),
+    }
+  })()
+  return evolutionStoresPromise
+}
+
 const authenticator = authenticatorFromEnvironment()
 const tenantMembershipResolver = tenantMembershipResolverFromEnvironment()
 const supabaseRegistryConfig = supabaseRegistryConfigFromEnvironment()
@@ -240,6 +322,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
     const runtimeApprovalStore = ledgers.runtimeApproval
     const executionStore = ledgers.execution
     const connectorHealthStore = ledgers.connectorHealth
+    // Resolved after `registry` below, which is the organization's registry for this request.
 
     /**
      * Loading the organization's whole registry costs the same whether a route needs one
@@ -255,6 +338,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
     const registry = supabaseStorage
       ? await ContractRegistry.openStorage(supabaseStorage, counterpartyRiskContract, { persistOnOpen: false })
       : (await localStores()).registry
+    const evolution = await evolutionStores(registry)
 
     if (request.method === 'GET' && url.pathname === '/v1/connectors') {
       if (!await authenticate(request)) {
@@ -531,7 +615,14 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
         return
       }
       try {
-        send(response, 200, previewBindingSource({ ...body, contractId: body.contractId ?? `ontology:${body.workspaceId}` }))
+        const preview = previewBindingSource({ ...body, contractId: body.contractId ?? `ontology:${body.workspaceId}` })
+        // Annotated, never silently dropped: the caller still sees the proposal and why it is suppressed.
+        const suppressed = consultNegativeDecisions(preview, evolution.negativeDecision.inForce(), {
+          ...(body.contractId ? { contractId: body.contractId } : {}),
+          ...(body.workspaceId ? { workspaceId: body.workspaceId } : {}),
+          sourceName: body.sourceName,
+        })
+        send(response, 200, suppressed.length > 0 ? { ...preview, suppressed } : preview)
       } catch (error) {
         send(response, 422, {
           error: 'BINDING_PREVIEW_FAILED',
@@ -581,12 +672,24 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
+      // Workspace scope is what a steward across a dozen contracts actually needs (E12, fixes G5).
       const contractId = url.searchParams.get('contractId')
-      if (!contractId) {
-        send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
+      const workspaceId = url.searchParams.get('workspaceId')
+      if (!contractId && !workspaceId) {
+        send(response, 400, { error: 'CONTRACT_OR_WORKSPACE_REQUIRED' })
         return
       }
-      send(response, 200, await reviewStore.list(contractId, identity.tenantId))
+      const scopedContractIds = contractId
+        ? [contractId]
+        : registry.list().filter((entry) => workspaceIdFor(entry) === workspaceId).map((entry) => entry.contractId)
+      const assignedRole = url.searchParams.get('assignedRole')
+      const status = url.searchParams.get('status')
+      const scoped = (await Promise.all(scopedContractIds.map((id) => reviewStore.list(id, identity.tenantId)))).flat()
+      send(response, 200, scoped
+        .map((review) => withRouting({ ...review, ...(workspaceId ? { workspaceId } : {}) }))
+        .filter((review) => !status || review.status === status)
+        .filter((review) => !assignedRole || (review.routingPlan?.assignments ?? []).some((assignment) => assignment.role === assignedRole))
+        .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt)))
       return
     }
 
@@ -629,13 +732,43 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const body = await readJson<CreateReviewDecisionRequest>(request)
+      const body = await readJson<CreateReviewDecisionRequest & { structuredRejection?: StructuredRejection }>(request)
       if (!['APPROVED', 'APPROVED_WITH_EXCEPTION', 'REJECTED'].includes(body.decision) || !body.rationale?.trim() || body.rationale.trim().length < 12) {
         send(response, 400, { error: 'INVALID_REVIEW_DECISION', message: 'A valid decision and rationale of at least 12 characters are required.' })
         return
       }
       try {
-        send(response, 201, await reviewStore.decide(reviewDecisionMatch[1], body.decision, body.rationale.trim(), principal.principalId, principal.tenantId))
+        const target = await reviewStore.get(reviewDecisionMatch[1], principal.tenantId)
+        const entry = target ? registry.get(target.contractId) : undefined
+        // A rejection with a typed capture becomes a negative decision, so the same mapping is
+        // never silently re-proposed by discovery (E13).
+        const negative = body.decision === 'REJECTED' && body.structuredRejection && entry && target
+          ? await evolution.negativeDecision.create({
+            workspaceId: workspaceIdFor(entry),
+            contractId: entry.contractId,
+            prohibited: body.structuredRejection.prohibited,
+            applicability: body.structuredRejection.applicability,
+            rationale: body.rationale.trim(),
+            reviewBy: body.structuredRejection.reviewBy,
+            ...(body.structuredRejection.exceptions ? { exceptions: body.structuredRejection.exceptions } : {}),
+            reviewId: target.id,
+          }, principal.principalId)
+          : undefined
+        const decided = await reviewStore.decide(reviewDecisionMatch[1], body.decision, body.rationale.trim(), principal.principalId, principal.tenantId, new Date(), {
+          ...(body.structuredRejection ? { structuredRejection: body.structuredRejection } : {}),
+          ...(negative ? { negativeDecisionId: negative.id } : {}),
+        })
+        if (decided.decision) {
+          await evolution.attestation.mint({
+            subjectKind: 'REVIEW_DECISION',
+            subjectId: decided.decision.id,
+            predicateType: predicateForSubject.REVIEW_DECISION,
+            subject: decided.decision,
+            signerId: principal.principalId,
+            signerRoleAtSigning: evolution.principal.get(principal.principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY',
+          })
+        }
+        send(response, 201, withRouting(decided))
       } catch (error) {
         const message = error instanceof Error ? error.message : 'REVIEW_DECISION_FAILED'
         send(response, message === 'REVIEW_NOT_FOUND' ? 404 : 409, { error: message })
@@ -868,12 +1001,20 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
       }
 
       const selectedContractId = body.contractId ?? counterpartyRiskContract.id
-      const selectedContract = await publishedContract(selectedContractId)
+      // DRY_RUN compiles the draft, so a contract reaches the money moment before it is published
+      // (E3, fixes G3). It returns a disposition that explains and explicitly does not authorize.
+      const compileMode: DispositionMode = body.mode === 'DRY_RUN' ? 'DRY_RUN' : 'AUTHORIZED'
+      const selectedContract = compileMode === 'DRY_RUN'
+        ? registry.get(selectedContractId)?.draft
+        : await publishedContract(selectedContractId)
       if (!selectedContract) {
-        send(response, 409, { error: 'CONTRACT_NOT_PUBLISHED', message: 'Publish this contract before compiling runtime questions.' })
+        send(response, compileMode === 'DRY_RUN' ? 404 : 409, compileMode === 'DRY_RUN'
+          ? { error: 'CONTRACT_NOT_FOUND' }
+          : { error: 'CONTRACT_NOT_PUBLISHED', message: 'Publish this contract before compiling authorized questions, or compile with mode DRY_RUN.' })
         return
       }
       const runtimeContract = materializeSimulatedContext(selectedContract)
+      const compileStartedAt = process.hrtime.bigint()
       const result = await withSpan('lattice.compile', {
         'lattice.contract_id': runtimeContract.id,
         'lattice.contract_version': runtimeContract.version,
@@ -881,17 +1022,23 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
       }, async (span) => {
         const resolver = resolverFor(principal, request)
         const intentResolution = await withSpan('lattice.resolve_intent', {}, async () => resolver.resolve(body, runtimeContract))
-        const compiled = await prepareCompile(
-          new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) }),
-          runtimeContract,
-          principal,
-          runtimeApprovalStore,
-        )
+        const raw = new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) })
+        // A dry run is never signed and never raises a runtime approval: it authorizes nothing.
+        const compiled = compileMode === 'DRY_RUN' ? raw : await prepareCompile(raw, runtimeContract, principal, runtimeApprovalStore)
         rememberClarification(compiled, principal, body, intentResolution)
         recordCompileDecision(span, compiled)
         return compiled
       })
-      send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...result, principal })
+      const enriched = await recordDisposition(evolution, registry, {
+        result,
+        contract: runtimeContract,
+        question: body.question,
+        mode: compileMode,
+        purposeId: body.purposeId,
+        principalId: principal.principalId,
+        latencyMs: Number(process.hrtime.bigint() - compileStartedAt) / 1e6,
+      })
+      send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...enriched, principal })
       return
     }
 
@@ -914,6 +1061,7 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
         return
       }
       const runtimeContract = materializeSimulatedContext(selectedContract)
+      const clarificationStartedAt = process.hrtime.bigint()
       if (pending.kind === 'ENTITY' && !body.entityId) {
         send(response, 400, { error: 'ENTITY_ID_REQUIRED' })
         return
@@ -937,7 +1085,17 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
       )
       clarifications.delete(clarificationMatch[1])
       rememberClarification(result, principal, pending.request, pending.intentResolution, selectedOperationId)
-      send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...result, principal })
+      const enriched = await recordDisposition(evolution, registry, {
+        result,
+        contract: runtimeContract,
+        question: pending.request.question,
+        mode: pending.request.mode === 'DRY_RUN' ? 'DRY_RUN' : 'AUTHORIZED',
+        purposeId: pending.request.purposeId,
+        principalId: principal.principalId,
+        latencyMs: Number(process.hrtime.bigint() - clarificationStartedAt) / 1e6,
+        clarificationId: clarificationMatch[1],
+      })
+      send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...enriched, principal })
       return
     }
 
@@ -1111,6 +1269,8 @@ export async function handleRequest(request: IncomingMessage, response: ServerRe
       return
     }
 
+    if (await handleEvolutionRoutes({ request, response, url, identity: requestIdentity, registry, evolution, assuranceStore, reviewStore, executionStore })) return
+
     send(response, 404, { error: 'NOT_FOUND' })
   } catch (error) {
     if (error instanceof ContractValidationError) {
@@ -1210,6 +1370,784 @@ function resolverFor(identity: RequestIdentity, request: IncomingMessage): Inten
     authorization: request.headers.authorization ?? '',
     embeddingProvider,
   })
+}
+
+
+/* ------------------------------------------------------------------ *
+ * Evolution & evaluation routes (E3–E19, E21).
+ * ------------------------------------------------------------------ */
+
+interface EvolutionContext {
+  request: IncomingMessage
+  response: ServerResponse
+  url: URL
+  identity: RequestIdentity | undefined
+  registry: ContractRegistry
+  evolution: EvolutionStores
+  assuranceStore: AssuranceStore
+  reviewStore: ReviewStore
+  executionStore: ExecutionStore
+}
+
+/**
+ * Every `/v1/` path is already authenticated and role-checked by the caller, so these handlers
+ * take the resolved identity rather than re-authenticating. Returning false means "not my route".
+ */
+// eslint-disable-next-line complexity
+async function handleEvolutionRoutes({ request, response, url, identity, registry, evolution, assuranceStore, reviewStore, executionStore }: EvolutionContext): Promise<boolean> {
+  const method = request.method ?? 'GET'
+  const path = url.pathname
+  const tenantId = identity?.tenantId
+  const principalId = identity?.principalId ?? 'principal_anonymous'
+  const roleOf = (id: string) => evolution.principal.get(id)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY'
+
+  /* ---- Declared purpose and derived risk tier (E4) ---- */
+
+  if (method === 'GET' && path === '/v1/purposes') {
+    const contractId = url.searchParams.get('contractId')
+    const contract = contractId ? registry.get(contractId)?.draft : undefined
+    const domain = url.searchParams.get('domain') ?? contract?.domain ?? ''
+    const available = purposesForDomain(domain)
+    /*
+     * The contract is the authority. The compiler denies any purpose a contract has not declared,
+     * so returning the global catalogue for a contract that declares none would offer choices that
+     * are guaranteed to be refused. `catalog` is the starter set a steward can adopt; `purposes` is
+     * what a caller may actually name right now.
+     */
+    const declared: DeclaredPurpose[] = contract?.purposes ?? []
+    send(response, 200, contractId
+      ? { purposes: declared, catalog: available.filter((purpose) => !declared.some((candidate) => candidate.id === purpose.id)) }
+      : { purposes: available, catalog: [] })
+    return true
+  }
+
+  if (method === 'POST' && path === '/v1/risk-tier') {
+    const body = await readJson<{ contractId?: string; purposeId?: string; operationId?: string }>(request)
+    const contract = registry.get(body.contractId ?? '')?.draft
+    if (!contract) {
+      send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, deriveRiskTier(contract, body.purposeId ?? defaultPurposeId, body.operationId))
+    return true
+  }
+
+  /* ---- Disposition trail (E5) ---- */
+
+  if (method === 'GET' && path === '/v1/dispositions') {
+    const query: DispositionQuery = {
+      ...optional('contractId', url), ...optional('workspaceId', url), ...optional('purposeId', url), ...optional('principalId', url), ...optional('cursor', url), ...optional('from', url), ...optional('to', url),
+      ...(url.searchParams.get('decision') ? { decision: url.searchParams.get('decision') as RuntimeDecision } : {}),
+      ...(url.searchParams.get('riskTier') ? { riskTier: url.searchParams.get('riskTier') as RiskTier } : {}),
+      ...(url.searchParams.get('mode') ? { mode: url.searchParams.get('mode') as DispositionMode } : {}),
+      ...(url.searchParams.get('limit') ? { limit: Number(url.searchParams.get('limit')) } : {}),
+    }
+    send(response, 200, evolution.disposition.query(query))
+    return true
+  }
+
+  const dispositionMatch = path.match(/^\/v1\/dispositions\/([^/]+)$/)
+  if (method === 'GET' && dispositionMatch?.[1]) {
+    const record = evolution.disposition.get(dispositionMatch[1])
+    if (!record) {
+      send(response, 404, { error: 'DISPOSITION_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, record)
+    return true
+  }
+
+  if (method === 'GET' && path === '/v1/retention') {
+    send(response, 200, evolution.disposition.retention())
+    return true
+  }
+
+  /* ---- Attestations (E16) ---- */
+
+  if (method === 'GET' && path === '/v1/attestations') {
+    send(response, 200, evolution.attestation.list({ ...optional('subjectId', url), ...(url.searchParams.get('subjectKind') ? { subjectKind: url.searchParams.get('subjectKind') as Parameters<typeof evolution.attestation.list>[0] extends { subjectKind?: infer K } ? K : never } : {}) }))
+    return true
+  }
+
+  const attestationVerifyMatch = path.match(/^\/v1\/attestations\/([^/]+)\/verify$/)
+  if (method === 'POST' && attestationVerifyMatch?.[1]) {
+    const attestation = evolution.attestation.get(attestationVerifyMatch[1])
+    if (!attestation) {
+      send(response, 404, { error: 'ATTESTATION_NOT_FOUND' })
+      return true
+    }
+    const subject = await resolveAttestationSubject({ request, response, url, identity, registry, evolution, assuranceStore, reviewStore, executionStore }, attestation.subjectKind, attestation.subjectId)
+    const verification = evolution.attestation.verify(attestation.id, subject, planSigner.activeKeyId)
+    send(response, verification?.verified ? 200 : 422, verification)
+    return true
+  }
+
+  const attestationMatch = path.match(/^\/v1\/attestations\/([^/]+)$/)
+  if (method === 'GET' && attestationMatch?.[1]) {
+    const attestation = evolution.attestation.get(attestationMatch[1])
+    if (!attestation) {
+      send(response, 404, { error: 'ATTESTATION_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, attestation)
+    return true
+  }
+
+  /* ---- Case sets (E6) ---- */
+
+  if (method === 'GET' && path === '/v1/case-sets') {
+    send(response, 200, evolution.caseSet.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
+    return true
+  }
+
+  if (method === 'POST' && path === '/v1/case-sets') {
+    const body = await readJson<CreateCaseSetRequest>(request)
+    if (!body.name?.trim() || !body.scope) {
+      send(response, 400, { error: 'INVALID_CASE_SET', message: 'A name and a scope are required.' })
+      return true
+    }
+    send(response, 201, await evolution.caseSet.create(body))
+    return true
+  }
+
+  const caseSetCasesMatch = path.match(/^\/v1\/case-sets\/([^/]+)\/cases$/)
+  if (caseSetCasesMatch?.[1]) {
+    const caseSet = evolution.caseSet.get(caseSetCasesMatch[1])
+    if (!caseSet) {
+      send(response, 404, { error: 'CASE_SET_NOT_FOUND' })
+      return true
+    }
+    if (method === 'GET') {
+      send(response, 200, caseSet.cases)
+      return true
+    }
+    if (method === 'POST') {
+      const body = await readJson<{ case?: EvalCase }>(request)
+      if (!body.case?.id || !body.case.question?.trim()) {
+        send(response, 400, { error: 'INVALID_EVAL_CASE', message: 'A case id and question are required.' })
+        return true
+      }
+      send(response, 200, await evolution.caseSet.upsertCase(caseSet.id, body.case))
+      return true
+    }
+  }
+
+  const caseSetMatch = path.match(/^\/v1\/case-sets\/([^/]+)$/)
+  if (caseSetMatch?.[1]) {
+    const caseSet = evolution.caseSet.get(caseSetMatch[1])
+    if (!caseSet) {
+      send(response, 404, { error: 'CASE_SET_NOT_FOUND' })
+      return true
+    }
+    if (method === 'GET') {
+      send(response, 200, caseSet)
+      return true
+    }
+    if (method === 'PUT') {
+      const body = await readJson<{ caseSet?: CaseSet }>(request)
+      if (!body.caseSet || body.caseSet.id !== caseSet.id) {
+        send(response, 400, { error: 'CASE_SET_ID_MISMATCH' })
+        return true
+      }
+      send(response, 200, await evolution.caseSet.replace(caseSet.id, body.caseSet))
+      return true
+    }
+  }
+
+  /* ---- Evaluation runs, diff, failure routing (E7, E8, E10) ---- */
+
+  if (method === 'GET' && path === '/v1/eval/runs') {
+    send(response, 200, evolution.evalRun.list({ ...optional('contractId', url), ...optional('caseSetId', url) }))
+    return true
+  }
+
+  if (method === 'POST' && path === '/v1/eval/runs') {
+    const body = await readJson<CreateEvalRunRequest>(request)
+    const caseSet = evolution.caseSet.get(body.caseSetId ?? '')
+    const entry = registry.get(body.contractId ?? '')
+    if (!caseSet || !entry) {
+      send(response, 404, { error: caseSet ? 'CONTRACT_NOT_FOUND' : 'CASE_SET_NOT_FOUND' })
+      return true
+    }
+    const mode: DispositionMode = body.mode === 'AUTHORIZED' ? 'AUTHORIZED' : 'DRY_RUN'
+    const contract = mode === 'AUTHORIZED' ? registry.latestPublished(entry.contractId) ?? entry.draft : entry.draft
+    const selected = body.caseIds?.length ? caseSet.cases.filter((evalCase) => body.caseIds!.includes(evalCase.id)) : caseSet.cases
+    if (selected.length === 0) {
+      send(response, 400, { error: 'NO_CASES_SELECTED' })
+      return true
+    }
+    const now = new Date()
+    const { run, dispositions } = runEvaluation({
+      runId: `evalrun_${randomUUID()}`,
+      name: body.name?.trim() || `${caseSet.name} · ${now.toISOString().slice(0, 16).replace('T', ' ')}`,
+      caseSet,
+      cases: selected,
+      contract,
+      ...(workspaceIdFor(entry) ? { workspaceId: workspaceIdFor(entry) } : {}),
+      mode,
+      environment: body.environment ?? 'local',
+      triggeredBy: principalId,
+      ...(tenantId ? { tenantId } : {}),
+      principalChain: evolution.principal.chainFor(principalId),
+      ...(body.baselineRunId ? { baselineRunId: body.baselineRunId } : {}),
+      now,
+    })
+    for (const record of dispositions) await evolution.disposition.append(record)
+    const evidence = evidenceForEvalRun(run)
+    const stored = await evolution.evalRun.append({ ...run, evidenceRecordId: evidence.id })
+    await evolution.attestation.mint({ subjectKind: 'EVAL_RUN', subjectId: stored.id, predicateType: predicateForSubject.EVAL_RUN, subject: stored, signerId: principalId, signerRoleAtSigning: evolution.principal.get(principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' })
+    send(response, 201, stored)
+    return true
+  }
+
+  const evalDiffMatch = path.match(/^\/v1\/eval\/runs\/([^/]+)\/diff$/)
+  if (method === 'GET' && evalDiffMatch?.[1]) {
+    const candidate = evolution.evalRun.get(evalDiffMatch[1])
+    const baseline = evolution.evalRun.get(url.searchParams.get('baseline') ?? '')
+    if (!candidate || !baseline) {
+      send(response, 404, { error: candidate ? 'BASELINE_RUN_NOT_FOUND' : 'EVAL_RUN_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, diffEvalRuns(candidate, baseline))
+    return true
+  }
+
+  const evalCancelMatch = path.match(/^\/v1\/eval\/runs\/([^/]+)\/cancel$/)
+  if (method === 'POST' && evalCancelMatch?.[1]) {
+    const run = evolution.evalRun.get(evalCancelMatch[1])
+    if (!run) {
+      send(response, 404, { error: 'EVAL_RUN_NOT_FOUND' })
+      return true
+    }
+    if (run.status !== 'RUNNING' && run.status !== 'QUEUED') {
+      send(response, 409, { error: 'EVAL_RUN_ALREADY_FINISHED' })
+      return true
+    }
+    send(response, 200, await evolution.evalRun.replace({ ...run, status: 'CANCELLED', completedAt: new Date().toISOString() }))
+    return true
+  }
+
+  const evalRunMatch = path.match(/^\/v1\/eval\/runs\/([^/]+)$/)
+  if (method === 'GET' && evalRunMatch?.[1]) {
+    const run = evolution.evalRun.get(evalRunMatch[1])
+    if (!run) {
+      send(response, 404, { error: 'EVAL_RUN_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, run)
+    return true
+  }
+
+  /* ---- Review inbox, routing, blast radius (E12, E17) ---- */
+
+  const blastRadiusMatch = path.match(/^\/v1\/reviews\/([^/]+)\/blast-radius$/)
+  if (method === 'GET' && blastRadiusMatch?.[1]) {
+    const review = await reviewStore.get(blastRadiusMatch[1], tenantId)
+    const entry = review ? registry.get(review.contractId) : undefined
+    if (!review || !entry) {
+      send(response, 404, { error: 'REVIEW_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, computeBlastRadius({
+      contract: entry.draft,
+      workspaceId: workspaceIdFor(entry),
+      targetKind: review.targetKind,
+      targetId: review.targetId,
+      dispositions: evolution.disposition.all().filter((record) => record.contractId === entry.contractId),
+    }))
+    return true
+  }
+
+  const reviewDelegateMatch = path.match(/^\/v1\/reviews\/([^/]+)\/delegate$/)
+  if (method === 'POST' && reviewDelegateMatch?.[1]) {
+    const review = await reviewStore.get(reviewDelegateMatch[1], tenantId)
+    if (!review) {
+      send(response, 404, { error: 'REVIEW_NOT_FOUND' })
+      return true
+    }
+    const body = await readJson<{ role?: string; toPrincipalId?: string; reason?: string }>(request)
+    if (!body.role || !body.toPrincipalId || !body.reason?.trim()) {
+      send(response, 400, { error: 'INVALID_DELEGATION', message: 'A role, a delegate, and a reason are required.' })
+      return true
+    }
+    const plan = routingPlanFor(review)
+    const delegated: ReviewRoutingPlan = {
+      ...plan,
+      assignments: plan.assignments.map((assignment) => assignment.role === body.role
+        ? { ...assignment, status: 'DELEGATED' as const, delegatedToPrincipalId: body.toPrincipalId!, delegatedReason: body.reason!.trim() }
+        : assignment),
+    }
+    send(response, 200, { ...review, routingPlan: delegated })
+    return true
+  }
+
+  const reviewMatch = path.match(/^\/v1\/reviews\/([^/]+)$/)
+  if (method === 'GET' && reviewMatch?.[1]) {
+    const review = await reviewStore.get(reviewMatch[1], tenantId)
+    if (!review) {
+      send(response, 404, { error: 'REVIEW_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, withRouting(review))
+    return true
+  }
+
+  /* ---- Negative decisions (E13) ---- */
+
+  if (method === 'GET' && path === '/v1/negative-decisions') {
+    send(response, 200, evolution.negativeDecision.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
+    return true
+  }
+
+  if (method === 'POST' && path === '/v1/negative-decisions') {
+    const body = await readJson<CreateNegativeDecisionRequest>(request)
+    if (!body.workspaceId || !body.prohibited?.subject?.trim() || !body.rationale?.trim() || !body.reviewBy) {
+      send(response, 400, { error: 'INVALID_NEGATIVE_DECISION', message: 'A workspace, a prohibited subject, a rationale, and a review-by date are required.' })
+      return true
+    }
+    send(response, 201, await evolution.negativeDecision.create(body, principalId))
+    return true
+  }
+
+  const negativeWithdrawMatch = path.match(/^\/v1\/negative-decisions\/([^/]+)\/withdraw$/)
+  if (method === 'POST' && negativeWithdrawMatch?.[1]) {
+    const body = await readJson<{ rationale?: string }>(request)
+    if (!body.rationale?.trim() || body.rationale.trim().length < 12) {
+      send(response, 400, { error: 'RATIONALE_REQUIRED', message: 'A rationale of at least 12 characters is required.' })
+      return true
+    }
+    try {
+      send(response, 200, await evolution.negativeDecision.withdraw(negativeWithdrawMatch[1], body.rationale.trim(), principalId))
+    } catch (error) {
+      send(response, 404, { error: error instanceof Error ? error.message : 'NEGATIVE_DECISION_NOT_FOUND' })
+    }
+    return true
+  }
+
+  const negativeMatch = path.match(/^\/v1\/negative-decisions\/([^/]+)$/)
+  if (method === 'GET' && negativeMatch?.[1]) {
+    const decision = evolution.negativeDecision.get(negativeMatch[1])
+    if (!decision) {
+      send(response, 404, { error: 'NEGATIVE_DECISION_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, decision)
+    return true
+  }
+
+  /* ---- Drift, source health, counterfactual replay (E14) ---- */
+
+  if (method === 'GET' && path === '/v1/drift') {
+    send(response, 200, evolution.drift.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
+    return true
+  }
+
+  if (method === 'POST' && path === '/v1/drift/scan') {
+    const body = await readJson<{ workspaceId?: string }>(request)
+    const detected = registry.list()
+      .filter((entry) => !body.workspaceId || workspaceIdFor(entry) === body.workspaceId)
+      .flatMap((entry) => detectDrift(entry, registry.getWorkspace(workspaceIdFor(entry))))
+    send(response, 200, await evolution.drift.upsertMany(detected))
+    return true
+  }
+
+  if (method === 'GET' && path === '/v1/source-health') {
+    const entry = registry.get(url.searchParams.get('contractId') ?? '')
+    if (!entry) {
+      send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, sourceHealthFor(entry.draft, evolution.drift.list({ contractId: entry.contractId })))
+    return true
+  }
+
+  const driftReplayMatch = path.match(/^\/v1\/drift\/([^/]+)\/replay$/)
+  if (method === 'POST' && driftReplayMatch?.[1]) {
+    const event = evolution.drift.get(driftReplayMatch[1])
+    const entry = event?.contractId ? registry.get(event.contractId) : undefined
+    if (!event || !entry) {
+      send(response, 404, { error: 'DRIFT_EVENT_NOT_FOUND' })
+      return true
+    }
+    const counterfactual = replayDrift({
+      event,
+      dispositions: evolution.disposition.all().filter((record) => record.contractId === entry.contractId && record.mode === 'AUTHORIZED'),
+      contract: entry.draft,
+      ...(tenantId ? { tenantId } : {}),
+    })
+    await evolution.drift.replace({ ...event, counterfactual })
+    send(response, 200, counterfactual)
+    return true
+  }
+
+  const driftActionMatch = path.match(/^\/v1\/drift\/([^/]+)\/actions$/)
+  if (method === 'POST' && driftActionMatch?.[1]) {
+    const event = evolution.drift.get(driftActionMatch[1])
+    if (!event) {
+      send(response, 404, { error: 'DRIFT_EVENT_NOT_FOUND' })
+      return true
+    }
+    const body = await readJson<DriftActionRequest>(request)
+    if (!body.rationale?.trim() || body.rationale.trim().length < 12) {
+      send(response, 400, { error: 'RATIONALE_REQUIRED', message: 'A rationale of at least 12 characters is required.' })
+      return true
+    }
+    const entry = event.contractId ? registry.get(event.contractId) : undefined
+    if (body.action === 'SUSPEND_HIGH_RISK' && entry) await registry.setRuntimeStatus(entry.contractId, 'SUSPENDED')
+    if (body.action === 'OPEN_REVIEW' && entry && event.subject.kind === 'SOURCE_BINDING') {
+      await reviewStore.create({
+        contractId: entry.contractId,
+        contractVersion: entry.draft.version,
+        targetKind: 'SOURCE_BINDING',
+        targetId: event.subject.id,
+        targetLabel: event.subject.label,
+        impact: event.severity,
+        evidenceRefs: [],
+      }, principalId, tenantId)
+    }
+    const status = body.action === 'ACKNOWLEDGE' ? 'ACKNOWLEDGED' as const : body.action === 'RESOLVE' ? 'RESOLVED' as const : body.action === 'ALLOW_READ_ONLY' ? 'ACKNOWLEDGED' as const : event.status
+    send(response, 200, await evolution.drift.replace({ ...event, status }))
+    return true
+  }
+
+  const driftMatch = path.match(/^\/v1\/drift\/([^/]+)$/)
+  if (method === 'GET' && driftMatch?.[1]) {
+    const event = evolution.drift.get(driftMatch[1])
+    if (!event) {
+      send(response, 404, { error: 'DRIFT_EVENT_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, event)
+    return true
+  }
+
+  /* ---- Per-use eligibility (E11) ---- */
+
+  if (method === 'GET' && path === '/v1/eligibility') {
+    const entry = registry.get(url.searchParams.get('contractId') ?? '')
+    if (!entry) {
+      send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
+      return true
+    }
+    const workspaceId = workspaceIdFor(entry)
+    send(response, 200, buildEligibility({
+      entry,
+      contract: entry.draft,
+      assuranceRuns: await assuranceStore.list(entry.contractId, tenantId),
+      reviews: await reviewStore.list(entry.contractId, tenantId),
+      driftEvents: evolution.drift.list({ contractId: entry.contractId }),
+      dispositions: evolution.disposition.all().filter((record) => record.contractId === entry.contractId),
+      autonomousGrantAvailable: evolution.principal.grants({ workspaceId }).some((grant) => grant.status === 'ACTIVE' && grant.riskTierCeiling === 'OPERATIONAL_ACTION'),
+    }))
+    return true
+  }
+
+  /* ---- Identity and delegation (E15) ---- */
+
+  if (method === 'GET' && path === '/v1/session') {
+    // A bearer identity that is not in the declared directory is recorded as exactly what it
+    // verifiably is, so the session always resolves to a real Principal rather than a chain link.
+    if (!evolution.principal.get(principalId)) {
+      await evolution.principal.observe([principalId], registry.listWorkspaces().map((workspace) => workspace.id))
+    }
+    send(response, 200, { principal: evolution.principal.get(principalId), chain: evolution.principal.chainFor(principalId) })
+    return true
+  }
+
+  if (method === 'GET' && path === '/v1/principals') {
+    send(response, 200, evolution.principal.all(url.searchParams.get('workspaceId') ?? undefined))
+    return true
+  }
+
+  if (method === 'GET' && path === '/v1/identity-graph') {
+    send(response, 200, evolution.principal.identityGraph(url.searchParams.get('workspaceId') ?? undefined))
+    return true
+  }
+
+  if (method === 'GET' && path === '/v1/delegations') {
+    send(response, 200, evolution.principal.grants({ ...optional('workspaceId', url), ...optional('principalId', url) }))
+    return true
+  }
+
+  if (method === 'POST' && path === '/v1/delegations') {
+    const body = await readJson<CreateDelegationGrantRequest>(request)
+    if (!body.toPrincipalId || !Array.isArray(body.scope) || body.scope.length === 0 || !body.maximumActions) {
+      send(response, 400, { error: 'INVALID_DELEGATION', message: 'A delegate, at least one scope, and a maximum action budget are required.' })
+      return true
+    }
+    send(response, 201, await evolution.principal.createGrant(body, principalId))
+    return true
+  }
+
+  const grantRevokeMatch = path.match(/^\/v1\/delegations\/([^/]+)\/revoke$/)
+  if (method === 'POST' && grantRevokeMatch?.[1]) {
+    const body = await readJson<{ rationale?: string }>(request)
+    if (!body.rationale?.trim()) {
+      send(response, 400, { error: 'RATIONALE_REQUIRED' })
+      return true
+    }
+    try {
+      send(response, 200, await evolution.principal.revokeGrant(grantRevokeMatch[1], body.rationale.trim()))
+    } catch (error) {
+      send(response, 404, { error: error instanceof Error ? error.message : 'GRANT_NOT_FOUND' })
+    }
+    return true
+  }
+
+  const principalMatch = path.match(/^\/v1\/principals\/([^/]+)$/)
+  if (method === 'GET' && principalMatch?.[1]) {
+    const principal = evolution.principal.get(principalMatch[1])
+    if (!principal) {
+      send(response, 404, { error: 'PRINCIPAL_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, principal)
+    return true
+  }
+
+  /* ---- Emergency authorization and its retrospective queue (E18) ---- */
+
+  if (method === 'GET' && path === '/v1/emergency-authorizations') {
+    send(response, 200, evolution.emergency.list({
+      ...optional('contractId', url), ...optional('workspaceId', url),
+      ...(url.searchParams.get('status') ? { status: url.searchParams.get('status') as Parameters<typeof evolution.emergency.list>[0] extends { status?: infer S } ? S : never } : {}),
+    }))
+    return true
+  }
+
+  if (method === 'POST' && path === '/v1/emergency-authorizations') {
+    const body = await readJson<CreateEmergencyAuthorizationRequest>(request)
+    if (!body.contractId || !registry.get(body.contractId)) {
+      send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
+      return true
+    }
+    // Deliberately high friction: a thin justification is not an emergency.
+    if (!body.justification?.trim() || body.justification.trim().length < 80 || !body.maximumActions || !body.validMinutes || !Array.isArray(body.requiredApproverRoles) || body.requiredApproverRoles.length === 0 || !Array.isArray(body.compensatingControls) || body.compensatingControls.length === 0) {
+      send(response, 400, { error: 'INVALID_EMERGENCY_REQUEST', message: 'A justification of at least 80 characters, an action budget, a validity window, at least one approver role, and at least one compensating control are required.' })
+      return true
+    }
+    const authorization = await evolution.emergency.create(body, principalId)
+    await evolution.attestation.mint({ subjectKind: 'EMERGENCY_AUTHORIZATION', subjectId: authorization.id, predicateType: predicateForSubject.EMERGENCY_AUTHORIZATION, subject: authorization, signerId: principalId, signerRoleAtSigning: evolution.principal.get(principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' })
+    send(response, 201, authorization)
+    return true
+  }
+
+  const emergencyApprovalMatch = path.match(/^\/v1\/emergency-authorizations\/([^/]+)\/approvals$/)
+  if (method === 'POST' && emergencyApprovalMatch?.[1]) {
+    const body = await readJson<{ role?: string; rationale?: string }>(request)
+    if (!body.role || !body.rationale?.trim() || body.rationale.trim().length < 12) {
+      send(response, 400, { error: 'INVALID_EMERGENCY_APPROVAL', message: 'A role and a rationale of at least 12 characters are required.' })
+      return true
+    }
+    try {
+      send(response, 200, await evolution.emergency.approve(emergencyApprovalMatch[1], body.role, body.rationale.trim(), principalId))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'EMERGENCY_APPROVAL_FAILED'
+      send(response, message === 'EMERGENCY_AUTHORIZATION_NOT_FOUND' ? 404 : 409, { error: message })
+    }
+    return true
+  }
+
+  const emergencyRetrospectiveMatch = path.match(/^\/v1\/emergency-authorizations\/([^/]+)\/retrospective$/)
+  if (method === 'POST' && emergencyRetrospectiveMatch?.[1]) {
+    const body = await readJson<EmergencyRetrospectiveRequest>(request)
+    if (!['JUSTIFIED', 'UNJUSTIFIED', 'PROCESS_GAP'].includes(body.verdict) || !body.notes?.trim()) {
+      send(response, 400, { error: 'INVALID_RETROSPECTIVE', message: 'A verdict and notes are required.' })
+      return true
+    }
+    try {
+      send(response, 200, await evolution.emergency.recordRetrospective(emergencyRetrospectiveMatch[1], body, principalId))
+    } catch (error) {
+      send(response, 404, { error: error instanceof Error ? error.message : 'EMERGENCY_AUTHORIZATION_NOT_FOUND' })
+    }
+    return true
+  }
+
+  const emergencyMatch = path.match(/^\/v1\/emergency-authorizations\/([^/]+)$/)
+  if (method === 'GET' && emergencyMatch?.[1]) {
+    const authorization = evolution.emergency.get(emergencyMatch[1])
+    if (!authorization) {
+      send(response, 404, { error: 'EMERGENCY_AUTHORIZATION_NOT_FOUND' })
+      return true
+    }
+    send(response, 200, authorization)
+    return true
+  }
+
+  /* ---- Activity feed and command palette search (E19, E21) ---- */
+
+  if (method === 'GET' && path === '/v1/activity') {
+    const workspaceId = url.searchParams.get('workspaceId') ?? undefined
+    const contractId = url.searchParams.get('contractId') ?? undefined
+    send(response, 200, buildActivity({
+      ...(workspaceId ? { workspaceId } : {}),
+      ...(contractId ? { contractId } : {}),
+      limit: Math.min(Number(url.searchParams.get('limit') ?? 50), 200),
+      entries: registry.list(),
+      dispositions: evolution.disposition.all(),
+      assuranceRuns: (await Promise.all(registry.list().map((entry) => assuranceStore.list(entry.contractId, tenantId)))).flat(),
+      evalRuns: evolution.evalRun.list(),
+      driftEvents: evolution.drift.all(),
+      reviews: (await Promise.all(registry.list().map((entry) => reviewStore.list(entry.contractId, tenantId)))).flat(),
+      emergencyAuthorizations: evolution.emergency.list(),
+      negativeDecisions: evolution.negativeDecision.list(),
+      viewer: { principalId, roles: evolution.principal.get(principalId)?.roles ?? [] },
+    }))
+    return true
+  }
+
+  if (method === 'GET' && path === '/v1/search') {
+    const workspaceId = url.searchParams.get('workspaceId') ?? undefined
+    send(response, 200, search({
+      query: url.searchParams.get('q') ?? '',
+      ...(workspaceId ? { workspaceId } : {}),
+      workspaces: registry.listWorkspaces(),
+      entries: registry.list(),
+      dispositions: evolution.disposition.all(),
+      evalRuns: evolution.evalRun.list(),
+      caseSets: evolution.caseSet.all().map((caseSet) => summarize(caseSet)),
+      reviews: (await Promise.all(registry.list().map((entry) => reviewStore.list(entry.contractId, tenantId)))).flat(),
+      driftEvents: evolution.drift.all(),
+      principals: evolution.principal.all(workspaceId),
+    }))
+    return true
+  }
+
+  return false
+}
+
+function optional<K extends string>(key: K, url: URL): Partial<Record<K, string>> {
+  const value = url.searchParams.get(key)
+  return value ? { [key]: value } as Record<K, string> : {}
+}
+
+function workspaceIdFor(entry: ContractRegistryEntry): string {
+  return entry.draft.ontologyRef?.workspaceId ?? `workspace-${entry.draft.domain}`
+}
+
+/**
+ * Approver routing the evolution doc leaves unspecified (§3.3.M). Derived from the target's
+ * impact so it is consistent, and surfaced so a bottleneck is visible rather than mysterious.
+ */
+function routingPlanFor(review: ReviewRequestArtifact): ReviewRoutingPlan {
+  const critical = review.impact === 'CRITICAL'
+  const high = review.impact === 'HIGH'
+  const roles = critical
+    ? ['DOMAIN_OWNER', 'RISK_COMPLIANCE', 'SYSTEM_OWNER']
+    : high ? ['DOMAIN_OWNER', 'RISK_COMPLIANCE'] : ['DOMAIN_OWNER']
+  const slaHours = critical ? 24 : high ? 48 : 72
+  const decidedAt = review.decision?.decidedAt
+  return {
+    routing: critical ? 'SEQUENTIAL' : 'PARALLEL',
+    quorum: critical || high ? 2 : 1,
+    assignments: roles.map((role, order) => ({
+      role,
+      status: review.status === 'DECIDED' ? (review.decision?.decision === 'REJECTED' ? 'REJECTED' as const : 'APPROVED' as const) : 'PENDING' as const,
+      order,
+      ...(decidedAt ? { decidedAt } : {}),
+    })),
+    slaHours,
+    dueAt: new Date(new Date(review.submittedAt).getTime() + slaHours * 60 * 60_000).toISOString(),
+    ...(critical ? { escalateToRole: 'SYSTEM_OWNER' } : {}),
+  }
+}
+
+function withRouting(review: ReviewRequestArtifact): ReviewRequestArtifact {
+  return { ...review, routingPlan: routingPlanFor(review) }
+}
+
+function evidenceForEvalRun(run: EvalRun) {
+  return {
+    id: `ev_${run.id}`,
+    type: 'OBSERVATION' as const,
+    title: `Evaluation run: ${run.name}`,
+    source: 'Lattice evaluation harness',
+    locator: `/v1/eval/runs/${run.id}`,
+    checksum: run.artifactDigest,
+    observedAt: run.completedAt ?? run.startedAt,
+    validFrom: run.startedAt,
+    status: run.summary.gateFailures > 0 ? 'CONFLICTING' as const : 'DIRECTLY_EVIDENCED' as const,
+  }
+}
+
+/** Resolves the artifact an attestation covers so verification recomputes a real digest. */
+async function resolveAttestationSubject(context: EvolutionContext, subjectKind: string, subjectId: string): Promise<unknown> {
+  const { registry, evolution, assuranceStore, reviewStore, executionStore } = context
+  const tenantId = context.identity?.tenantId
+  if (subjectKind === 'DISPOSITION') return evolution.disposition.get(subjectId)
+  if (subjectKind === 'EVAL_RUN') return evolution.evalRun.get(subjectId)
+  if (subjectKind === 'EMERGENCY_AUTHORIZATION') return evolution.emergency.get(subjectId)
+  if (subjectKind === 'ASSURANCE_RUN') return assuranceStore.get(subjectId, tenantId)
+  if (subjectKind === 'EXECUTION') {
+    const receipts = (await Promise.all(registry.list().map((entry) => executionStore.list(entry.contractId, tenantId)))).flat()
+    return receipts.find((receipt) => receipt.id === subjectId)
+  }
+  if (subjectKind === 'REVIEW_DECISION') {
+    const reviews = (await Promise.all(registry.list().map((entry) => reviewStore.list(entry.contractId, tenantId)))).flat()
+    return reviews.find((review) => review.decision?.id === subjectId)?.decision
+  }
+  return undefined
+}
+
+interface RecordDispositionInput {
+  result: CompileResponse
+  contract: ContextContract
+  question: string
+  mode: DispositionMode
+  purposeId: string | undefined
+  principalId: string
+  latencyMs: number
+  clarificationId?: string
+}
+
+/**
+ * Every compile persists — resolved, clarification, approval, abstention and denial alike.
+ * Without this the core output of the product does not survive a second keystroke (G1).
+ */
+async function recordDisposition(evolution: EvolutionStores, registry: ContractRegistry, { result, contract, question, mode, purposeId, principalId, latencyMs, clarificationId }: RecordDispositionInput): Promise<CompileResponse> {
+  const now = new Date()
+  const plan = result.plan ?? result.pendingPlan
+  const operationId = plan?.operation
+  const riskDerivation = deriveRiskTier(contract, purposeId ?? defaultPurposeId, operationId)
+  const compilation = buildCompilationRecord(contract, plan, riskDerivation.riskTier, now.toISOString())
+  const entry = registry.get(contract.id)
+  const record = buildDisposition({
+    contractId: contract.id,
+    contractVersion: contract.version,
+    ...(entry ? { workspaceId: workspaceIdFor(entry) } : {}),
+    mode,
+    authorizing: mode === 'AUTHORIZED',
+    question,
+    purposeId: riskDerivation.purposeId,
+    purposeLabel: purposesForDomain(contract.domain).find((purpose) => purpose.id === riskDerivation.purposeId)?.label ?? riskDerivation.purposeId,
+    riskTier: riskDerivation.riskTier,
+    riskDerivation,
+    decision: result.decision,
+    reasonCodes: result.reasonCodes,
+    explanation: result.explanation,
+    ...(operationId ? { operationId } : {}),
+    ...(result.plan && 'signature' in result.plan ? { planId: result.plan.planId } : {}),
+    ...(result.approval ? { approvalId: result.approval.id } : {}),
+    ...(clarificationId ?? result.clarification?.id ? { clarificationId: clarificationId ?? result.clarification!.id } : {}),
+    principalId,
+    principalChain: evolution.principal.chainFor(principalId),
+    compilation,
+    evidenceRefs: plan?.evidenceRefs ?? [],
+    latencyMs,
+    createdAt: now.toISOString(),
+    provenance: 'RE_EXECUTED',
+  })
+  const attestation = await evolution.attestation.mint({ subjectKind: 'DISPOSITION', subjectId: record.id, predicateType: predicateForSubject.DISPOSITION, subject: record, signerId: principalId, signerRoleAtSigning: evolution.principal.get(principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' })
+  const stored = await evolution.disposition.append({ ...record, attestationIds: [attestation.id] })
+  return {
+    ...result,
+    dispositionId: stored.id,
+    mode,
+    authorizing: mode === 'AUTHORIZED',
+    purposeId: riskDerivation.purposeId,
+    riskDerivation,
+    compilation,
+  }
 }
 
 async function prepareCompile(result: CompileResponse, contract: ContextContract, principal: RequestIdentity, runtimeApprovalStore: RuntimeApprovalStore): Promise<CompileResponse> {

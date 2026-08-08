@@ -1,4 +1,7 @@
 export * from './types.js'
+export * from './evolution.js'
+export * from './purposes.js'
+export * from './evalRubric.js'
 export * from './agentTools.js'
 export * from './classification.js'
 export * from './connectors.js'

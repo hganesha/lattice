@@ -142,8 +142,19 @@ export const counterpartyRiskContract: ContextContract = {
       expectedResultSchema: 'counterparty_exposure_assessment@1',
     },
   ],
+  /**
+   * Purposes this contract permits. The compiler denies any purpose a contract has not declared,
+   * so this list — not the global starter catalogue in `purposes.ts` — is what a caller may name.
+   * These entries adopt catalogue ids so a steward can reason about them across contracts.
+   */
+  purposes: [
+    { id: 'situational_awareness', label: 'Situational awareness', description: 'Read governed exposure context to understand the current state. No decision is taken from the answer.', audience: 'INTERNAL', reversibility: 'REVERSIBLE', baseRiskTier: 'INFORMATIONAL', retentionDays: 30 },
+    { id: 'internal_analysis', label: 'Internal analysis', description: 'Analyse governed exposure for an internal study, model input, or exploratory question.', audience: 'INTERNAL', reversibility: 'REVERSIBLE', baseRiskTier: 'ANALYTICAL', retentionDays: 90 },
+    { id: 'regulatory_reporting', label: 'Regulatory reporting', description: 'Produce a figure or narrative that will be filed with, or shown to, a regulator.', audience: 'REGULATOR', reversibility: 'PARTIALLY_REVERSIBLE', baseRiskTier: 'PLANNING_DECISION', obligations: ['Retain the disposition and its evidence for the filing period.'], jurisdictions: ['EU', 'US'], retentionDays: 2555 },
+    { id: 'risk_limit_decision', label: 'Risk or limit decision', description: 'Sets, breaches, or releases a risk limit, exposure cap, or concentration threshold.', audience: 'INTERNAL', reversibility: 'PARTIALLY_REVERSIBLE', baseRiskTier: 'PLANNING_DECISION', obligations: ['Record the limit decision against the counterparty.'], retentionDays: 1825 },
+  ],
   policies: [
-    { id: 'policy-planning-evidence', label: 'Planning decision evidence', description: 'Planning decisions require strong evidence and current source bindings.', riskTier: 'PLANNING_DECISION', minimumEvidenceStrength: 'STRONG', maximumEvidenceAgeMinutes: 1440, approvalRequired: false, version: '1.0.0', owner: 'Credit Risk Policy', approvalStatus: approved },
+    { id: 'policy-planning-evidence', label: 'Planning decision evidence', description: 'Planning decisions require strong evidence and current source bindings.', riskTier: 'PLANNING_DECISION', minimumEvidenceStrength: 'STRONG', maximumEvidenceAgeMinutes: 1440, approvalRequired: false, version: '1.0.0', owner: 'Credit Risk Policy', approvalStatus: approved, purposeRequired: false, permittedPurposeIds: ['situational_awareness', 'internal_analysis', 'regulatory_reporting', 'risk_limit_decision'] },
   ],
   tests: [
     { id: 'test-path-exposure', type: 'QUESTION', label: 'Exposure path returns portfolios, collateral, limits, and evidence.', status: 'PASS', lastRun: '2026-07-18T23:30:00.000Z', affectedClaimIds: ['trades_with', 'held_in', 'governed_by', 'secured_by', 'constrained_by'] },

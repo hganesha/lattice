@@ -1,13 +1,26 @@
-import { useState } from 'react'
-import { canLoadGridOutageExample, loadGridOutageExample, type CompileResponse, type ContextContract, type ReleaseRuntimeStatus } from '@lattice/contracts'
+import { useEffect, useState } from 'react'
+import { canLoadGridOutageExample, loadGridOutageExample, type CompileResponse, type ContextContract, type DeclaredPurpose, type DispositionMode, type ReleaseRuntimeStatus, type RiskTierDerivation } from '@lattice/contracts'
 import { API_URL, apiAuthHeaders } from './api'
 import { CompileResolution } from './CompileResolution'
 import { RuntimeGraph } from './RuntimeGraph'
 import { RuntimeInspector } from './RuntimeInspector'
+import { useResource } from './useResource'
 import { useMessages } from './i18n/messages'
+import { evidenceStrengthMessageKeys, purposeAudienceMessageKeys, reversibilityMessageKeys, riskTierMessageKeys, useDispositionMessages } from './i18n/messages.disposition'
+import { riskTone } from './formatters'
+import { routes, type SurfaceId } from './router'
 import { Toast } from './Toast'
-import { IconZap } from './icons'
+import { IconAlertTriangle, IconArrowUpRight, IconFlask, IconShieldCheck, IconZap } from './icons'
 import { PanelCollapseButton, usePersistentCollapsed } from './PanelCollapseButton'
+
+/**
+ * E3 + E4 — the compiler bar declares a purpose and picks a mode before it compiles.
+ *
+ * Purpose is *declared*, never inferred from the question text, and the risk tier it derives
+ * (purpose × contract × operation) is rendered with its evidence thresholds *before* compile so
+ * the gate is visible in advance. Dry run works against the unpublished draft and its result is
+ * banner-marked non-authorizing; only authorized mode keeps the published-release gate.
+ */
 
 interface RuntimeStudioProps {
   contract: ContextContract
@@ -16,19 +29,64 @@ interface RuntimeStudioProps {
   onDirtyChange: (dirty: boolean) => void
   onManageRelease: () => void
   onOpenAssurance: () => void
+  onNavigate: (surface: SurfaceId, detailId?: string) => void
+  onNavigatePath: (path: string) => void
 }
 
-export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange, onManageRelease, onOpenAssurance }: RuntimeStudioProps) {
+export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange, onManageRelease, onOpenAssurance, onNavigate, onNavigatePath }: RuntimeStudioProps) {
   const { t, formatDate } = useMessages()
-  const { collapsed: inspectorCollapsed, toggleCollapsed: toggleInspector } = usePersistentCollapsed('lattice:inspector-collapsed')
+  const { t: d } = useDispositionMessages()
   const [question, setQuestion] = useState(contract.competencyQuestions[0]?.question ?? t('runtimeDefaultQuestion', { workflow: contract.workflow.replaceAll('_', ' ') }))
+  const [purposeId, setPurposeId] = useState('')
+  const [mode, setMode] = useState<DispositionMode>('DRY_RUN')
+  const [derivation, setDerivation] = useState<RiskTierDerivation>()
+  const [derivationError, setDerivationError] = useState('')
+  const [deriving, setDeriving] = useState(false)
   const [result, setResult] = useState<CompileResponse>()
   const [selectedId, setSelectedId] = useState(contract.entities[0]?.id ?? '')
   const [loading, setLoading] = useState(false)
   const [apiError, setApiError] = useState('')
   const [view, setView] = useState<'MAP' | 'TABLE'>('MAP')
+  const { collapsed: inspectorCollapsed, toggleCollapsed: toggleInspector } = usePersistentCollapsed('lattice:inspector-collapsed')
+
+  const purposes = useResource<{ purposes: DeclaredPurpose[]; catalog: DeclaredPurpose[] }>(`/v1/purposes?domain=${encodeURIComponent(contract.domain)}&contractId=${encodeURIComponent(contract.id)}`)
+  // Only what this contract declares is offered: the compiler denies any other purpose, so listing
+  // the wider catalogue here would be offering choices guaranteed to be refused.
+  const declaredPurposes = purposes.data?.purposes ?? []
+  const purposeOptions = declaredPurposes
+  const purpose = purposeOptions.find((option) => option.id === purposeId)
   const selected = contract.entities.find((entity) => entity.id === selectedId)
-  const canCompile = !loading && contract.releaseStatus === 'PUBLISHED' && runtimeStatus === 'ACTIVE'
+  const authorizedAvailable = contract.releaseStatus === 'PUBLISHED' && runtimeStatus === 'ACTIVE'
+  // Purpose is required only where the contract declares purposes to choose from.
+  const purposeRequired = declaredPurposes.length > 0
+  const canCompile = !loading && (!purposeRequired || Boolean(purposeId)) && (mode === 'DRY_RUN' || authorizedAvailable)
+
+  useEffect(() => {
+    if (!purposeId) {
+      setDerivation(undefined)
+      setDerivationError('')
+      return
+    }
+    const controller = new AbortController()
+    setDeriving(true)
+    setDerivationError('')
+    fetch(`${API_URL}/v1/risk-tier`, { method: 'POST', headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ contractId: contract.id, purposeId }), signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json() as RiskTierDerivation & { error?: string; message?: string }
+        if (controller.signal.aborted) return
+        if (!response.ok) throw new Error(payload.message ?? payload.error ?? `API returned ${response.status}`)
+        setDerivation(payload)
+        setDeriving(false)
+      })
+      .catch((caught: unknown) => {
+        if (controller.signal.aborted) return
+        setDerivation(undefined)
+        setDerivationError(caught instanceof Error ? caught.message : t('runtimeApiUnavailable'))
+        setDeriving(false)
+      })
+    return () => controller.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contract.id, purposeId])
 
   function loadOperationalContext() {
     const next = loadGridOutageExample(contract)
@@ -40,13 +98,14 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
   }
 
   async function compile() {
+    if (!canCompile) return
     setLoading(true)
     setApiError('')
     try {
       const response = await fetch(`${API_URL}/v1/compile`, {
         method: 'POST',
         headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, contractId: contract.id }),
+        body: JSON.stringify({ question, contractId: contract.id, purposeId, mode }),
       })
       const payload = await response.json() as CompileResponse & { error?: string; message?: string }
       if (!response.ok && !payload.decision) throw new Error(payload.message ?? payload.error ?? `API returned ${response.status}`)
@@ -63,6 +122,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
 
   async function resolveClarification(candidateId: string) {
     if (!result?.clarification) return
+    // A clarification asks either which entity was meant or which operation to run.
     const clarificationKind = result.clarification.kind
     setLoading(true)
     try {
@@ -78,12 +138,52 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     }
   }
 
+  const compileLabel = loading ? d('compilerCompiling')
+    : purposeRequired && !purposeId ? d('compilerSelectPurposeFirst')
+    : mode === 'DRY_RUN' ? d('compilerCompileDryRun')
+    : runtimeStatus === 'SUSPENDED' ? d('compilerSuspended')
+    : d('compilerCompileAuthorized')
+
   return <section className="runtime-studio-page">
     <section className="compiler-bar">
       <div className="spark" aria-hidden="true"><IconZap /></div>
-      <div className="question-field"><label>{t('runtimeCompileQuestion')}</label><input aria-label={t('runtimeQuestionLabel')} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && canCompile) void compile() }} /></div>
-      <button className="compile-button" onClick={() => void compile()} disabled={!canCompile}>{loading ? t('runtimeCompiling') : runtimeStatus === 'SUSPENDED' ? t('runtimeSuspended') : contract.releaseStatus !== 'PUBLISHED' ? t('runtimePublishToCompile') : t('runtimeCompileContext')} <span className="kbd-hint">⌘↵</span></button>
+      <div className="question-field"><label htmlFor="compiler-question">{t('runtimeCompileQuestion')}</label><input id="compiler-question" aria-label={t('runtimeQuestionLabel')} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void compile() }} /></div>
+      <div className="purpose-field"><label htmlFor="compiler-purpose">{d('compilerPurpose')}</label><select id="compiler-purpose" value={purposeId} required={purposeRequired} aria-required={purposeRequired} onChange={(event) => setPurposeId(event.target.value)} disabled={purposes.status === 'LOADING' || !purposeRequired}><option value="">{purposes.status === 'LOADING' ? d('compilerPurposeLoading') : purposeRequired ? d('compilerPurposeRequired') : d('compilerPurposeNoneDeclared')}</option>{purposeOptions.map((option) => <option value={option.id} key={option.id}>{option.label}</option>)}</select></div>
+      <div className="mode-field" role="group" aria-label={d('compilerMode')}>
+        <button type="button" className={mode === 'DRY_RUN' ? 'selected' : ''} aria-pressed={mode === 'DRY_RUN'} onClick={() => setMode('DRY_RUN')}><IconFlask /> {d('compilerModeDryRun')}</button>
+        <button type="button" className={mode === 'AUTHORIZED' ? 'selected' : ''} aria-pressed={mode === 'AUTHORIZED'} disabled={!authorizedAvailable} title={authorizedAvailable ? d('compilerModeAuthorizedHint') : d('compilerModeAuthorizedBlocked')} onClick={() => setMode('AUTHORIZED')}><IconShieldCheck /> {d('compilerModeAuthorized')}</button>
+      </div>
+      <button className="compile-button" onClick={() => void compile()} disabled={!canCompile}>{compileLabel} <span className="kbd-hint">⌘↵</span></button>
     </section>
+
+    <div className="compiler-context">
+      <div className="compiler-declaration">
+        <p className="compiler-hint">{d('compilerPurposeDeclared')}</p>
+        {purposes.status === 'READY' && !purposeRequired && <p className="compiler-hint warn">{d('compilerPurposeNoneDeclaredHint')}</p>}
+        {purposes.status === 'ERROR' && <p className="compiler-hint warn">{d('compilerPurposeUnavailable', { detail: purposes.error })}</p>}
+        {purpose && (purpose.audience || purpose.reversibility) && <dl className="purpose-facts">{purpose.audience && <div><dt>{d('compilerPurposeAudience')}</dt><dd>{d(purposeAudienceMessageKeys[purpose.audience])}</dd></div>}{purpose.reversibility && <div><dt>{d('compilerPurposeReversibility')}</dt><dd>{d(reversibilityMessageKeys[purpose.reversibility])}</dd></div>}</dl>}
+        {purpose && <p className="compiler-hint">{purpose.description}</p>}
+        <p className="compiler-hint">{mode === 'DRY_RUN' ? d('compilerModeDryRunHint') : d('compilerModeAuthorizedHint')}</p>
+        {!authorizedAvailable && <p className="compiler-hint warn">{d('compilerModeAuthorizedBlocked')}</p>}
+      </div>
+
+      <div className="risk-preview" aria-live="polite">
+        <span className="panel-kicker">{d('compilerRiskKicker').toLocaleUpperCase()}</span>
+        {!purposeId && <p className="compiler-hint">{d('compilerPurposeRequired')}</p>}
+        {purposeId && deriving && <p className="compiler-hint">{d('compilerRiskDeriving')}</p>}
+        {purposeId && !deriving && derivationError && <p className="compiler-hint warn">{d('compilerRiskUnavailable', { detail: derivationError })}</p>}
+        {derivation && !deriving && <>
+          <div className="risk-headline"><span className={`risk-chip ${riskTone(derivation.riskTier)}`}>{d(riskTierMessageKeys[derivation.riskTier])}</span><p>{derivation.reason}</p></div>
+          <dl className="risk-thresholds">
+            <div><dt>{d('compilerRiskMinimumEvidence')}</dt><dd>{d(evidenceStrengthMessageKeys[derivation.minimumEvidenceStrength])}</dd></div>
+            <div><dt>{d('compilerRiskMaximumAge')}</dt><dd>{d('compilerRiskMinutes', { count: derivation.maximumEvidenceAgeMinutes })}</dd></div>
+            <div><dt>{d('compilerRiskApproval')}</dt><dd>{derivation.approvalRequired ? d('compilerRiskApprovalRequired') : d('compilerRiskApprovalNotRequired')}</dd></div>
+            {derivation.policyId && <div><dt>{d('compilerRiskPolicy')}</dt><dd><code>{derivation.policyId}</code></dd></div>}
+          </dl>
+          <small className="compiler-hint">{d('compilerRiskSource')}</small>
+        </>}
+      </div>
+    </div>
 
     {apiError && <Toast
       message={`${contract.entities.length > 0 ? t('runtimeDraftContext') : t('runtimeUnavailable')} ${apiError}`}
@@ -92,6 +192,12 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
       tone={contract.entities.length > 0 ? 'info' : 'error'}
       durationMs={7000}
     />}
+
+    {result && <div className={`compile-banner ${result.authorizing === false ? 'dry-run' : 'authorized'}`} role="status" aria-live="polite">
+      <span aria-hidden="true">{result.authorizing === false ? <IconFlask /> : <IconShieldCheck />}</span>
+      <div><b>{result.authorizing === false ? d('compilerDryRunTitle') : d('compilerAuthorizedTitle')}</b><p>{result.authorizing === false ? d('compilerDryRunBody') : d('compilerAuthorizedBody', { version: result.compilation?.contract.version ?? result.versions.contract })}</p></div>
+      <div className="compile-banner-actions">{result.dispositionId ? <button className="ghost" onClick={() => onNavigatePath(routes.disposition(result.dispositionId ?? ''))}><IconArrowUpRight /> {d('compilerOpenDisposition')}</button> : <span className="compiler-hint"><IconAlertTriangle /> {d('compilerNoDisposition')}</span>}<button className="ghost" onClick={() => onNavigate('dispositions')}>{d('compilerViewTrail')}</button></div>
+    </div>}
     {result && <CompileResolution result={result} onChoose={(id) => void resolveClarification(id)} />}
 
     <div className={`workbench runtime-workbench ${inspectorCollapsed ? 'inspector-collapsed' : ''}`}>
