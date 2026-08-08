@@ -1,0 +1,195 @@
+/* Design tokens — the only file permitted to carry raw colour values.
+ *
+ * Everything else in the studio references these. See sota-ux-plan.md §3.
+ */
+
+@layer tokens {
+
+  :root {
+    /* --- Type ramp -------------------------------------------------------
+     * Roles, not elements. A <p> of prose and a <code> digest are different
+     * roles and must be able to differ; that is what the old element-level
+     * blanket override made impossible.
+     *
+     * 12px is a hard floor for anything a user reads. `micro` exists only for
+     * badges, where the content is one or two words.
+     */
+    --text-micro: 11px;  /* badges only — never prose */
+    --text-meta: 12px;   /* labels, timestamps, identifiers (DM Mono) */
+    --text-support: 13px; /* supporting copy, table cells */
+    --text-body: 14px;
+    --text-subtitle: 16px;
+    --text-title: 20px;
+    --text-display: 30px;
+
+    --leading-tight: 1.3;
+    --leading-snug: 1.4;
+    --leading-body: 1.6;  /* raised from 1.45 — highest-yield readability win */
+
+    --font-sans: Inter, system-ui, sans-serif;
+    --font-display: Manrope, Inter, system-ui, sans-serif;
+    --font-mono: 'DM Mono', ui-monospace, monospace;
+
+    /* Prose measure. Beyond this, scan-back accuracy drops. */
+    --measure: 68ch;
+
+    /* Legacy aliases retained while surfaces migrate to the role names. */
+    --ui-body-size: var(--text-body);
+    --ui-font-min: var(--text-meta);
+    --ui-meta-size: var(--text-meta);
+    --text-xs: var(--text-meta);
+    --text-sm: var(--text-support);
+    --text-base: var(--text-body);
+    --text-lg: var(--text-subtitle);
+    --text-xl: var(--text-title);
+    --text-2xl: 27px;
+
+    /* --- Spacing — 4px grid ---------------------------------------------
+     * Proximity is what makes a dense screen readable. The steps are meant to
+     * be used for different *relationships*, not picked by eye:
+     *   1 label→value · 2 within a group · 3 list rows · 4 grid cards
+     *   6 sections · 7 major regions
+     */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+
+    /* Minimum height for anything clickable. */
+    --row-min: 44px;
+
+    --radius-sm: 5px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 999px;
+
+    /* Two shadows. No glows — selection is a border plus a soft fill, which
+     * reads more clearly and can actually pass a contrast check. */
+    --shadow-raised: 0 2px 8px color-mix(in srgb, #000 12%, transparent);
+    --shadow-overlay: 0 24px 64px color-mix(in srgb, #000 38%, transparent);
+
+    --motion-fast: 120ms;
+    --motion-base: 160ms;
+    --ease: cubic-bezier(.2, 0, .2, 1);
+
+    /* Z-index scale — replaces the 80/100/200/260/300/500 magic ladder. */
+    --z-base: 0;
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-overlay: 1000;
+    --z-modal: 1100;
+    --z-toast: 1200;
+  }
+
+  /* Compact density: less space, never smaller text. Type sizes deliberately
+   * hold — shrinking type to fit more rows is what produced the 6px problem. */
+  :root[data-density="compact"] {
+    --space-3: 8px;
+    --space-4: 12px;
+    --space-5: 16px;
+    --space-6: 24px;
+    --space-7: 32px;
+    --row-min: 36px;
+  }
+
+  :root[data-text-scale="large"] {
+    --text-meta: 13px;
+    --text-support: 14px;
+    --text-body: 15.5px;
+    --text-subtitle: 17px;
+    --text-title: 22px;
+    --text-display: 32px;
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --canvas: #0b0f12;
+    --sidebar: #0f1417;
+    --surface: #12181c;
+    --surface-raised: #182025;
+    --surface-soft: #1d272b;
+    --border: #344146;
+    --border-strong: #4b5b61;
+    --text: #f3f7f4;
+    --text-secondary: #aab6b1;
+    --text-muted: #86938e;
+
+    --accent: #8bd32f;
+    --accent-strong: #a3e04f;
+    --accent-soft: #223119;
+    --accent-contrast: #10170c;
+
+    --canvas-grid: #304039;
+
+    /* Semantic roles — decoupled from the brand lime so success ≠ brand ≠
+     * selection. One hue, one meaning. */
+    --success: #4ec06b;
+    --success-strong: #69d483;
+    --success-soft: #14251a;
+    --warning: #e2af64;
+    --warning-strong: #efc07a;
+    --warning-soft: #2a2113;
+    --danger: #ef8078;
+    --danger-strong: #f59a93;
+    --danger-soft: #2a1513;
+    --info: #61a7ff;
+    --info-soft: #14212f;
+    --selection: #70aef7;
+    --selection-soft: #16273a;
+    --governance: #b98fe4;
+    --governance-soft: #241d33;
+    --focus: #70aef7;
+  }
+
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --canvas: #f3f6f4;
+    --sidebar: #ffffff;
+    --surface: #ffffff;
+    --surface-raised: #f7faf8;
+    --surface-soft: #edf3ef;
+    --border: #cbd6d0;
+    --border-strong: #96a79f;
+    --text: #15201b;
+    --text-secondary: #415149;
+    --text-muted: #64746c;
+
+    --accent: #579b13;
+    --accent-strong: #3f7809;
+    --accent-soft: #e4f1d9;
+    --accent-contrast: #ffffff;
+
+    --canvas-grid: #cbd8d1;
+
+    --success: #2f8f4c;
+    --success-strong: #1f7138;
+    --success-soft: #dcefe0;
+    --warning: #a9741f;
+    --warning-strong: #8a5d15;
+    --warning-soft: #f6ecd7;
+    --danger: #b93631;
+    --danger-strong: #9a2723;
+    --danger-soft: #f6dedb;
+    --info: #2f6fd0;
+    --info-soft: #dde9fb;
+    --selection: #176fc1;
+    --selection-soft: #dbe9fb;
+    --governance: #7b4fc0;
+    --governance-soft: #ece2f8;
+    --focus: #176fc1;
+  }
+
+  /* Aliases for the auth surface, which was authored against token names that
+   * never existed (--bg, --line, --panel, --muted) and so rendered with
+   * undefined custom properties. */
+  :root {
+    --bg: var(--canvas);
+    --line: var(--border);
+    --panel: var(--surface);
+    --muted: var(--text-muted);
+  }
+
+}

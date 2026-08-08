@@ -342,7 +342,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
               proOptions={{ hideAttribution: true }}
             >
               <Background gap={18} size={1} color="#28302e" />
-              <MiniMap pannable zoomable nodeColor={(node) => node.className?.includes('draft') ? '#d9a04f' : '#8bd14e'} maskColor="#080b0dcc" />
+              <MiniMap pannable zoomable nodeColor={(node) => node.className?.includes('draft') ? '#d9a04f' : '#8bd14e'} />
               <Controls showInteractive={false} />
             </ReactFlow>
             {contract.entityTypes.length === 0 && <div className="empty-canvas"><span>◇</span><h3>{t('ontologyEmptyTitle')}</h3><p>{t('ontologyEmptyDescription')}</p><button className="release" onClick={() => setDialog('entity')}>{t('ontologyCreateFirstType')}</button></div>}

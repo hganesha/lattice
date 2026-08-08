@@ -62,9 +62,9 @@ export function AssuranceStudio({ contract, onChange, onDirtyChange }: Assurance
   }
 
   return <section className="assurance-studio-page">
-    <div className="assurance-hero">
+    <div className="surface-hero">
       <div><span className="panel-kicker">{t('assuranceKicker')}</span><h2>{t('assuranceTitle')}</h2><p>{t('assuranceDescription')}</p></div>
-      <div className="assurance-actions"><button className="release" onClick={() => void runSuite()} disabled={running}>{running ? t('assuranceRunning') : t('assuranceRunSuite')}</button></div>
+      <div className="surface-hero-actions"><button className="release" onClick={() => void runSuite()} disabled={running}>{running ? t('assuranceRunning') : t('assuranceRunSuite')}</button></div>
     </div>
     {notice && <Toast message={notice} closeLabel={t('commonClose')} onDismiss={() => setNotice('')} />}
 

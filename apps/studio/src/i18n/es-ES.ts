@@ -2,7 +2,7 @@ import type { MessageKey } from './messages'
 
 export const spanishMessages = {
   runtimeIntentCandidateMeta: '{risk} · puntuación {score}',
-  appearance: 'Apariencia', appearanceSettings: 'Configuración de apariencia', theme: 'Tema', themeAuto: 'Automático', themeLight: 'Claro', themeDark: 'Oscuro', textSize: 'Tamaño del texto', textDefault: 'Normal', textLarge: 'Grande', language: 'Idioma', languageEnglish: 'Inglés', languageSpanish: 'Español', languagePseudo: 'Seudolocalización', localizationReady: 'La preferencia de idioma se guarda en este navegador.',
+  appearance: 'Apariencia', appearanceSettings: 'Configuración de apariencia', theme: 'Tema', themeAuto: 'Automático', themeLight: 'Claro', themeDark: 'Oscuro', textSize: 'Tamaño del texto', textDefault: 'Normal', textLarge: 'Grande', density: 'Densidad', densityComfortable: 'Cómoda', densityCompact: 'Compacta', language: 'Idioma', languageEnglish: 'Inglés', languageSpanish: 'Español', languagePseudo: 'Seudolocalización', localizationReady: 'La preferencia de idioma se guarda en este navegador.',
   navIntegrations: 'Integraciones',
   integrationsLoading: 'Leyendo la configuración del despliegue…',
   integrationsForbidden: 'Se requiere acceso de operador',

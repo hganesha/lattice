@@ -40,7 +40,7 @@ export function RuntimeGraph({ contract, selectedId, onSelect }: RuntimeGraphPro
   return <div className="runtime-graph">
     <ReactFlow nodes={nodes} edges={edges} nodeTypes={runtimeNodeTypes} onNodeClick={(_event, node) => onSelect(node.id)} fitView fitViewOptions={{ padding: .3 }} minZoom={.35} maxZoom={1.7} nodesConnectable={false} elementsSelectable proOptions={{ hideAttribution: true }}>
       <Background gap={18} size={1} color="#28302e" />
-      <MiniMap pannable zoomable nodeColor={(node) => node.selected ? '#b7f44a' : '#41604b'} maskColor="#080b0dcc" />
+      <MiniMap pannable zoomable nodeColor={(node) => node.selected ? '#b7f44a' : '#41604b'} />
       <Controls showInteractive={false} />
     </ReactFlow>
   </div>
