@@ -215,7 +215,7 @@ export class SupabaseRegistryStorage implements RegistryStorage {
       headers: { ...this.headers, Prefer: 'count=exact' },
       signal: AbortSignal.timeout(5_000),
     })
-    if (!response.ok) throw new Error(`SUPABASE_REGISTRY_READ_FAILED:${table}:${response.status}`)
+    if (!response.ok) throw await supabaseFailure(`SUPABASE_REGISTRY_READ_FAILED:${table}`, response)
     const rows = await response.json() as T[]
 
     const total = totalFromContentRange(response.headers.get('content-range'))
@@ -286,7 +286,7 @@ export class SupabaseRegistryStorage implements RegistryStorage {
       body: JSON.stringify(row),
       signal: AbortSignal.timeout(10_000),
     })
-    if (!response.ok) throw new Error(`SUPABASE_REGISTRY_WRITE_FAILED:contracts:${response.status}`)
+    if (!response.ok) throw await supabaseFailure('SUPABASE_REGISTRY_WRITE_FAILED:contracts', response)
 
     const updated = await response.json() as unknown[]
     if (updated.length === 0) throw new ContractRegistryConflictError(row.id)
@@ -302,7 +302,7 @@ export class SupabaseRegistryStorage implements RegistryStorage {
       body: JSON.stringify(rows),
       signal: AbortSignal.timeout(10_000),
     })
-    if (!response.ok) throw new Error(`SUPABASE_REGISTRY_WRITE_FAILED:${table}:${response.status}`)
+    if (!response.ok) throw await supabaseFailure(`SUPABASE_REGISTRY_WRITE_FAILED:${table}`, response)
   }
 
   private tableUrl(table: string): URL {
@@ -428,4 +428,39 @@ export function totalFromContentRange(header: string | null): number | undefined
   if (!total || total === '*') return undefined
   const parsed = Number(total)
   return Number.isInteger(parsed) ? parsed : undefined
+}
+
+interface PostgrestError {
+  code?: string
+  message?: string
+  details?: string
+  hint?: string
+}
+
+/**
+ * Turns a failed PostgREST response into an error that says what went wrong.
+ *
+ * PostgREST answers every failure with a JSON body carrying `code`, `message`, `details` and
+ * `hint` — the SQLSTATE and the constraint or function name that rejected the call. Throwing only
+ * the HTTP status discards precisely the part that identifies the fix, so a missing migration, a
+ * denied role and a foreign key violation all surface as the same dead end.
+ *
+ * The body is read defensively: a proxy or a network error can answer with HTML, and a failure to
+ * parse the explanation must not replace the failure being explained.
+ */
+export async function supabaseFailure(code: string, response: Response): Promise<Error> {
+  let detail = ''
+  try {
+    const body = await response.text()
+    if (body) {
+      const parsed = JSON.parse(body) as PostgrestError
+      detail = [parsed.code, parsed.message, parsed.details, parsed.hint]
+        .filter((part): part is string => Boolean(part && part.trim()))
+        .join(' · ')
+        || body.slice(0, 300)
+    }
+  } catch {
+    // Non-JSON body, or the body was already consumed. The status still stands on its own.
+  }
+  return new Error(detail ? `${code}:${response.status}:${detail}` : `${code}:${response.status}`)
 }

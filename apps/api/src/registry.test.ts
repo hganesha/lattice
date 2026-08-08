@@ -346,3 +346,43 @@ test('blocks connector publication without a complete read-only resource and cre
     (error) => error instanceof ContractValidationError && error.issues.some((issue) => issue.includes('complete read-only resource scope')),
   )
 })
+
+test('ensurePersisted writes only the contract being governed and its workspace', async () => {
+  // Reproduces the assurance failure: on the Supabase path the registry opens without
+  // persisting, so a seeded reference contract is visible to the API while having no row.
+  // `governed_artifacts` has a foreign key on (organization_id, contract_id), so appending an
+  // assurance run for it failed on the key rather than on anything the user did.
+  const writes: RegistryDocument[] = []
+  const storage: RegistryStorage = {
+    read: async () => undefined,
+    write: async (document) => { writes.push(structuredClone(document)) },
+  }
+
+  const registry = await ContractRegistry.openStorage(storage, counterpartyRiskContract, { persistOnOpen: false })
+  assert.equal(writes.length, 0, 'opening must not write on the Supabase path')
+
+  const governed = airlineExampleContracts[0]!
+  await registry.ensurePersisted(governed.id)
+
+  assert.equal(writes.length, 1)
+  const written = writes[0]!
+  // Narrow on purpose: running assurance on one contract must not drag every other seeded
+  // contract into the tenant's database as a side effect.
+  assert.deepEqual(Object.keys(written.entries), [governed.id])
+  const workspaceIds = Object.keys(written.workspaces ?? {})
+  assert.equal(workspaceIds.length, 1)
+  assert.ok(written.workspaces![workspaceIds[0]!]!.contractIds.includes(governed.id))
+})
+
+test('ensurePersisted is a no-op for a contract the registry does not hold', async () => {
+  const writes: RegistryDocument[] = []
+  const storage: RegistryStorage = {
+    read: async () => undefined,
+    write: async (document) => { writes.push(structuredClone(document)) },
+  }
+  const registry = await ContractRegistry.openStorage(storage, counterpartyRiskContract, { persistOnOpen: false })
+
+  await registry.ensurePersisted('ctr_does_not_exist')
+
+  assert.equal(writes.length, 0)
+})
