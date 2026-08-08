@@ -14,18 +14,23 @@ interface EmptyStateProps {
   icon?: ReactNode
   actionLabel?: string
   onAction?: () => void
+  /** Keeps the action visible but inert. An empty state whose action is hidden
+   * when unavailable stops explaining what the surface is for — the user cannot
+   * tell the difference between "not yet" and "never". */
+  actionDisabled?: boolean
   secondaryLabel?: string
   onSecondary?: () => void
+  secondaryDisabled?: boolean
 }
 
-export function EmptyState({ title, description, icon, actionLabel, onAction, secondaryLabel, onSecondary }: EmptyStateProps) {
+export function EmptyState({ title, description, icon, actionLabel, onAction, actionDisabled, secondaryLabel, onSecondary, secondaryDisabled }: EmptyStateProps) {
   return <div className="surface-state empty">
     {icon && <span className="surface-state-icon" aria-hidden="true">{icon}</span>}
     <h3>{title}</h3>
     <p>{description}</p>
     {(actionLabel || secondaryLabel) && <div className="surface-state-actions">
-      {actionLabel && onAction && <button className="release" onClick={onAction}>{actionLabel}</button>}
-      {secondaryLabel && onSecondary && <button className="ghost" onClick={onSecondary}>{secondaryLabel}</button>}
+      {actionLabel && onAction && <button className="release" onClick={onAction} disabled={actionDisabled}>{actionLabel}</button>}
+      {secondaryLabel && onSecondary && <button className="ghost" onClick={onSecondary} disabled={secondaryDisabled}>{secondaryLabel}</button>}
     </div>}
   </div>
 }

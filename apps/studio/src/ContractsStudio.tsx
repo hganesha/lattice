@@ -31,7 +31,7 @@ export function ContractsStudio({ contracts, activeContractId, onSelect, onEdit,
         </div>
       </div>
     </div>
-    <div className="contracts-grid">{contracts.map((contract) => <button className={`contract-tile ${contract.contractId === activeContractId ? 'active' : ''}`} onClick={() => onSelect(contract.contractId)} key={contract.contractId}>
+    <div className="contracts-grid">{contracts.map((contract) => <button className={`surface-row interactive block contract-tile ${contract.contractId === activeContractId ? 'active' : ''}`} onClick={() => onSelect(contract.contractId)} key={contract.contractId}>
       <div><span className="contract-domain">{contract.domain.toLocaleUpperCase()}</span><span className={`runtime-state ${contract.runtimeStatus.toLocaleLowerCase()}`}><i />{contract.runtimeStatus.replaceAll('_', ' ')}</span></div>
       <h3>{contract.name}</h3><p>{contract.workflow}</p>
       <dl><div><dt>{t('contractsScope')}</dt><dd>{contract.conceptScopeCount}</dd></div><div><dt>{t('contractsOntology')}</dt><dd>v{contract.ontologyVersion}</dd></div><div><dt>{t('contractsReleases')}</dt><dd>{contract.releaseCount}</dd></div></dl>

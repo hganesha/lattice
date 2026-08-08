@@ -10,12 +10,9 @@
   .policy-profiles > header { min-height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border-bottom: 1px solid var(--border); }
   .policy-profiles > header h2 { margin-top: 5px; font: 600 13px Manrope; color: var(--text); }
   .policy-profiles > header > span { color: var(--text-muted); font: var(--text-meta) DM Mono; }
-  .policy-profile-list { padding: 11px 12px; }
-  .policy-empty { min-height: 370px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-  .policy-empty > span { display: grid; place-items: center; width: 48px; height: 48px; border: 1px dashed var(--governance); border-radius: 50%; color: var(--governance); font-size: 21px; }
-  .policy-empty h3 { margin-top: 11px; font: 600 12px Manrope; color: var(--text); }
-  .policy-empty p { margin: 6px 0 14px; color: var(--text-muted); font-size: var(--text-meta); }
-  .policy-card { display: grid; grid-template-columns: 42px minmax(0, 1fr) 180px 55px; align-items: center; gap: 12px; margin-bottom: 8px; padding: 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); }
+  .policy-profile-list { padding: 11px 12px; display: flex; flex-direction: column; gap: var(--space-2); }
+  /* Four columns, so not the shared lead grid — but the chrome still is. */
+  .policy-card { display: grid; grid-template-columns: 42px minmax(0, 1fr) 180px 55px; align-items: center; gap: var(--space-3); }
   .policy-tier-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 7px; color: var(--governance); background: var(--governance-soft); font: 600 var(--text-meta) DM Mono; }
   .policy-card-main > div { display: flex; align-items: center; gap: 7px; }
   .policy-card-main h3 { font: 600 var(--text-body) Manrope; color: var(--text); }

@@ -137,7 +137,7 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
     <div className="approval-layout">
       <section className="approval-queue panel">
         <div className="panel-header"><div><span className="panel-kicker">{t('approvalQueue').toLocaleUpperCase()}</span><h2>{t('approvalRuntimeIntents')}</h2></div><button className="ghost" onClick={() => void refresh()}>{t('commonRefresh')}</button></div>
-        {approvals.length === 0 ? <div className="runtime-empty compact"><span>◴</span><h3>{t('approvalEmptyTitle')}</h3><p>{t('approvalEmptyDescription')}</p></div> : approvals.map((approval) => <article className="runtime-approval-card" key={approval.id}>
+        {approvals.length === 0 ? <div className="runtime-empty compact"><span>◴</span><h3>{t('approvalEmptyTitle')}</h3><p>{t('approvalEmptyDescription')}</p></div> : approvals.map((approval) => <article className="surface-row runtime-approval-card" key={approval.id}>
           <div className="approval-card-heading"><div><span>{approval.riskTier.replaceAll('_', ' ')}</span><h3>{approval.operationId}</h3></div><span className={`runtime-status-pill ${approval.status.toLocaleLowerCase()}`}>{approval.status}</span></div>
           <p>{approval.id}</p>
           <div className="approval-facts"><span><b>{t('approvalRequester')}</b>{approval.requestedBy}</span><span><b>{t('approvalRelease')}</b>v{approval.contractVersion}</span><span><b>{t('approvalPermissions')}</b>{approval.pendingPlan.requiredPermissions.join(', ')}</span></div>
