@@ -1,4 +1,7 @@
 export * from './types.js'
+export * from './evolution.js'
+export * from './purposes.js'
+export * from './evalRubric.js'
 export * from './connectors.js'
 export * from './counterpartyContract.js'
 export * from './gridOutageExample.js'

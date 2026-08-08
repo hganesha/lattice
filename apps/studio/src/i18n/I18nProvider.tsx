@@ -2,6 +2,17 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { IntlProvider } from 'react-intl'
 import { spanishMessages } from './es-ES'
 import { messages } from './messages'
+import { dispositionMessages } from './messages.disposition'
+import { evaluationMessages } from './messages.evaluation'
+import { governanceMessages } from './messages.governance'
+import { identityMessages } from './messages.identity'
+
+/**
+ * Every catalogue in the app. The per-surface catalogues keep their own hooks so a surface
+ * never widens the shell's `MessageKey`, but the pseudo locale has to cover all of them or
+ * the new surfaces silently fall back to English under `en-XA`.
+ */
+const catalogues = [messages, dispositionMessages, evaluationMessages, governanceMessages, identityMessages]
 
 export type AppLocale = 'en-US' | 'es-ES' | 'en-XA'
 
@@ -23,7 +34,7 @@ function detectLocale(): AppLocale {
 }
 
 function pseudoMessages(): Record<string, string> {
-  return Object.fromEntries(Object.values(messages).map((message) => [message.id, `［!! ${message.defaultMessage ?? message.id} !!］`]))
+  return Object.fromEntries(catalogues.flatMap((catalogue) => Object.values(catalogue).map((message) => [message.id, `［!! ${message.defaultMessage ?? message.id} !!］`])))
 }
 
 export function LatticeI18nProvider({ children }: { children: ReactNode }) {

@@ -1,3 +1,13 @@
+import type {
+  BlastRadius,
+  CompilationRecord,
+  DispositionMode,
+  FourAxisState,
+  ReviewRoutingPlan,
+  RiskTierDerivation,
+  StructuredRejection,
+} from './evolution.js'
+
 export type EvidenceStatus =
   | 'DECLARED'
   | 'DIRECTLY_EVIDENCED'
@@ -197,6 +207,10 @@ export interface SourceBinding {
   healthStatus?: 'NOT_TESTED' | 'VALID' | 'WARNING' | 'INVALID'
   executionMode?: 'SIMULATED' | 'HTTP' | 'CONNECTOR'
   samplePayload?: Record<string, unknown>
+  /** Four orthogonal axes (E11). Derived when absent; persisted once a steward sets it. */
+  state?: Partial<FourAxisState>
+  /** Certification claim used by the eligibility matrix and by certification-loss drift. */
+  certification?: { authority: string; level: string; certifiedAt: string; expiresAt?: string }
 }
 
 export interface ConnectorValidationRequest {
@@ -302,12 +316,16 @@ export interface ReviewDecisionArtifact {
   decidedAt: string
   decidedBy: string
   artifactDigest: string
+  /** Typed capture recorded alongside a rejection (E13). */
+  structuredRejection?: StructuredRejection
+  negativeDecisionId?: string
 }
 
 export interface ReviewRequestArtifact {
   id: string
   contractId: string
   contractVersion: string
+  workspaceId?: string
   targetKind: ReviewTargetKind
   targetId: string
   targetLabel: string
@@ -318,6 +336,10 @@ export interface ReviewRequestArtifact {
   evidenceRefs: string[]
   artifactDigest: string
   decision?: ReviewDecisionArtifact
+  /** Approval routing: parallel vs sequential, quorum, delegation, SLA (E12). */
+  routingPlan?: ReviewRoutingPlan
+  /** What depends on this target and what breaks if it changes (E17). */
+  blastRadius?: BlastRadius
 }
 
 export interface CreateReviewRequest {
@@ -487,6 +509,10 @@ export interface ContextContract {
   policies: GuardrailPolicy[]
   tests: ContextTest[]
   schemaLayout?: Record<string, { x: number; y: number }>
+  /** Four orthogonal axes (E11). Derived when absent. */
+  state?: Partial<FourAxisState>
+  /** Declarable purposes for this contract; falls back to the domain slice of the global taxonomy. */
+  purposeIds?: string[]
 }
 
 export interface ContractRelease {
@@ -601,6 +627,10 @@ export interface CompileRequest {
   contractId?: string
   contractVersion?: string
   purpose?: string
+  /** Declared purpose from the closed taxonomy (E4). Risk tier is derived from it, never from the question. */
+  purposeId?: string
+  /** DRY_RUN compiles against the draft and returns a non-authorizing disposition (E3). */
+  mode?: DispositionMode
   asOf?: string
   selections?: Record<string, string>
 }
@@ -655,6 +685,14 @@ export interface CompileResponse {
   plan?: SignedExecutionPlan | UnsignedExecutionPlan
   pendingPlan?: UnsignedExecutionPlan
   approval?: RuntimeApprovalArtifact
+  /** Identifier of the persisted disposition this compile produced (E5). */
+  dispositionId?: string
+  mode?: DispositionMode
+  /** False for a dry-run: the result explains, it does not authorize. */
+  authorizing?: boolean
+  purposeId?: string
+  riskDerivation?: RiskTierDerivation
+  compilation?: CompilationRecord
 }
 
 export type RuntimeApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'RESUMED' | 'EXPIRED'

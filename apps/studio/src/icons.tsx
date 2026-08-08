@@ -180,3 +180,113 @@ export const IconMoon = (p: IconProps) => (
     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9" />
   </Icon>
 )
+
+export const IconActivity = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />
+  </Icon>
+)
+
+export const IconHistory = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M12 7v5l4 2" />
+  </Icon>
+)
+
+export const IconFlask = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M10 2v7.31" />
+    <path d="M14 9.3V1.99" />
+    <path d="M8.5 2h7" />
+    <path d="M14 9.3a6.5 6.5 0 1 1-4 0" />
+    <path d="M5.58 16.5h12.85" />
+  </Icon>
+)
+
+export const IconTarget = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="6" />
+    <circle cx="12" cy="12" r="2" />
+  </Icon>
+)
+
+export const IconGitCompare = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="18" cy="18" r="3" />
+    <circle cx="6" cy="6" r="3" />
+    <path d="M13 6h3a2 2 0 0 1 2 2v7" />
+    <path d="M11 18H8a2 2 0 0 1-2-2V9" />
+  </Icon>
+)
+
+export const IconAlertTriangle = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+    <path d="M12 9v4" />
+    <path d="M12 17h.01" />
+  </Icon>
+)
+
+export const IconUsers = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </Icon>
+)
+
+export const IconSiren = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7 18v-6a5 5 0 1 1 10 0v6" />
+    <path d="M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z" />
+    <path d="M21 12h1" />
+    <path d="M18.5 4.5 18 5" />
+    <path d="M2 12h1" />
+    <path d="M12 2v1" />
+    <path d="m4.929 4.929.707.707" />
+  </Icon>
+)
+
+export const IconBan = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="m4.9 4.9 14.2 14.2" />
+  </Icon>
+)
+
+export const IconSearch = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
+  </Icon>
+)
+
+export const IconRadar = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M19.07 4.93A10 10 0 0 0 6.99 3.34" />
+    <path d="M4 6h.01" />
+    <path d="M2.29 9.62A10 10 0 1 0 21.31 8.35" />
+    <path d="M16.24 7.76A6 6 0 1 0 8.23 16.67" />
+    <path d="M12 18h.01" />
+    <path d="M17.99 11.66A6 6 0 0 1 15.77 16.67" />
+    <circle cx="12" cy="12" r="2" />
+    <path d="m13.41 10.59 5.66-5.66" />
+  </Icon>
+)
+
+export const IconCheck = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M20 6 9 17l-5-5" />
+  </Icon>
+)
+
+export const IconX = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </Icon>
+)
