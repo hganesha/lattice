@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Never let a workflow fall back to the development identity mapper.
+  LATTICE_DEV_AUTH: 'false'
+
+jobs:
+  build:
+    name: Build, typecheck, and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      - name: Verify the source message catalog is current
+        run: pnpm --filter @lattice/studio i18n:check
+
+      - name: Fail if extraction changed tracked files
+        run: git diff --exit-code
+
+  e2e:
+    name: Browser and accessibility tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @lattice/studio exec playwright install --with-deps chromium
+
+      # Snapshot baselines under apps/studio/e2e/__screenshots__ are rasterized on macOS and
+      # cannot match a Linux runner, so CI asserts behaviour and accessibility only. Refresh
+      # the baselines with `pnpm --filter @lattice/studio test:e2e:update` when the UI changes.
+      - name: Build core packages and the API for the browser suite
+        run: pnpm build:core && pnpm --filter @lattice/api build
+
+      - name: Run behaviour and accessibility tests
+        run: pnpm --filter @lattice/studio exec playwright test --ignore-snapshots
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/studio/playwright-report
+          retention-days: 7
+
+  database:
+    name: Supabase migrations and security advisors
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Start the local stack
+        run: pnpm supabase:start
+
+      - name: Apply migrations from scratch
+        run: pnpm supabase:reset
+
+      - name: Run pgTAP database tests
+        run: pnpm supabase:test
+
+      - name: Fail on security advisories
+        run: supabase db advisors --local --type security

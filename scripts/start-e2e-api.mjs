@@ -9,4 +9,5 @@ await mkdir(dataDirectory, { recursive: true })
 process.env.PORT = '8797'
 process.env.LATTICE_DATA_DIR = dataDirectory
 process.env.LATTICE_STUDIO_ORIGIN = 'http://127.0.0.1:5183'
+process.env.LATTICE_DEV_AUTH = 'true'
 await import('../apps/api/dist/server.js')

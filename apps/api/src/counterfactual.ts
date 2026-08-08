@@ -16,6 +16,8 @@ export interface ReplayInput {
   dispositions: DispositionRecord[]
   /** The contract as it stands after the drift. */
   contract: ContextContract
+  /** Tenant the replay runs within, mirroring the original compile. */
+  tenantId?: string
   now?: Date
 }
 
@@ -38,7 +40,12 @@ export function replayDrift(input: ReplayInput): CounterfactualResult {
       now: () => asOf,
       id: () => `${input.event.id}_${record.id}_${sequence++}`,
     })
-    const replayed = compiler.compile({ question: record.question, contractId: input.contract.id, purposeId: record.purposeId, asOf: record.createdAt })
+    // Replayed as the principal the original decision was issued to, so the reconstruction is
+    // subject to the same plan-subject rule the original compile was.
+    const replayed = compiler.compile(
+      { question: record.question, contractId: input.contract.id, purposeId: record.purposeId, asOf: record.createdAt },
+      { principalId: record.principalId, ...(input.tenantId ? { tenantId: input.tenantId } : {}) },
+    )
     if (replayed.decision === record.decision) continue
     changes.push({
       dispositionId: record.id,

@@ -1,0 +1,29 @@
+{
+  "document_type": "aircraft_maintenance_log",
+  "vertical": "airline",
+  "family": "airline_airworthiness",
+  "schema_version": "airline_aircraft_maintenance_log_v1",
+  "fields": [
+    { "name": "air_carrier_name", "type": "string", "required": true, "description": "Certificate holder primarily responsible for aircraft airworthiness." },
+    { "name": "aircraft_tail_number", "type": "string", "required": true, "description": "Aircraft registration or tail number." },
+    { "name": "aircraft_type", "type": "string", "required": true, "description": "Aircraft model or fleet type." },
+    { "name": "airframe_total_hours", "type": "number", "required": true, "description": "Airframe time in service at the recorded event." },
+    { "name": "engine_cycles", "type": "integer", "required": false, "description": "Relevant engine or component cycles." },
+    { "name": "maintenance_record_number", "type": "string", "required": true, "description": "Unique maintenance-record or work-order identifier." },
+    { "name": "maintenance_station", "type": "string", "required": true, "description": "Station or facility where maintenance was performed." },
+    { "name": "maintenance_program_reference", "type": "string", "required": true, "description": "Approved carrier maintenance-program or manual reference." },
+    { "name": "discrepancy_description", "type": "string", "required": true, "description": "Reported defect, discrepancy, or inspection finding." },
+    { "name": "defect_code", "type": "string", "required": false, "description": "Carrier or industry defect classification." },
+    { "name": "mel_item_number", "type": "string", "required": false, "description": "Minimum Equipment List item supporting a permitted deferral." },
+    { "name": "mel_category", "type": "string", "required": false, "description": "Applicable MEL repair category." },
+    { "name": "mel_expiration_at", "type": "string", "required": false, "description": "Repair interval deadline for the deferred item." },
+    { "name": "corrective_action", "type": "string", "required": true, "description": "Maintenance or preventive-maintenance action taken." },
+    { "name": "inspection_required", "type": "boolean", "required": true, "description": "Whether an independent or required inspection applies." },
+    { "name": "inspection_completed_by", "type": "string", "required": false, "description": "Authorized inspector who completed the required inspection." },
+    { "name": "service_difficulty_reportable", "type": "boolean", "required": true, "description": "Whether the detected condition meets service-difficulty reporting criteria." },
+    { "name": "service_difficulty_category", "type": "string", "required": false, "description": "Failure, malfunction, or defect category under 14 CFR 121.703." },
+    { "name": "maintenance_completed_at", "type": "string", "required": true, "description": "Timestamp when the recorded work was completed." },
+    { "name": "regulation_citations", "type": "string", "required": true, "description": "Applicable Part 121 maintenance, recordkeeping, reporting, and return-to-service citations." },
+    { "name": "compliance_status", "type": "string", "required": true, "description": "Maintenance control status with unresolved discrepancies identified." }
+  ]
+}

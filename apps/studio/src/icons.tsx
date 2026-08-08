@@ -142,9 +142,96 @@ export const IconZap = (p: IconProps) => (
   </Icon>
 )
 
+export const IconLandmark = (p: IconProps) => (
+  <Icon {...p}>
+    <line x1="3" x2="21" y1="22" y2="22" />
+    <line x1="6" x2="6" y1="18" y2="11" />
+    <line x1="10" x2="10" y1="18" y2="11" />
+    <line x1="14" x2="14" y1="18" y2="11" />
+    <line x1="18" x2="18" y1="18" y2="11" />
+    <polygon points="12 2 20 7 4 7" />
+  </Icon>
+)
+
+export const IconHeartPulse = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z" />
+    <path d="M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27" />
+  </Icon>
+)
+
+export const IconPill = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m10.5 20.5-7-7a4.95 4.95 0 0 1 7-7l7 7a4.95 4.95 0 0 1-7 7Z" />
+    <path d="m8.5 8.5 7 7" />
+  </Icon>
+)
+
+export const IconUmbrella = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M22 12a10.06 10.06 0 0 0-20 0Z" />
+    <path d="M12 12v6a2 2 0 0 0 4 0" />
+    <path d="M12 2v1" />
+  </Icon>
+)
+
+export const IconPlane = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M17.8 19 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 5 6 3 8l6.5 3.5L6 15H3l-1 1 4 2 2 4 1-1v-3l3.5-3.5L16 21Z" />
+  </Icon>
+)
+
+export const IconRadioTower = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4.9 19.1a10 10 0 0 1 0-14.2" />
+    <path d="M7.8 16.2a6 6 0 0 1 0-8.4" />
+    <circle cx="12" cy="12" r="2" />
+    <path d="M16.2 7.8a6 6 0 0 1 0 8.4" />
+    <path d="M19.1 4.9a10 10 0 0 1 0 14.2" />
+    <path d="m12 14 3 8H9l3-8Z" />
+  </Icon>
+)
+
+export const IconFactory = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 16h.01" />
+    <path d="M16 16h.01" />
+    <path d="M3 21h18" />
+    <path d="M5 21V10l5 3V10l5 3V7l4 2v12" />
+  </Icon>
+)
+
+export const IconBuilding = (p: IconProps) => (
+  <Icon {...p}>
+    <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
+    <path d="M9 22v-4h6v4" />
+    <path d="M8 6h.01" />
+    <path d="M16 6h.01" />
+    <path d="M12 6h.01" />
+    <path d="M12 10h.01" />
+    <path d="M12 14h.01" />
+    <path d="M16 10h.01" />
+    <path d="M16 14h.01" />
+    <path d="M8 10h.01" />
+    <path d="M8 14h.01" />
+  </Icon>
+)
+
 export const IconChevronDown = (p: IconProps) => (
   <Icon {...p}>
     <path d="m6 9 6 6 6-6" />
+  </Icon>
+)
+
+export const IconChevronLeft = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m15 18-6-6 6-6" />
+  </Icon>
+)
+
+export const IconChevronRight = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m9 18 6-6-6-6" />
   </Icon>
 )
 
@@ -158,6 +245,34 @@ export const IconArrowUpRight = (p: IconProps) => (
 export const IconLoader = (p: IconProps) => (
   <Icon {...p} className={['lattice-spin', p.className].filter(Boolean).join(' ')}>
     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+  </Icon>
+)
+
+export const IconRows = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M3 9h18" />
+    <path d="M3 15h18" />
+  </Icon>
+)
+
+export const IconIsometric = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m12 2 9 5-9 5-9-5 9-5Z" />
+    <path d="m3 7 9 5 9-5" />
+    <path d="M3 7v10l9 5 9-5V7" />
+    <path d="M12 12v10" />
+  </Icon>
+)
+
+export const IconAutoLayout = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m15 4 5 5L7 22l-5-5L15 4Z" />
+    <path d="m6 15 3 3" />
+    <path d="M19 2v4" />
+    <path d="M17 4h4" />
+    <path d="M5 2v2" />
+    <path d="M4 3h2" />
   </Icon>
 )
 

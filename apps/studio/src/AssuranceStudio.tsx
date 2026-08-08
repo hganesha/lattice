@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { AssuranceCheckCategory, AssuranceRun, ContextContract, ContextTest, EvidenceRecord } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { useMessages } from './i18n/messages'
 import { Toast } from './Toast'
 
@@ -20,7 +20,7 @@ export function AssuranceStudio({ contract, onChange, onDirtyChange }: Assurance
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetch(`${API_URL}/v1/assurance/runs?contractId=${encodeURIComponent(contract.id)}`, { headers: { Authorization: 'Bearer studio-demo' }, signal: controller.signal })
+    void fetch(`${API_URL}/v1/assurance/runs?contractId=${encodeURIComponent(contract.id)}`, { headers: apiAuthHeaders(), signal: controller.signal })
       .then((response) => response.ok ? response.json() as Promise<AssuranceRun[]> : [])
       .then((history) => { setRuns(history); setSelectedRunId(history[0]?.id ?? '') })
       .catch(() => undefined)
@@ -43,7 +43,7 @@ export function AssuranceStudio({ contract, onChange, onDirtyChange }: Assurance
     try {
       const response = await fetch(`${API_URL}/v1/assurance/runs`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ contractId: contract.id, contract }),
       })
       const payload = await response.json() as AssuranceRun & { error?: string }

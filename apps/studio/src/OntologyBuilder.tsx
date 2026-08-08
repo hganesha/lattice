@@ -19,18 +19,25 @@ import type {
   PropertyDefinition,
   RelationshipTypeDefinition,
 } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { ImportStudio } from './ImportStudio'
 import { useMessages } from './i18n/messages'
 import { OntologyLaneNode, type OntologyLaneNodeType } from './OntologyLaneNode'
-import { buildOntologyLaneLayout } from './ontologyLaneLayout'
+import { OntologyEntityNode } from './OntologyEntityNode'
+import { buildOntologyIsometricLayout, buildOntologyLaneLayout } from './ontologyLaneLayout'
+import { colorFrom, domainGroupPalette } from './domainGroupColors'
 import { Toast } from './Toast'
 import { DomainGroupField } from './DomainGroupField'
-import { downloadJson } from './jsonExport'
+import { EntityIconPicker } from './EntityIconPicker'
+import { EntityIcon, DEFAULT_ENTITY_ICON } from './entityIcons'
+import { downloadJson, downloadOntology } from './jsonExport'
+import { IconAutoLayout, IconDownload, IconIsometric, IconLink, IconPlus, IconRows } from './icons'
+import { PanelCollapseButton, usePersistentCollapsed } from './PanelCollapseButton'
 
-const ontologyNodeTypes = { ontologyLane: OntologyLaneNode }
+const ontologyNodeTypes = { ontologyLane: OntologyLaneNode, ontologyEntity: OntologyEntityNode }
 
 type BuilderDialog = 'entity' | 'relationship' | 'property' | 'publish' | null
+type OntologyLayoutMode = 'lanes' | 'isometric'
 
 interface OntologyBuilderProps {
   contract: ContextContract
@@ -42,6 +49,7 @@ interface OntologyBuilderProps {
 
 export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'contract', exportDocument = contract }: OntologyBuilderProps) {
   const { t, formatDate } = useMessages()
+  const { collapsed: inspectorCollapsed, toggleCollapsed: toggleInspector } = usePersistentCollapsed('lattice:inspector-collapsed')
   const [selectedTypeId, setSelectedTypeId] = useState(contract.entityTypes[0]?.id ?? '')
   const [dialog, setDialog] = useState<BuilderDialog>(null)
   const [notice, setNotice] = useState('')
@@ -50,6 +58,8 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   const [saving, setSaving] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [inspectorTab, setInspectorTab] = useState<'DEFINITION' | 'RELATIONSHIPS'>('DEFINITION')
+  const [highlightedRelationshipId, setHighlightedRelationshipId] = useState('')
+  const [layoutMode, setLayoutMode] = useState<OntologyLayoutMode>('lanes')
   const [autoLayoutEnabled, setAutoLayoutEnabled] = useState(true)
   const [manualLayout, setManualLayout] = useState<NonNullable<ContextContract['schemaLayout']>>(contract.schemaLayout ?? {})
 
@@ -58,18 +68,22 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     relationship.sourceTypeId === selectedTypeId || relationship.targetTypeId === selectedTypeId,
   ), [contract.relationshipTypes, selectedTypeId])
   const issues = useMemo(() => validateContract(contract, mode === 'workspace'), [contract, mode])
-  const domainGroupLabel = t('ontologyDomainGroup')
+  const propsLabel = t('ontologyProperties').toLocaleLowerCase()
   const domainGroups = useMemo(() => uniqueDomainGroups(contract.entityTypes), [contract.entityTypes])
   const laneLayout = useMemo(() => buildOntologyLaneLayout(contract.entityTypes), [contract.entityTypes])
-  const resolvedPositions = useMemo(() => autoLayoutEnabled
+  const isometricLayout = useMemo(() => buildOntologyIsometricLayout(contract.entityTypes), [contract.entityTypes])
+  const displayLayout = layoutMode === 'isometric' ? isometricLayout : laneLayout
+  const lanePositions = useMemo(() => autoLayoutEnabled
     ? laneLayout.positions
     : { ...laneLayout.positions, ...manualLayout }, [autoLayoutEnabled, laneLayout.positions, manualLayout])
+  const resolvedPositions = layoutMode === 'isometric' ? isometricLayout.positions : lanePositions
+  const groupPalette = useMemo(() => domainGroupPalette(displayLayout.lanes.map((lane) => lane.label)), [displayLayout.lanes])
   const derivedNodes = useMemo<Node[]>(() => [
-    ...laneLayout.lanes.map((lane): OntologyLaneNodeType => ({
+    ...displayLayout.lanes.map((lane): OntologyLaneNodeType => ({
       id: `__lane_${lane.id}`,
       type: 'ontologyLane',
       position: lane.position,
-      data: { label: lane.label, count: lane.entityTypeIds.length, kindLabel: domainGroupLabel },
+      data: { label: lane.label, count: lane.entityTypeIds.length, ...colorFrom(groupPalette, lane.label) },
       style: { width: lane.width, height: lane.height },
       className: 'ontology-lane-node',
       draggable: false,
@@ -80,33 +94,37 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     })),
     ...contract.entityTypes.map((type) => ({
       id: type.id,
+      type: 'ontologyEntity',
       position: resolvedPositions[type.id]!,
-      data: { label: `${type.icon}  ${type.label}  ·  ${type.properties.length} props` },
+      data: { icon: type.icon, label: type.label, propertyCount: type.properties.length, propsLabel: propsLabel, ...colorFrom(groupPalette, type.group) },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       className: `ontology-flow-node ${type.approvalStatus === 'APPROVED' ? 'approved' : 'draft'} ${selectedTypeId === type.id ? 'selected' : ''}`,
       zIndex: 2,
     })),
-  ], [contract.entityTypes, domainGroupLabel, laneLayout.lanes, resolvedPositions, selectedTypeId])
+  ], [contract.entityTypes, displayLayout.lanes, groupPalette, propsLabel, resolvedPositions, selectedTypeId])
   const [graphNodes, setGraphNodes, onNodesChange] = useNodesState(derivedNodes)
   const graphEdges = useMemo<Edge[]>(() => contract.relationshipTypes.map((relationship) => ({
     id: relationship.id,
     source: relationship.sourceTypeId,
     target: relationship.targetTypeId,
     label: relationship.label,
-    type: 'smoothstep',
-    pathOptions: { offset: 44, borderRadius: 8 },
+    type: layoutMode === 'isometric' ? 'straight' : 'smoothstep',
+    ...(layoutMode === 'lanes' ? { pathOptions: { offset: 44, borderRadius: 8 } } : {}),
     labelShowBg: true,
     labelBgPadding: [6, 4],
     labelBgBorderRadius: 4,
-    className: 'ontology-flow-edge',
-  })), [contract.relationshipTypes])
+    // Highlighting one edge is only useful if the others recede; in a graph this dense an
+    // emphasised edge is still lost among sixty siblings.
+    className: `ontology-flow-edge${highlightedRelationshipId ? relationship.id === highlightedRelationshipId ? ' highlighted' : ' muted' : ''}`,
+    ...(relationship.id === highlightedRelationshipId ? { animated: true, zIndex: 10 } : {}),
+  })), [contract.relationshipTypes, layoutMode, highlightedRelationshipId])
 
   useEffect(() => {
     if (mode === 'workspace') return
     const controller = new AbortController()
     setReleases([])
-    void fetch(`${API_URL}/v1/contracts/${contract.id}`, { signal: controller.signal })
+    void fetch(`${API_URL}/v1/contracts/${contract.id}`, { headers: apiAuthHeaders(), signal: controller.signal })
       .then((response) => response.ok ? response.json() as Promise<ContractRegistryEntry> : undefined)
       .then((entry) => { if (entry) setReleases(entry.releases) })
       .catch(() => undefined)
@@ -144,7 +162,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
       label,
       description: String(data.get('description') ?? '').trim(),
       group: String(data.get('group') ?? 'Core').trim() || 'Core',
-      icon: String(data.get('icon') ?? label.slice(0, 2)).trim().slice(0, 2).toUpperCase() || 'EN',
+      icon: String(data.get('icon') ?? '').trim() || DEFAULT_ENTITY_ICON,
       properties: [],
       evidenceStatus: 'DECLARED',
       approvalStatus: 'DRAFT',
@@ -219,7 +237,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     try {
       const response = await fetch(`${API_URL}/v1/contracts/${contract.id}/releases`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contract,
           bump: String(data.get('bump')),
@@ -248,6 +266,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   }
 
   function toggleAutoLayout() {
+    if (layoutMode === 'isometric') return
     if (autoLayoutEnabled) {
       const positions = Object.fromEntries(graphNodes
         .filter((node) => !node.id.startsWith('__lane_'))
@@ -269,32 +288,43 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     commit({ ...contract, schemaLayout })
   }
 
-  function exportContract() {
-    downloadJson(exportDocument)
-    setNotice(t('ontologyExportNotice'))
+  function exportArtifact(format: 'JSON' | 'RDF_XML' | 'TURTLE') {
+    if (format === 'JSON') downloadJson(exportDocument)
+    else downloadOntology(exportDocument, format)
+    setNotice(t('ontologyExportContextNotice', {
+      kind: t(mode === 'workspace' ? 'ontologyExportKindOntology' : 'ontologyExportKindContract'),
+      format: format === 'RDF_XML' ? 'RDF/XML' : format === 'TURTLE' ? 'Turtle' : 'JSON',
+    }))
   }
 
   return (
     <>
       {notice && <Toast message={notice} closeLabel={t('commonClose')} onDismiss={() => setNotice('')} />}
 
-      <div className="builder-workbench">
+      <div className={`builder-workbench ${inspectorCollapsed ? 'inspector-collapsed' : ''}`}>
         <section className="schema-panel panel">
           <div className="panel-header ontology-model-header">
-            <div><span className="panel-kicker">{t('ontologyEditableModel').toLocaleUpperCase()}</span><h2>{contract.name}</h2></div>
+            <div><span className="panel-kicker"></span><h2>{contract.name}</h2></div>
             <div className="ontology-model-tools">
-              <div className="builder-meta"><span>{t('ontologyTypeCount', { count: contract.entityTypes.length })}</span><span>{t('ontologyRelationCount', { count: contract.relationshipTypes.length })}</span><button onClick={exportContract}>{t('ontologyExportJson')}</button></div>
+              <div className="builder-meta"><span>{t('ontologyTypeCount', { count: contract.entityTypes.length })}</span><span>{t('ontologyRelationCount', { count: contract.relationshipTypes.length })}</span><button onClick={() => exportArtifact('JSON')}>{t('ontologyExportPackageJson')}</button><button onClick={() => exportArtifact('RDF_XML')}>{t('ontologyExportSemanticRdf')}</button><button onClick={() => exportArtifact('TURTLE')}>{t('ontologyExportSemanticTurtle')}</button></div>
               <div className="model-actions">
-                <button className="ghost import-launch" onClick={() => setImportOpen(true)}>{t('ontologyImportSchema')}</button>
-                <button className="ghost" onClick={() => setDialog('relationship')}>{t('ontologyAddRelationship')}</button>
-                <button className="ghost" onClick={() => setDialog('entity')}>{t('ontologyAddEntityType')}</button>
-                <button className={`ghost layout-toggle ${autoLayoutEnabled ? 'active' : ''}`} aria-pressed={autoLayoutEnabled} onClick={toggleAutoLayout}>{t('ontologyAutoLayout')} <span>{autoLayoutEnabled ? 'ON' : 'OFF'}</span></button>
+                <button className="ghost compact-action import-launch" onClick={() => setImportOpen(true)}><IconDownload /> <span>{t('ontologyImportSchema')}</span></button>
+                <button className="ghost compact-action" onClick={() => setDialog('relationship')}><IconLink /> <span>{t('ontologyAddRelationship')}</span></button>
+                <button className="ghost compact-action" onClick={() => setDialog('entity')}><IconPlus /> <span>{t('ontologyAddEntityType')}</span></button>
                 {mode === 'contract' && <button className="release" onClick={() => setDialog('publish')} disabled={saving || issues.length > 0}>{t('ontologyPublishRelease')}</button>}
               </div>
             </div>
           </div>
-          <div className="schema-canvas flow-mode">
+          <div className={`schema-canvas flow-mode ontology-canvas-${layoutMode}`}>
+            <div className="canvas-layout-controls">
+              <div className="layout-view-selector" role="group" aria-label={t('ontologyLayoutView')}>
+                <button type="button" aria-label={t('ontologyLayoutLanes')} title={t('ontologyLayoutLanes')} aria-pressed={layoutMode === 'lanes'} className={layoutMode === 'lanes' ? 'selected' : ''} onClick={() => setLayoutMode('lanes')}><IconRows /></button>
+                <button type="button" aria-label={t('ontologyLayoutIsometric')} title={t('ontologyLayoutIsometric')} aria-pressed={layoutMode === 'isometric'} className={layoutMode === 'isometric' ? 'selected' : ''} onClick={() => setLayoutMode('isometric')}><IconIsometric /></button>
+              </div>
+              <button className={`ghost layout-toggle ${autoLayoutEnabled ? 'active' : ''}`} aria-label={t('ontologyAutoLayout')} title={t('ontologyAutoLayout')} aria-pressed={autoLayoutEnabled} disabled={layoutMode === 'isometric'} onClick={toggleAutoLayout}><IconAutoLayout /></button>
+            </div>
             <ReactFlow
+              key={layoutMode}
               nodes={graphNodes}
               edges={graphEdges}
               onNodesChange={onNodesChange}
@@ -307,7 +337,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
               maxZoom={1.8}
               snapToGrid
               snapGrid={[15, 15]}
-              nodesDraggable={!autoLayoutEnabled}
+              nodesDraggable={layoutMode === 'lanes' && !autoLayoutEnabled}
               nodeTypes={ontologyNodeTypes}
               proOptions={{ hideAttribution: true }}
             >
@@ -317,11 +347,30 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
             </ReactFlow>
             {contract.entityTypes.length === 0 && <div className="empty-canvas"><span>◇</span><h3>{t('ontologyEmptyTitle')}</h3><p>{t('ontologyEmptyDescription')}</p><button className="release" onClick={() => setDialog('entity')}>{t('ontologyCreateFirstType')}</button></div>}
             <div className="canvas-hint"><span>{t('ontologyConnectNodes')}</span></div>
+            {/* Colour alone would be a private joke; the legend is what makes it readable. */}
+            <div className="canvas-legend" aria-label={t('ontologyDomainGroups')}>
+              {displayLayout.lanes.map((lane) => <span key={lane.id}>
+                <i aria-hidden="true" style={{ background: colorFrom(groupPalette, lane.label).accent }} />
+                {lane.label}
+              </span>)}
+            </div>
           </div>
           <div className="relation-strip">
             <div className="relation-strip-heading"><span>{t('ontologyRelationshipTypes').toLocaleUpperCase()}</span><button onClick={() => setDialog('relationship')}>{t('ontologyAdd')}</button></div>
             <div className="relation-list" tabIndex={0} aria-label={t('ontologyRelationshipTypes')}>
-              {contract.relationshipTypes.map((relation) => <div className="relation-chip" key={relation.id}><span>{typeLabel(contract, relation.sourceTypeId)}</span><b>— {relation.label} →</b><span>{typeLabel(contract, relation.targetTypeId)}</span><em>{relation.cardinality.replaceAll('_', ' : ')}</em></div>)}
+              {contract.relationshipTypes.map((relation) => <button
+                type="button"
+                className={`relation-chip ${relation.id === highlightedRelationshipId ? 'highlighted' : ''}`}
+                key={relation.id}
+                aria-pressed={relation.id === highlightedRelationshipId}
+                // Clicking again clears it, so the canvas can be returned to normal without
+                // hunting for a separate control.
+                onClick={() => {
+                  const next = relation.id === highlightedRelationshipId ? '' : relation.id
+                  setHighlightedRelationshipId(next)
+                  if (next) setSelectedTypeId(relation.sourceTypeId)
+                }}
+              ><span>{typeLabel(contract, relation.sourceTypeId)}</span><b>— {relation.label} →</b><span>{typeLabel(contract, relation.targetTypeId)}</span><em>{relation.cardinality.replaceAll('_', ' : ')}</em></button>)}
             </div>
           </div>
           {mode === 'contract' && <div className="release-history">
@@ -330,15 +379,19 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
           </div>}
         </section>
 
-        <aside className="builder-inspector panel">
-          <div className="inspector-tabs" role="tablist" aria-label={t('ontologyInspectorLabel')}>
-            <button id="ontology-definition-tab" role="tab" aria-controls="ontology-definition-panel" aria-selected={inspectorTab === 'DEFINITION'} className={inspectorTab === 'DEFINITION' ? 'active' : ''} onClick={() => setInspectorTab('DEFINITION')}>{t('ontologyTypeDefinition')}</button>
-            <button id="ontology-relationships-tab" role="tab" aria-controls="ontology-relationships-panel" aria-selected={inspectorTab === 'RELATIONSHIPS'} className={inspectorTab === 'RELATIONSHIPS' ? 'active' : ''} onClick={() => setInspectorTab('RELATIONSHIPS')}>{t('summaryRelationships')}</button>
+        <aside className={`builder-inspector collapsible-inspector panel ${inspectorCollapsed ? 'collapsed' : ''}`} id="ontology-inspector">
+          <div className="collapsible-inspector-header">
+            {!inspectorCollapsed && <div className="inspector-tabs" role="tablist" aria-label={t('ontologyInspectorLabel')}>
+              <button id="ontology-definition-tab" role="tab" aria-controls="ontology-definition-panel" aria-selected={inspectorTab === 'DEFINITION'} className={inspectorTab === 'DEFINITION' ? 'active' : ''} onClick={() => setInspectorTab('DEFINITION')}>{t('ontologyTypeDefinition')}</button>
+              <button id="ontology-relationships-tab" role="tab" aria-controls="ontology-relationships-panel" aria-selected={inspectorTab === 'RELATIONSHIPS'} className={inspectorTab === 'RELATIONSHIPS' ? 'active' : ''} onClick={() => setInspectorTab('RELATIONSHIPS')}>{t('summaryRelationships')}</button>
+            </div>}
+            <PanelCollapseButton collapsed={inspectorCollapsed} collapseLabel={t('collapseInspector')} expandLabel={t('expandInspector')} panelId="ontology-inspector" side="right" onToggle={toggleInspector} />
           </div>
-          {selectedType && inspectorTab === 'DEFINITION' ? <div id="ontology-definition-panel" className="type-form" role="tabpanel" aria-labelledby="ontology-definition-tab">
-            <div className="entity-title"><span className="large-icon">{selectedType.icon}</span><div><span>{t('ontologyEntityType').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
+          {!inspectorCollapsed && (selectedType && inspectorTab === 'DEFINITION' ? <div id="ontology-definition-panel" className="type-form" role="tabpanel" aria-labelledby="ontology-definition-tab">
+            <div className="entity-title"><span className="large-icon"><EntityIcon icon={selectedType.icon} /></span><div><span>{t('ontologyEntityType').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
             <label>{t('ontologyDisplayName')}<input value={selectedType.label} onChange={(event) => updateSelected({ label: event.target.value })} /></label>
             <label>{t('ontologyDescription')}<textarea value={selectedType.description} onChange={(event) => updateSelected({ description: event.target.value })} /></label>
+            <EntityIconPicker key={selectedType.id} value={selectedType.icon} onChange={(icon) => updateSelected({ icon })} label={t('ontologyIcon')} />
             <div className="form-split"><DomainGroupField key={selectedType.id} groups={domainGroups} label={t('ontologyDomainGroup')} value={selectedType.group} addGroupLabel={t('ontologyAddDomainGroup')} newGroupLabel={t('ontologyNewDomainGroup')} newGroupPlaceholder={t('ontologyNewDomainGroupPlaceholder')} onChange={(group) => updateSelected({ group })} /><label>{t('ontologyImpact')}<select value={selectedType.impact} onChange={(event) => updateSelected({ impact: event.target.value as EntityTypeDefinition['impact'] })}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label></div>
             <div className="property-heading"><div><span>{t('ontologyProperties').toLocaleUpperCase()}</span><em>{selectedType.properties.length}</em></div><button onClick={() => setDialog('property')}>{t('ontologyAddProperty')}</button></div>
             <div className="property-list">
@@ -362,7 +415,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
                 </article>
               })}
             </div>
-          </div> : <div className="empty-properties"><span>◇</span><b>{t('ontologySelectEntity')}</b></div>}
+          </div> : <div className="empty-properties"><span>◇</span><b>{t('ontologySelectEntity')}</b></div>)}
         </aside>
       </div>
 
@@ -404,8 +457,8 @@ function BuilderModal({ dialog, contract, domainGroups, selectedType, pendingCon
         {dialog === 'entity' && <>
           <label>{t('ontologyDisplayName')}<input name="label" required autoFocus placeholder={t('ontologyExampleCareEpisode')} /></label>
           <label>{t('ontologyDescription')}<textarea name="description" required placeholder={t('ontologyConceptMeaning')} /></label>
-          <div className="form-split"><DomainGroupField groups={domainGroups} label={t('ontologyDomainGroup')} value={domainGroups[0] ?? ''} addGroupLabel={t('ontologyAddDomainGroup')} newGroupLabel={t('ontologyNewDomainGroup')} newGroupPlaceholder={t('ontologyNewDomainGroupPlaceholder')} name="group" /><label>{t('ontologyIcon')}<input name="icon" maxLength={2} placeholder="CE" /></label></div>
-          <label>{t('ontologyImpact')}<select name="impact" defaultValue="MEDIUM"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+          <div className="form-split"><DomainGroupField groups={domainGroups} label={t('ontologyDomainGroup')} value={domainGroups[0] ?? ''} addGroupLabel={t('ontologyAddDomainGroup')} newGroupLabel={t('ontologyNewDomainGroup')} newGroupPlaceholder={t('ontologyNewDomainGroupPlaceholder')} name="group" /><label>{t('ontologyImpact')}<select name="impact" defaultValue="MEDIUM"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label></div>
+          <EntityIconPicker name="icon" value={DEFAULT_ENTITY_ICON} onChange={() => undefined} label={t('ontologyIcon')} />
         </>}
         {dialog === 'relationship' && <>
           <label>{t('ontologyRelationshipLabel')}<input name="label" required autoFocus placeholder={t('ontologyExampleGovernedBy')} /></label>

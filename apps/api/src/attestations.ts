@@ -8,10 +8,15 @@ interface AttestationDocument {
   attestations: Attestation[]
 }
 
+/**
+ * Structurally satisfied by `PlanSigner`, so an attestation is signed by the same governed key as
+ * an execution plan — including a managed KMS — rather than by a second, ephemeral one. `verify`
+ * takes the key id so an attestation signed before a rotation still verifies afterwards.
+ */
 export interface AttestationSigner {
-  keyId: string
-  sign(payload: Buffer): string
-  verify(payload: Buffer, signature: string): boolean
+  readonly activeKeyId: string
+  sign(payload: Buffer): Promise<string>
+  verify(payload: Buffer, signature: string, keyId: string): boolean
 }
 
 export interface MintAttestationInput {
@@ -35,11 +40,14 @@ export const predicateForSubject: Readonly<Record<AttestationSubjectKind, Attest
   EMERGENCY_AUTHORIZATION: 'lattice.emergency.v1',
 }
 
-/** Ed25519 over a canonical serialization; the caller owns the key material. */
+/**
+ * A local Ed25519 signer, for tests and for anything that has key material in hand. Production
+ * passes the process-wide `PlanSigner` instead, which may be backed by a KMS.
+ */
 export function createSigner(keyId: string, privateKey: KeyObject, publicKey: KeyObject): AttestationSigner {
   return {
-    keyId,
-    sign: (payload) => sign(null, payload, privateKey).toString('base64url'),
+    activeKeyId: keyId,
+    sign: async (payload) => sign(null, payload, privateKey).toString('base64url'),
     verify: (payload, signature) => {
       try {
         return verify(null, payload, publicKey, Buffer.from(signature, 'base64url'))
@@ -110,7 +118,7 @@ export class AttestationStore {
       payloadDigest,
       signerId: input.signerId,
       signerRoleAtSigning: input.signerRoleAtSigning,
-      keyId: this.signer.keyId,
+      keyId: this.signer.activeKeyId,
       issuedAt: input.issuedAt ?? new Date().toISOString(),
       ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
       logIndex,
@@ -120,7 +128,7 @@ export class AttestationStore {
       id: `att_${randomUUID()}`,
       ...body,
       signatureAlgorithm: 'Ed25519',
-      signature: this.signer.sign(Buffer.from(canonicalJson(body))),
+      signature: await this.signer.sign(Buffer.from(canonicalJson(body))),
     }
     this.document.attestations.push(attestation)
     await this.persist()
@@ -142,7 +150,7 @@ export class AttestationStore {
       : { id: 'KEY_KNOWN', status: 'FAIL', message: `Signed with ${attestation.keyId}; /v1/keys/current publishes ${currentKeyId}.` })
 
     const { id: _id, signature, signatureAlgorithm: _algorithm, ...body } = attestation
-    const signatureValid = this.signer.verify(Buffer.from(canonicalJson(body)), signature)
+    const signatureValid = this.signer.verify(Buffer.from(canonicalJson(body)), signature, attestation.keyId)
     checks.push(signatureValid
       ? { id: 'SIGNATURE', status: 'PASS', message: 'Ed25519 signature verifies over the canonical attestation body.' }
       : { id: 'SIGNATURE', status: 'FAIL', message: 'Ed25519 signature does not verify over the canonical attestation body.' })

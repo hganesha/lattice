@@ -1,0 +1,30 @@
+{
+  "document_type": "network_incident_report",
+  "vertical": "telecommunications",
+  "family": "telco_service_assurance",
+  "schema_version": "telco_network_incident_report_v1",
+  "fields": [
+    { "name": "network_incident_id", "type": "string", "required": true, "description": "Unique incident identifier." },
+    { "name": "incident_status", "type": "string", "required": true, "description": "Detected, investigating, mitigating, restored, or closed state." },
+    { "name": "outage_discovered_at", "type": "string", "required": true, "description": "Timestamp when the provider discovered the outage." },
+    { "name": "outage_onset_at", "type": "string", "required": true, "description": "Best-known outage onset timestamp." },
+    { "name": "outage_restored_at", "type": "string", "required": false, "description": "Service restoration timestamp." },
+    { "name": "outage_duration_minutes", "type": "integer", "required": false, "description": "Measured outage duration." },
+    { "name": "incident_affected_service_types", "type": "string", "required": true, "description": "Voice, messaging, broadband, paging, 911, or other services affected." },
+    { "name": "incident_affected_geographic_area", "type": "string", "required": true, "description": "States, counties, rate centers, or service areas affected." },
+    { "name": "network_resource_id", "type": "string", "required": false, "description": "Affected network resource or dependency." },
+    { "name": "service_quality_user_minutes", "type": "number", "required": true, "description": "Potentially affected user minutes used for threshold analysis." },
+    { "name": "service_quality_availability", "type": "number", "required": false, "description": "Measured service availability during the incident." },
+    { "name": "service_quality_completion_rate", "type": "number", "required": false, "description": "Call or session completion rate." },
+    { "name": "incident_emergency_911_impact", "type": "boolean", "required": true, "description": "Whether 911 or emergency communications were affected." },
+    { "name": "incident_psap_impact_summary", "type": "string", "required": false, "description": "Minimized summary of affected PSAPs or 911 service areas." },
+    { "name": "incident_root_cause", "type": "string", "required": false, "description": "Best-known or final root cause." },
+    { "name": "incident_restoration_action", "type": "string", "required": false, "description": "Mitigation and restoration actions taken." },
+    { "name": "incident_nors_notification_due_at", "type": "string", "required": false, "description": "Calculated FCC outage-notification deadline." },
+    { "name": "incident_nors_initial_report_due_at", "type": "string", "required": false, "description": "Calculated initial-report deadline." },
+    { "name": "incident_nors_final_report_due_at", "type": "string", "required": false, "description": "Calculated final-report deadline." },
+    { "name": "incident_authorized_filer", "type": "string", "required": false, "description": "Authorized provider representative responsible for filing." },
+    { "name": "incident_regulation_citations", "type": "string", "required": true, "description": "Applicable 47 CFR Part 4 and Part 9 citations." },
+    { "name": "incident_compliance_status", "type": "string", "required": true, "description": "Evidence-backed reportability and filing status." }
+  ]
+}

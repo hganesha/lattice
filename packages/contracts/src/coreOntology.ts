@@ -41,43 +41,43 @@ export const coreOntology: IndustryOntology = {
   releaseStatus: 'PUBLISHED',
   composedFrom: [],
   entityTypes: [
-    type('person', 'Person', 'PE', 'A human being identified in a governed business context.', [
+    type('person', 'Person', 'person', 'A human being identified in a governed business context.', [
       property('person', 'person_id', 'Person identifier', 'string', 'Stable governed identifier for the person.', { required: true, identifier: true }),
       property('person', 'display_name', 'Display name', 'string', 'Preferred name used in governed interfaces.', { required: true }),
       property('person', 'effective_from', 'Effective from', 'datetime', 'Time from which this person record is valid.'),
     ]),
-    type('organization', 'Organization', 'OR', 'A governed legal, public, or operating organization.', [
+    type('organization', 'Organization', 'organization', 'A governed legal, public, or operating organization.', [
       property('organization', 'organization_id', 'Organization identifier', 'string', 'Stable governed identifier for the organization.', { required: true, identifier: true }),
       property('organization', 'legal_name', 'Legal name', 'string', 'Registered or otherwise authoritative organization name.', { required: true }),
       property('organization', 'organization_type', 'Organization type', 'string', 'Governed classification of the organization.'),
     ]),
-    type('agent', 'Agent', 'AG', 'A human or software actor authorized to perform governed activity.', [
+    type('agent', 'Agent', 'agent', 'A human or software actor authorized to perform governed activity.', [
       property('agent', 'agent_id', 'Agent identifier', 'string', 'Stable governed identifier for the actor.', { required: true, identifier: true }),
       property('agent', 'agent_type', 'Agent type', 'enum', 'Whether the actor is human, service, or automated.'),
       property('agent', 'active', 'Active', 'boolean', 'Whether the agent is currently authorized.'),
     ]),
-    type('location', 'Location', 'LO', 'A physical, administrative, or virtual place relevant to governed activity.', [
+    type('location', 'Location', 'location', 'A physical, administrative, or virtual place relevant to governed activity.', [
       property('location', 'location_id', 'Location identifier', 'string', 'Stable governed identifier for the location.', { required: true, identifier: true }),
       property('location', 'name', 'Location name', 'string', 'Human-readable location name.', { required: true }),
       property('location', 'country_code', 'Country code', 'string', 'ISO country code when applicable.'),
     ]),
-    type('document', 'Document', 'DO', 'A governed information artifact with identity, version, and provenance.', [
+    type('document', 'Document', 'document', 'A governed information artifact with identity, version, and provenance.', [
       property('document', 'document_id', 'Document identifier', 'string', 'Stable governed identifier for the document.', { required: true, identifier: true }),
       property('document', 'title', 'Title', 'string', 'Authoritative document title.', { required: true }),
       property('document', 'version', 'Version', 'string', 'Document version or revision.'),
       property('document', 'issued_at', 'Issued at', 'datetime', 'Time at which the document was issued.'),
     ]),
-    type('event', 'Event', 'EV', 'A governed occurrence bounded by time and business meaning.', [
+    type('event', 'Event', 'event', 'A governed occurrence bounded by time and business meaning.', [
       property('event', 'event_id', 'Event identifier', 'string', 'Stable governed identifier for the event.', { required: true, identifier: true }),
       property('event', 'event_type', 'Event type', 'string', 'Governed classification of the event.', { required: true }),
       property('event', 'occurred_at', 'Occurred at', 'datetime', 'Time at which the event occurred.', { required: true }),
     ]),
-    type('asset', 'Asset', 'AS', 'A governed physical, digital, or financial resource.', [
+    type('asset', 'Asset', 'asset', 'A governed physical, digital, or financial resource.', [
       property('asset', 'asset_id', 'Asset identifier', 'string', 'Stable governed identifier for the asset.', { required: true, identifier: true }),
       property('asset', 'name', 'Asset name', 'string', 'Human-readable asset name.', { required: true }),
       property('asset', 'asset_type', 'Asset type', 'string', 'Governed classification of the asset.'),
     ]),
-    type('policy', 'Policy', 'PO', 'A versioned rule or standard governing decisions and actions.', [
+    type('policy', 'Policy', 'policy', 'A versioned rule or standard governing decisions and actions.', [
       property('policy', 'policy_id', 'Policy identifier', 'string', 'Stable governed identifier for the policy.', { required: true, identifier: true }),
       property('policy', 'title', 'Policy title', 'string', 'Authoritative policy title.', { required: true }),
       property('policy', 'version', 'Version', 'string', 'Approved policy version.', { required: true }),

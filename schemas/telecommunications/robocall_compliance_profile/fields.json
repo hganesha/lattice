@@ -1,0 +1,24 @@
+{
+  "document_type": "robocall_compliance_profile",
+  "vertical": "telecommunications",
+  "family": "telco_trust",
+  "schema_version": "telco_robocall_compliance_profile_v1",
+  "fields": [
+    { "name": "robocall_compliance_profile_id", "type": "string", "required": true, "description": "Unique provider trust and mitigation profile." },
+    { "name": "service_provider_legal_name", "type": "string", "required": true, "description": "Legal name represented in the filing." },
+    { "name": "robocall_mitigation_database_id", "type": "string", "required": true, "description": "Robocall Mitigation Database filing identifier." },
+    { "name": "robocall_mitigation_status", "type": "string", "required": true, "description": "Current mitigation-program and filing status." },
+    { "name": "stir_shaken_implementation_status", "type": "string", "required": true, "description": "Full, partial, not implemented, exempt, or extended caller-ID authentication state." },
+    { "name": "stir_shaken_service_provider_code", "type": "string", "required": false, "description": "Service Provider Code used for caller-ID authentication." },
+    { "name": "robocall_attestation_policy", "type": "string", "required": true, "description": "Governed policy for assigning caller-ID attestation." },
+    { "name": "robocall_analytics_system", "type": "string", "required": true, "description": "Analytics used to identify and block illegal traffic." },
+    { "name": "robocall_customer_due_diligence_status", "type": "string", "required": true, "description": "Know-your-customer or upstream-provider diligence status." },
+    { "name": "robocall_traceback_contact", "type": "string", "required": true, "description": "Role-based contact for traceback requests." },
+    { "name": "robocall_traceback_response_sla_hours", "type": "integer", "required": true, "description": "Provider response target for traceback requests." },
+    { "name": "robocall_last_certified_at", "type": "string", "required": true, "description": "Timestamp of the latest officer certification." },
+    { "name": "robocall_filing_update_due_at", "type": "string", "required": false, "description": "Calculated deadline after a material filing change." },
+    { "name": "caller_id_authentication_exception", "type": "string", "required": false, "description": "Documented technical or regulatory exception." },
+    { "name": "robocall_regulation_citations", "type": "string", "required": true, "description": "Applicable caller-ID authentication and mitigation citations." },
+    { "name": "robocall_compliance_status", "type": "string", "required": true, "description": "Evidence-backed trust and filing posture." }
+  ]
+}

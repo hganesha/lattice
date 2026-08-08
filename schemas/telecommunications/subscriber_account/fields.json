@@ -1,0 +1,22 @@
+{
+  "document_type": "subscriber_account",
+  "vertical": "telecommunications",
+  "family": "telco_customer_management",
+  "schema_version": "telco_subscriber_account_v1",
+  "fields": [
+    { "name": "subscriber_reference", "type": "string", "required": true, "description": "Tokenized subscriber reference; direct identity data is excluded from analytical contexts." },
+    { "name": "subscriber_type", "type": "string", "required": true, "description": "Consumer, small business, enterprise, government, or wholesale subscriber." },
+    { "name": "subscriber_identity_verification_status", "type": "string", "required": true, "description": "Result of the applicable identity-verification process." },
+    { "name": "customer_account_number", "type": "string", "required": true, "description": "Provider account identifier." },
+    { "name": "account_status", "type": "string", "required": true, "description": "Pending, active, suspended, delinquent, closed, or migrated account state." },
+    { "name": "account_created_at", "type": "string", "required": true, "description": "Timestamp when the governed account was created." },
+    { "name": "account_billing_cycle", "type": "string", "required": true, "description": "Billing-cycle assignment." },
+    { "name": "account_credit_class", "type": "string", "required": false, "description": "Provider-defined credit treatment without source credit-report detail." },
+    { "name": "service_address_reference", "type": "string", "required": false, "description": "Reference to a service location." },
+    { "name": "privacy_cpni_approval_status", "type": "string", "required": true, "description": "Current CPNI approval or disapproval state." },
+    { "name": "privacy_authentication_method", "type": "string", "required": true, "description": "Approved authentication method used before protected access." },
+    { "name": "privacy_access_log_reference", "type": "string", "required": false, "description": "Reference to protected-data access audit records." },
+    { "name": "account_regulation_citations", "type": "string", "required": true, "description": "Applicable privacy and consumer-protection citations." },
+    { "name": "account_compliance_status", "type": "string", "required": true, "description": "Evidence-backed account-governance status." }
+  ]
+}

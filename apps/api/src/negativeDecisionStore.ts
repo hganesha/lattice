@@ -55,7 +55,8 @@ export class NegativeDecisionStore {
       decidedAt,
       effectiveFrom: request.effectiveFrom ?? decidedAt,
       reviewBy: request.reviewBy,
-      exceptions: (request.exceptions ?? []).map((exception) => ({ ...exception, id: `exception_${randomUUID()}`, approvedAt: decidedAt })),
+      // The approver is the authenticated decider unless one is explicitly recorded server-side.
+      exceptions: (request.exceptions ?? []).map((exception) => ({ ...exception, approvedBy: exception.approvedBy ?? decidedBy, id: `exception_${randomUUID()}`, approvedAt: decidedAt })),
       ...(request.reviewId ? { reviewId: request.reviewId } : {}),
       status: 'ACTIVE',
     }

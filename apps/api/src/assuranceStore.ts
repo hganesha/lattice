@@ -1,52 +1,29 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
 import type { AssuranceRun } from '@lattice/contracts'
-
-interface AssuranceDocument {
-  schemaVersion: '1.0'
-  runs: AssuranceRun[]
-}
+import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
 
 export class AssuranceStore {
-  private writeQueue: Promise<void> = Promise.resolve()
-
-  private constructor(private readonly filePath: string, private document: AssuranceDocument) {}
+  constructor(private readonly storage: LedgerStorage<AssuranceRun>) {}
 
   static async open(filePath: string): Promise<AssuranceStore> {
-    try {
-      return new AssuranceStore(filePath, JSON.parse(await readFile(filePath, 'utf8')) as AssuranceDocument)
-    } catch (error) {
-      const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      if (!missing) throw error
-      const store = new AssuranceStore(filePath, { schemaVersion: '1.0', runs: [] })
-      await store.persist()
-      return store
-    }
+    // The assurance digest is computed by runAssurance over its own unsigned payload, so the
+    // store cannot recompute it here; the chain still detects removal, reordering, and any
+    // edit to the recorded digest itself.
+    return new AssuranceStore(await FileLedgerStorage.open<AssuranceRun>(filePath, 'runs', 'Assurance'))
   }
 
-  list(contractId: string): AssuranceRun[] {
-    return this.document.runs.filter((run) => run.contractId === contractId).map((run) => structuredClone(run)).reverse()
+  async list(contractId: string, tenantId: string | undefined): Promise<AssuranceRun[]> {
+    const runs = await this.storage.list()
+    return runs.filter((run) => run.contractId === contractId && run.tenantId === tenantId).reverse()
   }
 
-  get(runId: string): AssuranceRun | undefined {
-    const run = this.document.runs.find((candidate) => candidate.id === runId)
-    return run ? structuredClone(run) : undefined
+  async get(runId: string, tenantId: string | undefined): Promise<AssuranceRun | undefined> {
+    const runs = await this.storage.list()
+    return runs.find((candidate) => candidate.id === runId && candidate.tenantId === tenantId)
   }
 
-  async append(run: AssuranceRun): Promise<AssuranceRun> {
-    if (this.document.runs.some((candidate) => candidate.id === run.id)) throw new Error('ASSURANCE_RUN_IMMUTABLE')
-    this.document.runs.push(structuredClone(run))
-    await this.persist()
-    return structuredClone(run)
-  }
-
-  private async persist(): Promise<void> {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await mkdir(dirname(this.filePath), { recursive: true })
-      const temporaryPath = `${this.filePath}.tmp`
-      await writeFile(temporaryPath, `${JSON.stringify(this.document, null, 2)}\n`, 'utf8')
-      await rename(temporaryPath, this.filePath)
-    })
-    await this.writeQueue
+  async append(run: AssuranceRun, tenantId: string | undefined): Promise<AssuranceRun> {
+    const runs = await this.storage.list()
+    if (runs.some((candidate) => candidate.id === run.id)) throw new Error('ASSURANCE_RUN_IMMUTABLE')
+    return this.storage.append({ ...structuredClone(run), ...(tenantId ? { tenantId } : {}) })
   }
 }

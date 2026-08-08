@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import type { CreateReviewDecisionRequest, NegativeDecision, ReviewRequestArtifact, StructuredRejection } from '@lattice/contracts'
-import { apiFetch, loadSession } from './api'
+import { apiFetch } from './api'
 import { BlastRadiusPanel } from './BlastRadiusPanel'
 import { navigateToPath } from './router'
 import { useMessages } from './i18n/messages'
@@ -61,7 +61,8 @@ export function ReviewDecisionPanel({ review, onClose, onDecided }: ReviewDecisi
       },
       applicability: { scope, contractClasses: splitList(contractClasses), grain: splitList(grain) },
       reviewBy: toIsoDate(reviewBy),
-      ...(exceptionDescription.trim() && expiresAt ? { exceptions: [{ description: exceptionDescription.trim(), approvedBy: loadSession().principalId, expiresAt }] } : {}),
+      // `approvedBy` is filled in by the API from the authenticated principal.
+      ...(exceptionDescription.trim() && expiresAt ? { exceptions: [{ description: exceptionDescription.trim(), expiresAt } as StructuredRejection['exceptions'] extends Array<infer E> | undefined ? E : never] } : {}),
     }
   }
 
@@ -74,7 +75,8 @@ export function ReviewDecisionPanel({ review, onClose, onDecided }: ReviewDecisi
     setSubmitting(true)
     setError('')
     try {
-      const payload = await apiFetch<ReviewRequestArtifact>(`/v1/reviews/${encodeURIComponent(review.id)}/decisions`, { method: 'POST', json: { decision, rationale, ...(decision === 'REJECTED' ? { structuredRejection: buildRejection() } : {}) } })
+      // A distinct development token: the ledger refuses a decision from the author of the review.
+      const payload = await apiFetch<ReviewRequestArtifact>(`/v1/reviews/${encodeURIComponent(review.id)}/decisions`, { method: 'POST', developmentToken: 'studio-reviewer', json: { decision, rationale, ...(decision === 'REJECTED' ? { structuredRejection: buildRejection() } : {}) } })
       onDecided(payload)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t('reviewRecordFailed'))

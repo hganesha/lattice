@@ -1,5 +1,5 @@
-import type { DeclaredPurpose, RiskTierDerivation } from './evolution.js'
-import type { ContextContract, EvidenceStrength, RiskTier } from './types.js'
+import type { RiskTierDerivation } from './evolution.js'
+import type { ContextContract, DeclaredPurpose, EvidenceStrength, RiskTier } from './types.js'
 
 /**
  * Closed purpose taxonomy (E4, decision §11.2).
@@ -101,11 +101,12 @@ function normalizeDomain(domain: string): string {
 
 export function purposesForDomain(domain: string): DeclaredPurpose[] {
   const needle = normalizeDomain(domain)
-  return purposeCatalog.filter((purpose) => purpose.domains.length === 0 || purpose.domains.some((candidate) => normalizeDomain(candidate) === needle))
+  return purposeCatalog.filter((purpose) => (purpose.domains ?? []).length === 0 || (purpose.domains ?? []).some((candidate: string) => normalizeDomain(candidate) === needle))
 }
 
-export function findPurpose(purposeId: string | undefined): DeclaredPurpose | undefined {
-  return purposeCatalog.find((purpose) => purpose.id === purposeId)
+export function findPurpose(purposeId: string | undefined, declared: readonly DeclaredPurpose[] = []): DeclaredPurpose | undefined {
+  // A purpose the contract declares wins over the global catalogue entry of the same id.
+  return declared.find((purpose) => purpose.id === purposeId) ?? purposeCatalog.find((purpose) => purpose.id === purposeId)
 }
 
 const riskOrder: RiskTier[] = ['INFORMATIONAL', 'ANALYTICAL', 'PLANNING_DECISION', 'OPERATIONAL_ACTION']
@@ -130,20 +131,23 @@ const strengthFloor: Record<RiskTier, EvidenceStrength> = {
  * The operation may raise the tier above the purpose floor; it can never lower it.
  */
 export function deriveRiskTier(contract: ContextContract, purposeId: string, operationId?: string): RiskTierDerivation {
-  const purpose = findPurpose(purposeId) ?? findPurpose(defaultPurposeId)!
+  const purpose = findPurpose(purposeId, contract.purposes ?? []) ?? findPurpose(defaultPurposeId)!
+  // A contract-declared purpose need not state a floor; it starts at INFORMATIONAL and the
+  // operation raises it. The operation can never lower whatever floor the purpose does state.
+  const purposeTier: RiskTier = purpose.baseRiskTier ?? 'INFORMATIONAL'
   const operation = operationId ? contract.operations.find((candidate) => candidate.id === operationId) : undefined
-  const riskTier = operation ? maxRiskTier(purpose.baseRiskTier, operation.riskTier) : purpose.baseRiskTier
+  const riskTier = operation ? maxRiskTier(purposeTier, operation.riskTier) : purposeTier
   const policy = contract.policies.find((candidate) => candidate.riskTier === riskTier)
     ?? [...contract.policies].sort((a, b) => riskOrder.indexOf(b.riskTier) - riskOrder.indexOf(a.riskTier)).find((candidate) => riskTierAtLeast(candidate.riskTier, riskTier))
 
   return {
     riskTier,
     purposeId: purpose.id,
-    purposeTier: purpose.baseRiskTier,
+    purposeTier,
     ...(operation ? { operationTier: operation.riskTier, operationId: operation.id } : {}),
     reason: operation
-      ? `${purpose.label} (${purpose.baseRiskTier.replaceAll('_', ' ').toLocaleLowerCase()}) combined with ${operation.label} (${operation.riskTier.replaceAll('_', ' ').toLocaleLowerCase()}).`
-      : `${purpose.label} declares a ${purpose.baseRiskTier.replaceAll('_', ' ').toLocaleLowerCase()} floor; no operation is bound yet.`,
+      ? `${purpose.label} (${purposeTier.replaceAll('_', ' ').toLocaleLowerCase()}) combined with ${operation.label} (${operation.riskTier.replaceAll('_', ' ').toLocaleLowerCase()}).`
+      : `${purpose.label} declares a ${purposeTier.replaceAll('_', ' ').toLocaleLowerCase()} floor; no operation is bound yet.`,
     minimumEvidenceStrength: policy?.minimumEvidenceStrength ?? strengthFloor[riskTier],
     maximumEvidenceAgeMinutes: policy?.maximumEvidenceAgeMinutes ?? (riskTier === 'OPERATIONAL_ACTION' ? 15 : riskTier === 'PLANNING_DECISION' ? 120 : 1440),
     approvalRequired: policy?.approvalRequired ?? riskTier === 'OPERATIONAL_ACTION',

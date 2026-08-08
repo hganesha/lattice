@@ -1,0 +1,25 @@
+{
+  "document_type": "service_order",
+  "vertical": "telecommunications",
+  "family": "telco_fulfillment",
+  "schema_version": "telco_service_order_v1",
+  "fields": [
+    { "name": "service_order_id", "type": "string", "required": true, "description": "Unique service-order identifier." },
+    { "name": "service_order_action", "type": "string", "required": true, "description": "Activate, modify, suspend, resume, migrate, or terminate action." },
+    { "name": "service_order_status", "type": "string", "required": true, "description": "Acknowledged, in progress, held, completed, failed, or cancelled state." },
+    { "name": "service_order_created_at", "type": "string", "required": true, "description": "Order creation timestamp." },
+    { "name": "service_order_requested_completion_at", "type": "string", "required": false, "description": "Customer or provider requested completion time." },
+    { "name": "service_order_completed_at", "type": "string", "required": false, "description": "Actual completion timestamp." },
+    { "name": "service_subscription_id", "type": "string", "required": true, "description": "Subscription being fulfilled." },
+    { "name": "customer_account_number", "type": "string", "required": true, "description": "Customer account owning the request." },
+    { "name": "service_plan_id", "type": "string", "required": true, "description": "Plan being provisioned or changed." },
+    { "name": "service_address_reference", "type": "string", "required": false, "description": "Service location required for qualification or provisioning." },
+    { "name": "network_resource_id", "type": "string", "required": false, "description": "Assigned logical or physical resource." },
+    { "name": "network_resource_provisioning_status", "type": "string", "required": true, "description": "Host-network or internal provisioning state." },
+    { "name": "telephone_number", "type": "string", "required": false, "description": "Assigned or ported number associated with the order." },
+    { "name": "emergency_911_provisioning_status", "type": "string", "required": true, "description": "Emergency-service provisioning outcome." },
+    { "name": "service_order_exception", "type": "string", "required": false, "description": "Blocking qualification, inventory, host-network, numbering, or policy condition." },
+    { "name": "service_order_regulation_citations", "type": "string", "required": true, "description": "Applicable service, numbering, and public-safety requirements." },
+    { "name": "service_order_compliance_status", "type": "string", "required": true, "description": "Evidence-based readiness or completion state." }
+  ]
+}

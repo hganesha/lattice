@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
-import type { ConnectorValidationResult, ContextContract, SourceBinding } from '@lattice/contracts'
+import { useEffect, useMemo, useState } from 'react'
+import type { ConnectorHealthRecord, ConnectorValidationResult, ContextContract, SourceBinding } from '@lattice/contracts'
 import { BindingEditor, type BindingDraftResult } from './BindingEditor'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { useMessages } from './i18n/messages'
 import { ConfirmDialog } from './ConfirmDialog'
 import { Toast } from './Toast'
@@ -21,13 +21,29 @@ export function SourceBindingStudio({ contract, scope = 'CONTRACT', workspaceId,
   const [pendingRemoval, setPendingRemoval] = useState<SourceBinding>()
   const [notice, setNotice] = useState('')
   const [validatingId, setValidatingId] = useState('')
+  const [checkingHealthId, setCheckingHealthId] = useState('')
   const [validationResults, setValidationResults] = useState<Record<string, ConnectorValidationResult>>({})
+  const [healthResults, setHealthResults] = useState<Record<string, ConnectorHealthRecord>>({})
+  const connectorBindingIds = useMemo(() => contract.bindings.filter((binding) => binding.connector).map((binding) => binding.id).sort().join(','), [contract.bindings])
   const stats = useMemo(() => ({
     mappedFields: contract.bindings.reduce((count, binding) => count + (binding.mappings?.length ?? 0), 0),
-    valid: contract.bindings.filter((binding) => binding.healthStatus === 'VALID' || binding.approvalStatus === 'APPROVED').length,
+    valid: contract.bindings.filter((binding) => healthResults[binding.id]?.status === 'HEALTHY' || (!healthResults[binding.id] && (binding.healthStatus === 'VALID' || binding.approvalStatus === 'APPROVED'))).length,
     environments: new Set(contract.bindings.map((binding) => binding.environment)).size,
-  }), [contract.bindings])
+  }), [contract.bindings, healthResults])
   const canCreateBinding = contract.entityTypes.some((type) => type.properties.length > 0)
+
+  useEffect(() => {
+    if (!connectorBindingIds) return
+    const controller = new AbortController()
+    void fetch(`${API_URL}/v1/connectors/health`, { headers: apiAuthHeaders(), signal: controller.signal })
+      .then(async (response) => response.ok ? response.json() as Promise<{ records: ConnectorHealthRecord[] }> : Promise.reject(new Error(`Connector health returned ${response.status}`)))
+      .then(({ records }) => {
+        const persisted = Object.fromEntries(records.filter((record, index) => connectorBindingIds.split(',').includes(record.bindingId) && records.findIndex((candidate) => candidate.bindingId === record.bindingId) === index).map((record) => [record.bindingId, record]))
+        setHealthResults((current) => ({ ...persisted, ...current }))
+      })
+      .catch((error: unknown) => { if (!(error instanceof DOMException && error.name === 'AbortError')) setHealthResults({}) })
+    return () => controller.abort()
+  }, [connectorBindingIds])
 
   function applyBinding(result: BindingDraftResult) {
     const ontologyId = contract.ontologyRef?.ontologyId
@@ -60,7 +76,7 @@ export function SourceBindingStudio({ contract, scope = 'CONTRACT', workspaceId,
     }
     setValidatingId(binding.id)
     try {
-      const response = await fetch(`${API_URL}/v1/connectors/validate`, { method: 'POST', headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' }, body: JSON.stringify({ binding }) })
+      const response = await fetch(`${API_URL}/v1/connectors/validate`, { method: 'POST', headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ binding }) })
       const result = await response.json() as ConnectorValidationResult & { error?: string }
       if (!response.ok && !result.status) throw new Error(result.error ?? `Connector validation returned ${response.status}`)
       setValidationResults((current) => ({ ...current, [binding.id]: result }))
@@ -69,6 +85,22 @@ export function SourceBindingStudio({ contract, scope = 'CONTRACT', workspaceId,
       setNotice(caught instanceof Error ? caught.message : t('bindingValidationFailed'))
     } finally {
       setValidatingId('')
+    }
+  }
+
+  async function checkBindingHealth(binding: SourceBinding) {
+    if (!binding.connector) return
+    setCheckingHealthId(binding.id)
+    try {
+      const response = await fetch(`${API_URL}/v1/connectors/health`, { method: 'POST', headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ binding }) })
+      const result = await response.json() as ConnectorHealthRecord & { error?: string }
+      if (!response.ok || !result.status) throw new Error(result.error ?? `Connector health returned ${response.status}`)
+      setHealthResults((current) => ({ ...current, [binding.id]: result }))
+      setNotice(t('bindingHealthNotice', { source: binding.sourceSystem, status: result.status.toLocaleLowerCase(), latency: result.latencyMs, freshness: result.freshnessStatus.toLocaleLowerCase() }))
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : t('bindingHealthFailed'))
+    } finally {
+      setCheckingHealthId('')
     }
   }
 
@@ -109,7 +141,7 @@ export function SourceBindingStudio({ contract, scope = 'CONTRACT', workspaceId,
         <div className="panel-header"><div><span className="panel-kicker">{t(scope === 'ONTOLOGY' ? 'bindingOntologyBindings' : 'bindingContractBindings').toLocaleUpperCase()}</span><h2>{contract.name}</h2></div><span className="binding-count">{t('bindingConfiguredCount', { count: contract.bindings.length })}</span></div>
         <div className="binding-list">
           {contract.bindings.length === 0 && <div className="binding-empty"><span>⇄</span><h3>{t('bindingEmptyTitle')}</h3><p>{t('bindingEmptyDescription')}</p><button className="ghost" onClick={() => setEditorOpen(true)} disabled={!canCreateBinding}>{t('bindingChooseConnector')}</button></div>}
-          {contract.bindings.map((binding) => <BindingCard binding={binding} validation={validationResults[binding.id]} validating={validatingId === binding.id} onValidate={() => void validateBinding(binding)} {...(scope === 'ONTOLOGY' || binding.scope !== 'ONTOLOGY' ? { onRemove: () => setPendingRemoval(binding) } : {})} key={binding.id} />)}
+          {contract.bindings.map((binding) => <BindingCard binding={binding} validation={validationResults[binding.id]} health={healthResults[binding.id]} validating={validatingId === binding.id} checkingHealth={checkingHealthId === binding.id} onValidate={() => void validateBinding(binding)} onCheckHealth={() => void checkBindingHealth(binding)} {...(scope === 'ONTOLOGY' || binding.scope !== 'ONTOLOGY' ? { onRemove: () => setPendingRemoval(binding) } : {})} key={binding.id} />)}
         </div>
       </main>
       <aside className="binding-principles panel">
@@ -125,18 +157,21 @@ export function SourceBindingStudio({ contract, scope = 'CONTRACT', workspaceId,
 interface BindingCardProps {
   binding: SourceBinding
   validation: ConnectorValidationResult | undefined
+  health: ConnectorHealthRecord | undefined
   validating: boolean
+  checkingHealth: boolean
   onValidate: () => void
+  onCheckHealth: () => void
   onRemove?: () => void
 }
 
-function BindingCard({ binding, validation, validating, onValidate, onRemove }: BindingCardProps) {
+function BindingCard({ binding, validation, health, validating, checkingHealth, onValidate, onCheckHealth, onRemove }: BindingCardProps) {
   const { t } = useMessages()
-  const health = binding.healthStatus ?? (binding.approvalStatus === 'APPROVED' ? 'VALID' : 'NOT_TESTED')
+  const healthLabel = health?.status ?? binding.healthStatus ?? (binding.approvalStatus === 'APPROVED' ? 'VALID' : 'NOT_TESTED')
   return <article className="binding-card">
     <div className="binding-card-icon">{binding.connector?.provider === 'MICROSOFT_FABRIC' ? 'FAB' : binding.connector?.provider === 'DATABRICKS' ? 'DBX' : binding.connector?.provider === 'SNOWFLAKE' ? 'SNF' : binding.adapterType === 'OPENAPI' ? 'API' : binding.adapterType === 'EVENT_STREAM' ? 'EVT' : binding.adapterType === 'FILE' ? 'OBJ' : 'DB'}</div>
-    <div className="binding-card-main"><div><h3>{binding.sourceSystem}</h3><span className={`binding-health ${health.toLocaleLowerCase()}`}>{health.replaceAll('_', ' ')}</span>{binding.scope === 'ONTOLOGY' && <span className="connector-validation ready">{t('bindingSharedOntology')}</span>}{validation && <span className={`connector-validation ${validation.status.toLocaleLowerCase()}`}>{validation.status}</span>}</div><code>{binding.method ?? 'OP'} {binding.endpoint ?? binding.operationId}</code><p>{t('bindingRefreshMeta', { environment: binding.environment, minutes: binding.freshnessMinutes, version: binding.version, transport: binding.connector ? ` · ${binding.connector.transport}` : '' })}</p><div>{binding.connector && <span>{binding.connector.provider.replace('_', ' ')}</span>}{binding.requiredPermissions.map((permission) => <span key={permission}>{permission}</span>)}</div><div className="binding-card-actions"><button className="ghost" onClick={onValidate} disabled={validating || !binding.connector}>{validating ? t('commonValidating') : t('commonValidate')}</button>{onRemove && <button className="danger-link" onClick={onRemove}>{t('commonRemove')}</button>}</div></div>
-    <div className="binding-card-metric"><b>{binding.mappings?.length ?? '—'}</b><span>{t('bindingMappings').toLocaleUpperCase()}</span>{validation && <small>{validation.driver.replaceAll('_', ' ')}</small>}</div>
+    <div className="binding-card-main"><div><h3>{binding.sourceSystem}</h3><span className={`binding-health ${healthLabel.toLocaleLowerCase()}`}>{healthLabel.replaceAll('_', ' ')}</span>{binding.scope === 'ONTOLOGY' && <span className="connector-validation ready">{t('bindingSharedOntology')}</span>}{validation && <span className={`connector-validation ${validation.status.toLocaleLowerCase()}`}>{validation.status}</span>}</div><code>{binding.method ?? 'OP'} {binding.endpoint ?? binding.operationId}</code><p>{t('bindingRefreshMeta', { environment: binding.environment, minutes: binding.freshnessMinutes, version: binding.version, transport: binding.connector ? ` · ${binding.connector.transport}` : '' })}</p>{health && <p className="binding-health-detail">{t('bindingHealthDetail', { latency: health.latencyMs, source: health.credentialSource.toLocaleLowerCase(), freshness: health.freshnessStatus.toLocaleLowerCase(), success: health.lastSuccessfulAt ? new Date(health.lastSuccessfulAt).toLocaleString() : t('bindingHealthNever') })}</p>}<div>{binding.connector && <span>{binding.connector.provider.replace('_', ' ')}</span>}{binding.requiredPermissions.map((permission) => <span key={permission}>{permission}</span>)}</div><div className="binding-card-actions"><button className="ghost" onClick={onValidate} disabled={validating || checkingHealth || !binding.connector}>{validating ? t('commonValidating') : t('commonValidate')}</button><button className="ghost" onClick={onCheckHealth} disabled={validating || checkingHealth || !binding.connector}>{checkingHealth ? t('bindingHealthChecking') : t('bindingHealthCheck')}</button>{onRemove && <button className="danger-link" onClick={onRemove}>{t('commonRemove')}</button>}</div></div>
+    <div className="binding-card-metric"><b>{health ? `${health.latencyMs}` : binding.mappings?.length ?? '—'}</b><span>{health ? t('bindingHealthMilliseconds').toLocaleUpperCase() : t('bindingMappings').toLocaleUpperCase()}</span>{health ? <small>{health.probe.replaceAll('_', ' ')}</small> : validation && <small>{validation.driver.replaceAll('_', ' ')}</small>}</div>
   </article>
 }
 

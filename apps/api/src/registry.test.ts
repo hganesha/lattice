@@ -4,7 +4,9 @@ import { mkdtemp, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { counterpartyRiskContract, type ContractStarter } from '@lattice/contracts'
-import { ContractRegistry, ContractValidationError } from './registry.js'
+import { airlineExampleContracts } from '@lattice/contracts/airline-contracts'
+import { telecommunicationsExampleContracts } from '@lattice/contracts/telecommunications-contracts'
+import { ContractRegistry, ContractValidationError, validateContract, type RegistryDocument, type RegistryStorage } from './registry.js'
 
 test('persists drafts and publishes immutable versioned releases', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-'))
@@ -47,6 +49,29 @@ test('restores an immutable release as a new unpublished draft', async () => {
   assert.equal(restored.runtimeStatus, 'ACTIVE')
 })
 
+test('rolls back the active release pointer and appends a digest-backed audit event', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-rollback-'))
+  const file = join(directory, 'registry.json')
+  const registry = await ContractRegistry.open(file, counterpartyRiskContract)
+  const first = registry.get(counterpartyRiskContract.id)!.releases[0]!
+  const draft = structuredClone(counterpartyRiskContract)
+  draft.description = 'A later valid release.'
+  const published = await registry.publish({ contract: draft, bump: 'minor', notes: 'Later release' })
+
+  const rolledBack = await registry.rollbackRelease(counterpartyRiskContract.id, first.digest, 'Production evidence requires returning to the prior governed release.', 'principal_release_manager', new Date('2026-07-21T12:00:00.000Z'))
+
+  assert.equal(rolledBack.entry.activeReleaseDigest, first.digest)
+  assert.equal(rolledBack.entry.releases.length, 2)
+  assert.equal(rolledBack.event.fromRelease.digest, published.release.digest)
+  assert.equal(rolledBack.event.toRelease.digest, first.digest)
+  assert.equal(rolledBack.event.actorId, 'principal_release_manager')
+  assert.match(rolledBack.event.artifactDigest, /^sha256:[a-f0-9]{64}$/)
+  assert.equal(rolledBack.entry.releaseEvents?.length, 1)
+  const reopened = await ContractRegistry.open(file, counterpartyRiskContract)
+  assert.equal(reopened.get(counterpartyRiskContract.id)?.releaseEvents?.[0]?.artifactDigest, rolledBack.event.artifactDigest)
+  await assert.rejects(() => reopened.rollbackRelease(counterpartyRiskContract.id, first.digest, 'Duplicate rollback.', 'principal_release_manager'), /RELEASE_ALREADY_ACTIVE/)
+})
+
 test('creates contracts on top of the generated industry ontology', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-create-'))
   const registry = await ContractRegistry.open(join(directory, 'registry.json'), counterpartyRiskContract)
@@ -83,7 +108,7 @@ test('creates contracts on top of the generated industry ontology', async () => 
 test('creates property-bearing starters for every shipped industry pack', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-starters-'))
   const registry = await ContractRegistry.open(join(directory, 'registry.json'), counterpartyRiskContract)
-  const starters: Exclude<ContractStarter, 'blank'>[] = ['financial-services', 'energy', 'healthcare', 'manufacturing', 'legal', 'insurance', 'real-estate']
+  const starters: Exclude<ContractStarter, 'blank'>[] = ['airline', 'telecommunications', 'financial-services', 'energy', 'healthcare', 'manufacturing', 'legal', 'insurance', 'real-estate']
 
   for (const starter of starters) {
     const entry = await registry.create({
@@ -107,9 +132,9 @@ test('seeds a provenance-backed ontology workspace for every implemented schema 
   const registry = await ContractRegistry.open(join(directory, 'registry.json'), counterpartyRiskContract)
   const generated = registry.listWorkspaces().filter((workspace) => workspace.ontologyGeneration)
 
-  assert.deepEqual(generated.map((workspace) => workspace.id).sort(), ['workspace-energy', 'workspace-financial-services', 'workspace-healthcare', 'workspace-insurance', 'workspace-legal', 'workspace-manufacturing', 'workspace-real-estate'])
+  assert.deepEqual(generated.map((workspace) => workspace.id).sort(), ['workspace-airline', 'workspace-energy', 'workspace-financial-services', 'workspace-healthcare', 'workspace-insurance', 'workspace-legal', 'workspace-manufacturing', 'workspace-real-estate', 'workspace-telecommunications'])
   assert.ok(generated.every((workspace) => workspace.ontology.entityTypes.length >= 4))
-  assert.equal(generated.reduce((sum, workspace) => sum + (workspace.ontologyGeneration?.sourceFormCount ?? 0), 0), 55)
+  assert.equal(generated.reduce((sum, workspace) => sum + (workspace.ontologyGeneration?.sourceFormCount ?? 0), 0), 74)
   assert.equal(registry.getWorkspace('workspace-core')?.ontology.releaseStatus, 'PUBLISHED')
   assert.ok(generated.every((workspace) => workspace.ontology.composedFrom?.some((pack) => pack.role === 'FOUNDATION')))
   const financialServices = registry.getWorkspace('workspace-financial-services')!
@@ -118,6 +143,125 @@ test('seeds a provenance-backed ontology workspace for every implemented schema 
   assert.equal(existingContract.entityTypes.length, counterpartyRiskContract.entityTypes.length)
   assert.equal(existingContract.conceptScope?.length, counterpartyRiskContract.entityTypes.length)
   assert.equal(financialServices.contractScopeModelVersion, '1.0')
+})
+
+test('seeds valid airline regulatory reference contracts into the airline workspace', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-airline-'))
+  const registry = await ContractRegistry.open(join(directory, 'registry.json'), counterpartyRiskContract)
+  const workspace = registry.getWorkspace('workspace-airline')!
+
+  assert.equal(workspace.ontologyGeneration?.sourceFormCount, 8)
+  assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'dispatch_release'))
+  assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'airworthiness_release'))
+  assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'consumer_remedy'))
+  assert.deepEqual(workspace.contractIds.sort(), airlineExampleContracts.map((contract) => contract.id).sort())
+  for (const contract of airlineExampleContracts) {
+    const seeded = registry.get(contract.id)
+    assert.equal(seeded?.runtimeStatus, 'ACTIVE')
+    assert.equal(seeded?.releases.length, 1)
+    assert.deepEqual(validateContract(seeded!.draft), [])
+  }
+})
+
+test('a contract that has not declared reference runtime mode cannot publish a sample-payload binding', () => {
+  const reference = airlineExampleContracts[0]!
+  assert.deepEqual(validateContract(reference), [])
+
+  const asLiveContract = { ...structuredClone(reference), runtimeMode: 'LIVE' as const }
+  assert.deepEqual(
+    validateContract(asLiveContract).filter((issue) => issue.includes('reference runtime mode')).length,
+    asLiveContract.bindings.filter((binding) => binding.executionMode === 'SIMULATED').length,
+  )
+
+  const { runtimeMode: _runtimeMode, ...withoutDeclaredMode } = structuredClone(reference)
+  assert.ok(validateContract(withoutDeclaredMode).some((issue) => issue.includes('reference runtime mode')))
+})
+
+test('seeds valid telecommunications regulatory reference contracts into the telecommunications workspace', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-telecommunications-'))
+  const registry = await ContractRegistry.open(join(directory, 'registry.json'), counterpartyRiskContract)
+  const workspace = registry.getWorkspace('workspace-telecommunications')!
+
+  assert.equal(workspace.ontologyGeneration?.sourceFormCount, 11)
+  assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'number_port_order'))
+  assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'network_incident'))
+  assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'privacy_authorization'))
+  assert.deepEqual(workspace.contractIds.sort(), telecommunicationsExampleContracts.map((contract) => contract.id).sort())
+  for (const contract of telecommunicationsExampleContracts) {
+    const seeded = registry.get(contract.id)
+    assert.equal(seeded?.runtimeStatus, 'ACTIVE')
+    assert.equal(seeded?.releases.length, 1)
+    assert.deepEqual(validateContract(seeded!.draft), [])
+  }
+})
+
+test('hydrates every new reference workspace when an older persisted registry already contains other workspaces', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'lattice-registry-partial-'))
+  const bootstrap = await ContractRegistry.open(join(directory, 'bootstrap.json'), counterpartyRiskContract)
+  const financialWorkspace = bootstrap.getWorkspace('workspace-financial-services')!
+  const financialEntry = bootstrap.get(counterpartyRiskContract.id)!
+  const stored: RegistryDocument = {
+    schemaVersion: '1.1',
+    entries: { [financialEntry.contractId]: financialEntry },
+    workspaces: { [financialWorkspace.id]: financialWorkspace },
+  }
+  let persisted: RegistryDocument | undefined
+  const storage: RegistryStorage = {
+    async read() { return structuredClone(stored) },
+    async write(document) { persisted = structuredClone(document) },
+  }
+
+  const registry = await ContractRegistry.openStorage(storage, counterpartyRiskContract)
+
+  for (const contract of [...airlineExampleContracts, ...telecommunicationsExampleContracts]) {
+    assert.deepEqual(validateContract(registry.get(contract.id)!.draft), [], contract.id)
+  }
+  assert.deepEqual(registry.getWorkspace('workspace-airline')!.contractIds.sort(), airlineExampleContracts.map((contract) => contract.id).sort())
+  assert.deepEqual(registry.getWorkspace('workspace-telecommunications')!.contractIds.sort(), telecommunicationsExampleContracts.map((contract) => contract.id).sort())
+  assert.ok(persisted)
+})
+
+test('reconciles updated canonical reference releases without overwriting an unpublished user draft', async () => {
+  const canonical = airlineExampleContracts[0]!
+  const oldRelease = {
+    version: '0.9.0',
+    digest: 'sha256:older-reference',
+    publishedAt: '2026-07-20T20:00:00.000Z',
+    notes: `Initial ${canonical.domain} regulatory decision-support reference.`,
+    contract: { ...structuredClone(canonical), version: '0.9.0', digest: 'sha256:older-reference' },
+  }
+  const userDraft = {
+    ...structuredClone(canonical),
+    description: 'User-authored draft that must survive reference-data upgrades.',
+    releaseStatus: 'UNPUBLISHED' as const,
+    digest: 'sha256:unpublished',
+  }
+  const storage: RegistryStorage = {
+    async read() {
+      return {
+        schemaVersion: '1.1',
+        entries: {
+          [canonical.id]: {
+            contractId: canonical.id,
+            draft: userDraft,
+            updatedAt: '2026-07-28T12:00:00.000Z',
+            releases: [oldRelease],
+            runtimeStatus: 'ACTIVE',
+            activeReleaseDigest: oldRelease.digest,
+          },
+        },
+        workspaces: {},
+      }
+    },
+    async write() {},
+  }
+
+  const registry = await ContractRegistry.openStorage(storage, counterpartyRiskContract)
+  const reconciled = registry.get(canonical.id)!
+
+  assert.equal(reconciled.draft.description, userDraft.description)
+  assert.ok(reconciled.releases.some((release) => release.digest === canonical.digest))
+  assert.equal(reconciled.activeReleaseDigest, canonical.digest)
 })
 
 test('persists a shared industry ontology and synchronizes contract snapshots', async () => {

@@ -1,33 +1,49 @@
-import { createHash, generateKeyPairSync, randomUUID, sign, verify } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { URL } from 'node:url'
-import { ContextCompiler } from '@lattice/compiler-core'
+import { ContextCompiler, type IntentResolver } from '@lattice/compiler-core'
 import { previewBindingSource, previewImport } from '@lattice/importer-core'
 import {
   connectorCatalog,
   counterpartyRiskContract,
   defaultPurposeId,
   deriveRiskTier,
+  materializeSimulatedContext,
   purposesForDomain,
   type AssuranceRunRequest,
   type CompileRequest,
   type CompileResponse,
   type BindingPreviewRequest,
   type ConnectorValidationRequest,
-  type CreateCaseSetRequest,
-  type CreateEmergencyAuthorizationRequest,
-  type CreateEvalRunRequest,
-  type CreateNegativeDecisionRequest,
+  type ConnectorDiscoveryRequest,
+  type ConnectorHealthRequest,
   type CreateReviewDecisionRequest,
   type CreateReviewRequest,
   type CreateRuntimeApprovalDecisionRequest,
   type ContextContract,
-  type ContractRegistryEntry,
   type ContractSummary,
+  type BindingPreview,
+  type SourceBinding,
   type CreateContractRequest,
+  type ExecutePlanRequest,
+  type ImportPreviewRequest,
+  type IndustryOntology,
+  type IntentResolution,
+  type SignedExecutionPlan,
+  type UnsignedExecutionPlan,
+  type WorkspaceSummary,
+  type AssuranceRun,
+  type ReviewRequestArtifact,
+  type RuntimeApprovalArtifact,
+  type ExecutionReceipt,
   type CaseSet,
+  type CreateCaseSetRequest,
+  type CreateEmergencyAuthorizationRequest,
+  type CreateEvalRunRequest,
+  type CreateNegativeDecisionRequest,
+  type ContractRegistryEntry,
   type DeclaredPurpose,
   type DispositionMode,
   type DispositionQuery,
@@ -35,29 +51,39 @@ import {
   type EmergencyRetrospectiveRequest,
   type EvalCase,
   type EvalRun,
-  type ExecutePlanRequest,
-  type ImportPreviewRequest,
-  type IndustryOntology,
-  type IndustryWorkspace,
-  type PrincipalChainLink,
-  type ReviewRequestArtifact,
   type ReviewRoutingPlan,
   type RiskTier,
   type RuntimeDecision,
-  type SignedExecutionPlan,
   type StructuredRejection,
-  type UnsignedExecutionPlan,
-  type WorkspaceSummary,
 } from '@lattice/contracts'
-import { executeBindings } from './adapters.js'
+import { executeBindings, type ExecuteBindingsOptions } from './adapters.js'
 import { runAssurance } from './assurance.js'
 import { AssuranceStore } from './assuranceStore.js'
 import { ContractRegistry, ContractValidationError, type PublishRequest } from './registry.js'
 import { ReviewStore } from './reviewStore.js'
 import { ExecutionStore } from './executionStore.js'
+import { ConnectorHealthStore } from './connectorHealthStore.js'
 import { RuntimeApprovalStore } from './runtimeApprovalStore.js'
-import { validateConnectorBinding } from './connectors.js'
-import { AttestationStore, createSigner, predicateForSubject } from './attestations.js'
+import { discoverConnector, probeConnectorHealth, validateConnectorBinding } from './connectors.js'
+import { buildReleaseDiffArtifact } from './releaseDiff.js'
+import { authenticatorFromEnvironment, type RequestIdentity } from './auth.js'
+import { applyTenantMembership, tenantMembershipResolverFromEnvironment } from './tenancy.js'
+import { hasOrganizationRole, missingPermissions, requiredOrganizationRoles, resolveGrantedPermissions } from './authorization.js'
+import type { OrganizationRole } from './tenancy.js'
+import { integrationsSummary } from './integrations.js'
+import { SubjectScopedStore, type Subject } from './planStore.js'
+import { ContractRegistryConflictError, SupabaseRegistryStorage, supabaseRegistryConfigFromEnvironment, type SupabaseRegistryConfig } from './supabaseRegistry.js'
+import { SupabaseGovernanceLedger, type GovernedArtifactKind } from './supabaseGovernanceLedger.js'
+import { SupabaseConnectorHealthStorage } from './connectorHealthStorage.js'
+import type { ChainedArtifact } from './hashChain.js'
+import { embeddingProviderFromEnvironment, intentResolverFromEnvironment } from './embeddingProvider.js'
+import { PersistedIntentResolver } from './persistedIntentIndex.js'
+import { delegationScopeFor, tokenExchangeFromEnvironment } from './delegatedIdentity.js'
+import { catalogSourceFromEnvironment } from './catalogFederation.js'
+import { openApiDocument } from './openapi.js'
+import { planSignerFromEnvironment } from './signing.js'
+import { recordCompileDecision, recordExecution, registerTelemetry, withSpan } from './telemetry.js'
+import { AttestationStore, predicateForSubject } from './attestations.js'
 import { buildDisposition, DispositionStore } from './dispositionStore.js'
 import { CaseSetStore, summarize } from './caseSetStore.js'
 import { counterpartyGoldCaseSet } from './seedCaseSets.js'
@@ -70,36 +96,172 @@ import { replayDrift } from './counterfactual.js'
 import { PrincipalStore, type CreateDelegationGrantRequest } from './principalStore.js'
 import { EmergencyStore } from './emergencyStore.js'
 import { buildEligibility } from './eligibility.js'
-import { computeBlastRadius, impactOfTarget } from './blastRadius.js'
+import { computeBlastRadius } from './blastRadius.js'
 import { buildActivity } from './activity.js'
 import { search } from './search.js'
 
 const port = Number(process.env.PORT ?? 8787)
-const studioOrigin = process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173'
+/**
+ * Loopback by default, so a development API is not exposed to the local network by accident.
+ * Anything hosting this for real — a container, a PaaS dyno — has to set `HOST=0.0.0.0`, because
+ * a process bound to 127.0.0.1 refuses every connection that did not originate on the same box.
+ */
+const host = process.env.HOST ?? '127.0.0.1'
+/**
+ * Origins allowed to call this API from a browser, comma-separated.
+ *
+ * `localhost` and `127.0.0.1` are the same machine but different origins, and a Studio opened on
+ * the wrong one has every response rejected by the browser with no error the page can see — it
+ * just reports the runtime offline. Both spellings are allowed by default so that stops happening.
+ *
+ * A Studio served through a rewrite on its own origin never reaches this code: the browser sees a
+ * same-origin request and does not run a CORS check at all.
+ */
+const allowedStudioOrigins = (process.env.LATTICE_STUDIO_ORIGIN ?? 'http://127.0.0.1:5173,http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
 const dataDirectory = process.env.LATTICE_DATA_DIR ?? (process.env.VERCEL ? join(tmpdir(), 'lattice-api-data') : join(process.cwd(), 'data'))
-const registry = await ContractRegistry.open(join(dataDirectory, 'contract-registry.json'), counterpartyRiskContract)
-const assuranceStore = await AssuranceStore.open(join(dataDirectory, 'assurance-runs.json'))
-const reviewStore = await ReviewStore.open(join(dataDirectory, 'review-artifacts.json'))
-const runtimeApprovalStore = await RuntimeApprovalStore.open(join(dataDirectory, 'runtime-approvals.json'))
-const executionStore = await ExecutionStore.open(join(dataDirectory, 'execution-receipts.json'))
-const clarifications = new Map<string, { request: CompileRequest; typeId: string }>()
-const plans = new Map<string, SignedExecutionPlan>()
-const planContractIds = new Map<string, string>()
-const keyId = 'lattice-dev-ed25519-1'
-const { privateKey, publicKey } = generateKeyPairSync('ed25519')
-const signer = createSigner(keyId, privateKey, publicKey)
-const attestationStore = await AttestationStore.open(join(dataDirectory, 'attestations.json'), signer)
-const dispositionStore = await DispositionStore.open(join(dataDirectory, 'dispositions.json'), join(dataDirectory, 'disposition-archive.json'))
-const caseSetStore = await CaseSetStore.open(join(dataDirectory, 'case-sets.json'))
-const evalRunStore = await EvalRunStore.open(join(dataDirectory, 'eval-runs.json'))
-const negativeDecisionStore = await NegativeDecisionStore.open(join(dataDirectory, 'negative-decisions.json'))
-const driftStore = await DriftStore.open(join(dataDirectory, 'drift-events.json'))
-const principalStore = await PrincipalStore.open(join(dataDirectory, 'principals.json'), join(dataDirectory, 'delegations.json'), registry.listWorkspaces().map((workspace) => workspace.id), registry.list().map((entry) => entry.contractId))
-const emergencyStore = await EmergencyStore.open(join(dataDirectory, 'emergency-authorizations.json'), signer)
-if (caseSetStore.all().length === 0) await caseSetStore.seed(counterpartyGoldCaseSet)
+interface LocalStores {
+  registry: ContractRegistry
+  assurance: AssuranceStore
+  review: ReviewStore
+  runtimeApproval: RuntimeApprovalStore
+  execution: ExecutionStore
+  connectorHealth: ConnectorHealthStore
+}
 
-const server = createServer(async (request, response) => {
-  setCors(response)
+let localStoresPromise: Promise<LocalStores> | undefined
+
+/**
+ * The same five ledgers, backed by Postgres for one request.
+ *
+ * Each is scoped to the organization and to its artifact kind, and none is filtered to a contract
+ * here: an execution receipt has to be findable by plan id across every contract, or a spent
+ * nonce could be replayed under a different one.
+ */
+function governanceLedgers(config: SupabaseRegistryConfig, organizationId: string, authorization: string): Omit<LocalStores, 'registry'> {
+  const ledger = <T extends ChainedArtifact>(kind: GovernedArtifactKind) =>
+    new SupabaseGovernanceLedger<T>(config, organizationId, authorization, kind, undefined)
+
+  return {
+    assurance: new AssuranceStore(ledger<AssuranceRun>('ASSURANCE_RUN')),
+    review: new ReviewStore(ledger<ReviewRequestArtifact>('REVIEW')),
+    runtimeApproval: new RuntimeApprovalStore(ledger<RuntimeApprovalArtifact>('RUNTIME_APPROVAL')),
+    execution: new ExecutionStore(ledger<ExecutionReceipt>('EXECUTION_RECEIPT')),
+    connectorHealth: new ConnectorHealthStore(new SupabaseConnectorHealthStorage(config, organizationId, authorization)),
+  }
+}
+
+/**
+ * The file-backed stores, opened once and only if something actually reads them.
+ *
+ * These used to open at module load. On a serverless platform that is work done against a
+ * filesystem that is private to one invocation and thrown away afterwards — ledgers written and
+ * immediately lost. When Supabase is configured every request is served from Postgres instead and
+ * these are never opened at all, which is what makes the deployed API stateless enough to run
+ * there.
+ */
+function localStores(): Promise<LocalStores> {
+  localStoresPromise ??= (async () => ({
+    registry: await ContractRegistry.open(join(dataDirectory, 'contract-registry.json'), counterpartyRiskContract),
+    assurance: await AssuranceStore.open(join(dataDirectory, 'assurance-runs.json')),
+    review: await ReviewStore.open(join(dataDirectory, 'review-artifacts.json')),
+    runtimeApproval: await RuntimeApprovalStore.open(join(dataDirectory, 'runtime-approvals.json')),
+    execution: await ExecutionStore.open(join(dataDirectory, 'execution-receipts.json')),
+    connectorHealth: await ConnectorHealthStore.open(join(dataDirectory, 'connector-health.json')),
+  }))()
+  return localStoresPromise
+}
+/**
+ * The evolution and evaluation ledgers.
+ *
+ * Opened lazily and only if a route reads them, exactly like `localStores()`. These are
+ * file-backed on every path, including the deployed one: unlike the five governance ledgers there
+ * are no Supabase tables for dispositions, attestations, case sets, evaluation runs, negative
+ * decisions, drift events, principals or emergency grants yet. On a serverless platform that means
+ * they live for one invocation. Adding them to `supabaseGovernanceLedger.ts` and
+ * `supabase/migrations/` is the outstanding work to make these surfaces durable in production.
+ */
+interface EvolutionStores {
+  attestation: AttestationStore
+  disposition: DispositionStore
+  caseSet: CaseSetStore
+  evalRun: EvalRunStore
+  negativeDecision: NegativeDecisionStore
+  drift: DriftStore
+  principal: PrincipalStore
+  emergency: EmergencyStore
+}
+
+let evolutionStoresPromise: Promise<EvolutionStores> | undefined
+
+function evolutionStores(registry: ContractRegistry): Promise<EvolutionStores> {
+  evolutionStoresPromise ??= (async () => {
+    const caseSet = await CaseSetStore.open(join(dataDirectory, 'case-sets.json'))
+    if (caseSet.all().length === 0) await caseSet.seed(counterpartyGoldCaseSet)
+    return {
+      attestation: await AttestationStore.open(join(dataDirectory, 'attestations.json'), planSigner),
+      disposition: await DispositionStore.open(join(dataDirectory, 'dispositions.json'), join(dataDirectory, 'disposition-archive.json')),
+      caseSet,
+      evalRun: await EvalRunStore.open(join(dataDirectory, 'eval-runs.json')),
+      negativeDecision: await NegativeDecisionStore.open(join(dataDirectory, 'negative-decisions.json')),
+      drift: await DriftStore.open(join(dataDirectory, 'drift-events.json')),
+      principal: await PrincipalStore.open(
+        join(dataDirectory, 'principals.json'),
+        join(dataDirectory, 'delegations.json'),
+        registry.listWorkspaces().map((workspace) => workspace.id),
+        registry.list().map((entry) => entry.contractId),
+      ),
+      emergency: await EmergencyStore.open(join(dataDirectory, 'emergency-authorizations.json'), planSigner),
+    }
+  })()
+  return evolutionStoresPromise
+}
+
+const authenticator = authenticatorFromEnvironment()
+const tenantMembershipResolver = tenantMembershipResolverFromEnvironment()
+const supabaseRegistryConfig = supabaseRegistryConfigFromEnvironment()
+const requestIdentityCache = new WeakMap<IncomingMessage, Promise<RequestIdentity | undefined>>()
+type PendingClarification =
+  | { kind: 'ENTITY'; request: CompileRequest; typeId: string; operationId: string; intentResolution: IntentResolution }
+  | { kind: 'OPERATION'; request: CompileRequest; candidateOperationIds: string[]; intentResolution: IntentResolution }
+const clarificationRetentionMs = 30 * 60_000
+/** Kept past expiry so the owner still gets an "expired" answer rather than a bare 404. */
+const expiredPlanGraceMs = 60 * 60_000
+const clarifications = new SubjectScopedStore<PendingClarification>(clarificationRetentionMs)
+const intentResolver = intentResolverFromEnvironment()
+const embeddingProvider = embeddingProviderFromEnvironment()
+const tokenExchange = tokenExchangeFromEnvironment()
+const catalogSource = catalogSourceFromEnvironment()
+if (catalogSource) {
+  process.stderr.write(`[catalog] Classification federated from ${catalogSource.catalog}.\n`)
+}
+if (tokenExchange) {
+  process.stderr.write(`[identity] Delegated identity enabled via ${tokenExchange.provider}; DELEGATED bindings run as the asking user.\n`)
+}
+const telemetryRegistered = await registerTelemetry()
+if (telemetryRegistered) {
+  process.stderr.write('[telemetry] Tracing registered; governed decisions and executions are exported as spans.\n')
+}
+const plans = new SubjectScopedStore<{ plan: SignedExecutionPlan; contractId: string }>(expiredPlanGraceMs)
+const { signer: planSigner, ephemeral: ephemeralSigningKey } = await planSignerFromEnvironment()
+if (ephemeralSigningKey && process.env.NODE_ENV === 'production') {
+  throw new Error('LATTICE_SIGNING_KEY is required in production: an ephemeral key cannot verify a plan across restarts or replicas.')
+}
+if (ephemeralSigningKey) {
+  process.stderr.write('[signing] No LATTICE_SIGNING_KEY configured; using an ephemeral development key. Plans will not verify across restarts.\n')
+}
+
+/**
+ * Serves one request.
+ *
+ * Exported so a platform that owns the listening socket — a Vercel Function, say — can call it
+ * directly. `(request, response)` is already the shape those runtimes hand a Node handler, so the
+ * deployed API and the standalone server run exactly the same code rather than a copy of it.
+ */
+export async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  setCors(request, response)
   if (request.method === 'OPTIONS') {
     response.writeHead(204).end()
     return
@@ -107,14 +269,79 @@ const server = createServer(async (request, response) => {
 
   try {
     const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`)
+    let requestIdentity: RequestIdentity | undefined
 
     if (request.method === 'GET' && url.pathname === '/health') {
       send(response, 200, { status: 'ok', service: 'lattice-context-api' })
       return
     }
 
+    // Served unauthenticated: it describes the shape of the API, never its data, and a client
+    // generator needs it before it has a token.
+    if (request.method === 'GET' && url.pathname === '/openapi.json') {
+      send(response, 200, openApiDocument)
+      return
+    }
+
+    if (url.pathname.startsWith('/v1/') && !['/v1/keys/current', '/v1/keys'].includes(url.pathname)) {
+      requestIdentity = await authenticate(request)
+      if (!requestIdentity) {
+        send(response, 401, { error: 'UNAUTHENTICATED_OR_UNAUTHORIZED', message: 'A valid user session and organization membership are required.' })
+        return
+      }
+      const requiredRoles = requiredOrganizationRoles(request.method, url.pathname)
+      if (requiredRoles && !hasOrganizationRole(requestIdentity, requiredRoles)) {
+        send(response, 403, { error: 'ORGANIZATION_ROLE_REQUIRED', requiredRoles })
+        return
+      }
+    }
+
+    const supabaseStorage = requestIdentity && supabaseRegistryConfig
+      ? new SupabaseRegistryStorage(
+          supabaseRegistryConfig,
+          requiredTenantId(requestIdentity),
+          requestIdentity.principalId,
+          request.headers.authorization ?? '',
+        )
+      : undefined
+
+    /**
+     * The governance ledgers for this request.
+     *
+     * Bound per request rather than per process because the Postgres ledgers read and write under
+     * the caller's own token — that is what makes row level security, rather than this code, the
+     * thing deciding which organization's artifacts are visible. Without Supabase configured they
+     * fall back to the files, which is the local development path.
+     */
+    const ledgers = supabaseStorage && supabaseRegistryConfig && requestIdentity
+      ? governanceLedgers(supabaseRegistryConfig, requiredTenantId(requestIdentity), request.headers.authorization ?? '')
+      : await localStores()
+
+    const assuranceStore = ledgers.assurance
+    const reviewStore = ledgers.review
+    const runtimeApprovalStore = ledgers.runtimeApproval
+    const executionStore = ledgers.execution
+    const connectorHealthStore = ledgers.connectorHealth
+    // Resolved after `registry` below, which is the organization's registry for this request.
+
+    /**
+     * Loading the organization's whole registry costs the same whether a route needs one
+     * contract or all of them, so the runtime path asks for just the release it compiles
+     * against and everything else falls back to the full document.
+     */
+    const publishedContract = async (contractId: string): Promise<ContextContract | undefined> => (
+      supabaseStorage
+        ? supabaseStorage.readPublishedContract(contractId)
+        : (await localStores()).registry.latestPublished(contractId)
+    )
+
+    const registry = supabaseStorage
+      ? await ContractRegistry.openStorage(supabaseStorage, counterpartyRiskContract, { persistOnOpen: false })
+      : (await localStores()).registry
+    const evolution = await evolutionStores(registry)
+
     if (request.method === 'GET' && url.pathname === '/v1/connectors') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -153,7 +380,7 @@ const server = createServer(async (request, response) => {
 
     const workspaceOntologyMatch = url.pathname.match(/^\/v1\/workspaces\/([^/]+)\/ontology$/)
     if (request.method === 'PUT' && workspaceOntologyMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -172,7 +399,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/connectors/validate') {
-      const identity = authenticate(request)
+      const identity = await authenticate(request)
       if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -188,9 +415,102 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    /**
+     * What this deployment is wired to.
+     *
+     * Restricted to the roles that operate the deployment. It discloses no credentials, but the
+     * shape of an environment — which catalog, which identity provider, whether signing is
+     * managed — is operational detail a reader of governed data has no need for.
+     */
+    if (request.method === 'GET' && url.pathname === '/v1/integrations') {
+      const identity = await authenticate(request)
+      if (!identity) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const operatorRoles: OrganizationRole[] = ['OWNER', 'ADMIN', 'OPERATOR']
+      if (!hasOrganizationRole(identity, operatorRoles)) {
+        send(response, 403, { error: 'ORGANIZATION_ROLE_REQUIRED', requiredRoles: operatorRoles })
+        return
+      }
+      send(response, 200, {
+        ...integrationsSummary({
+          environment: process.env,
+          supabaseConfigured: Boolean(supabaseRegistryConfig),
+          signing: {
+            algorithm: planSigner.algorithm,
+            activeKeyId: planSigner.activeKeyId,
+            ephemeral: ephemeralSigningKey,
+          },
+          telemetryEnabled: telemetryRegistered,
+        }),
+        connectors: await connectorHealthStore.list(identity.tenantId),
+      })
+      return
+    }
+
+    if (request.method === 'GET' && url.pathname === '/v1/connectors/health') {
+      const identity = await authenticate(request)
+      if (!identity) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      send(response, 200, { records: await connectorHealthStore.list(identity.tenantId, url.searchParams.get('bindingId') ?? undefined) })
+      return
+    }
+
+    if (request.method === 'POST' && url.pathname === '/v1/connectors/health') {
+      const identity = await authenticate(request)
+      if (!identity) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const body = await readJson<ConnectorHealthRequest>(request)
+      if (!body.binding?.connector) {
+        send(response, 400, { error: 'CONNECTOR_BINDING_REQUIRED' })
+        return
+      }
+      const record = await connectorHealthStore.append(await probeConnectorHealth(body.binding), body.binding.freshnessMinutes, identity.tenantId)
+      console.info('[connector.health]', { principalId: identity.principalId, bindingId: record.bindingId, provider: record.provider, status: record.status, latencyMs: record.latencyMs, credentialSource: record.credentialSource, errorCode: record.errorCode })
+      send(response, 200, record)
+      return
+    }
+
+    if (request.method === 'POST' && url.pathname === '/v1/connectors/discover') {
+      const identity = await authenticate(request)
+      if (!identity) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const body = await readJson<ConnectorDiscoveryRequest>(request)
+      if (!body.binding?.connector || (!body.contractId?.trim() && !body.workspaceId?.trim())) {
+        send(response, 400, { error: 'CONNECTOR_DISCOVERY_SCOPE_REQUIRED' })
+        return
+      }
+      if (body.contractId && !registry.get(body.contractId)) {
+        send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
+        return
+      }
+      if (body.workspaceId && !registry.getWorkspace(body.workspaceId)) {
+        send(response, 404, { error: 'WORKSPACE_NOT_FOUND' })
+        return
+      }
+      try {
+        const contractId = body.contractId ?? `ontology:${body.workspaceId}`
+        const sourceName = body.sourceName?.trim() || [body.binding.connector.resource.catalog, body.binding.connector.resource.database, body.binding.connector.resource.schema, body.binding.connector.resource.object].filter(Boolean).join('.')
+        const preview = await discoverConnector(body.binding, contractId, sourceName)
+        await applyCatalogClassifications(body.binding, preview)
+        console.info('[connector.discover]', { principalId: identity.principalId, provider: body.binding.connector.provider, sourceName, fieldCount: preview.operations[0]?.fields.length ?? 0 })
+        send(response, 200, preview)
+      } catch (error) {
+        send(response, 422, { error: 'CONNECTOR_DISCOVERY_FAILED', message: error instanceof Error ? error.message : 'Provider metadata could not be discovered.' })
+      }
+      return
+    }
+
     if (request.method === 'GET' && url.pathname === '/v1/contracts/active') {
       const contractId = url.searchParams.get('contractId') ?? counterpartyRiskContract.id
-      const published = registry.latestPublished(contractId)
+      const published = await publishedContract(contractId)
       if (!published) {
         send(response, 404, { error: 'PUBLISHED_CONTRACT_NOT_FOUND' })
         return
@@ -230,7 +550,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/contracts') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -246,7 +566,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/imports/preview') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -277,7 +597,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/bindings/preview') {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -296,8 +616,8 @@ const server = createServer(async (request, response) => {
       }
       try {
         const preview = previewBindingSource({ ...body, contractId: body.contractId ?? `ontology:${body.workspaceId}` })
-        // Discovery consults the registry so a rejected mapping is annotated rather than silently re-proposed (E13).
-        const suppressed = consultNegativeDecisions(preview, negativeDecisionStore.inForce(), {
+        // Annotated, never silently dropped: the caller still sees the proposal and why it is suppressed.
+        const suppressed = consultNegativeDecisions(preview, evolution.negativeDecision.inForce(), {
           ...(body.contractId ? { contractId: body.contractId } : {}),
           ...(body.workspaceId ? { workspaceId: body.workspaceId } : {}),
           sourceName: body.sourceName,
@@ -313,7 +633,8 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/assurance/runs') {
-      if (!authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -322,12 +643,13 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, assuranceStore.list(contractId))
+      send(response, 200, await assuranceStore.list(contractId, identity.tenantId))
       return
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/assurance/runs') {
-      if (!authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -340,12 +662,13 @@ const server = createServer(async (request, response) => {
         send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
         return
       }
-      send(response, 201, await assuranceStore.append(runAssurance(body.contract)))
+      send(response, 201, await assuranceStore.append(runAssurance(body.contract), identity.tenantId))
       return
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/reviews') {
-      if (!authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -361,17 +684,17 @@ const server = createServer(async (request, response) => {
         : registry.list().filter((entry) => workspaceIdFor(entry) === workspaceId).map((entry) => entry.contractId)
       const assignedRole = url.searchParams.get('assignedRole')
       const status = url.searchParams.get('status')
-      const reviews = scopedContractIds
-        .flatMap((id) => reviewStore.list(id).map((review) => withRouting({ ...review, ...(workspaceId ? { workspaceId } : {}) })))
+      const scoped = (await Promise.all(scopedContractIds.map((id) => reviewStore.list(id, identity.tenantId)))).flat()
+      send(response, 200, scoped
+        .map((review) => withRouting({ ...review, ...(workspaceId ? { workspaceId } : {}) }))
         .filter((review) => !status || review.status === status)
         .filter((review) => !assignedRole || (review.routingPlan?.assignments ?? []).some((assignment) => assignment.role === assignedRole))
-        .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
-      send(response, 200, reviews)
+        .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt)))
       return
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/reviews') {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -397,14 +720,14 @@ const server = createServer(async (request, response) => {
         targetLabel: entityType?.label ?? binding?.sourceSystem ?? policy!.label,
         impact: entityType?.impact ?? (policy?.riskTier === 'OPERATIONAL_ACTION' ? 'CRITICAL' : policy?.riskTier === 'PLANNING_DECISION' ? 'HIGH' : 'MEDIUM'),
         evidenceRefs: body.evidenceRefs ?? [],
-      }, principal.principalId)
+      }, principal.principalId, principal.tenantId)
       send(response, 201, review)
       return
     }
 
     const reviewDecisionMatch = url.pathname.match(/^\/v1\/reviews\/([^/]+)\/decisions$/)
     if (request.method === 'POST' && reviewDecisionMatch?.[1]) {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -415,12 +738,12 @@ const server = createServer(async (request, response) => {
         return
       }
       try {
-        const decided = await reviewStore.decide(reviewDecisionMatch[1], body.decision, body.rationale.trim(), principal.principalId)
-        const entry = registry.get(decided.contractId)
-        // A rejection with a typed capture becomes a negative decision, so the same mapping is never re-proposed (E13).
-        let negativeDecisionId: string | undefined
-        if (body.decision === 'REJECTED' && body.structuredRejection && entry) {
-          const created = await negativeDecisionStore.create({
+        const target = await reviewStore.get(reviewDecisionMatch[1], principal.tenantId)
+        const entry = target ? registry.get(target.contractId) : undefined
+        // A rejection with a typed capture becomes a negative decision, so the same mapping is
+        // never silently re-proposed by discovery (E13).
+        const negative = body.decision === 'REJECTED' && body.structuredRejection && entry && target
+          ? await evolution.negativeDecision.create({
             workspaceId: workspaceIdFor(entry),
             contractId: entry.contractId,
             prohibited: body.structuredRejection.prohibited,
@@ -428,17 +751,24 @@ const server = createServer(async (request, response) => {
             rationale: body.rationale.trim(),
             reviewBy: body.structuredRejection.reviewBy,
             ...(body.structuredRejection.exceptions ? { exceptions: body.structuredRejection.exceptions } : {}),
-            reviewId: decided.id,
+            reviewId: target.id,
           }, principal.principalId)
-          negativeDecisionId = created.id
-        }
+          : undefined
+        const decided = await reviewStore.decide(reviewDecisionMatch[1], body.decision, body.rationale.trim(), principal.principalId, principal.tenantId, new Date(), {
+          ...(body.structuredRejection ? { structuredRejection: body.structuredRejection } : {}),
+          ...(negative ? { negativeDecisionId: negative.id } : {}),
+        })
         if (decided.decision) {
-          await attestationStore.mint({ subjectKind: 'REVIEW_DECISION', subjectId: decided.decision.id, predicateType: predicateForSubject.REVIEW_DECISION, subject: decided.decision, signerId: principal.principalId, signerRoleAtSigning: roleOf(principal.principalId) })
+          await evolution.attestation.mint({
+            subjectKind: 'REVIEW_DECISION',
+            subjectId: decided.decision.id,
+            predicateType: predicateForSubject.REVIEW_DECISION,
+            subject: decided.decision,
+            signerId: principal.principalId,
+            signerRoleAtSigning: evolution.principal.get(principal.principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY',
+          })
         }
-        send(response, 201, withRouting({
-          ...decided,
-          ...(decided.decision ? { decision: { ...decided.decision, ...(body.structuredRejection ? { structuredRejection: body.structuredRejection } : {}), ...(negativeDecisionId ? { negativeDecisionId } : {}) } } : {}),
-        }))
+        send(response, 201, withRouting(decided))
       } catch (error) {
         const message = error instanceof Error ? error.message : 'REVIEW_DECISION_FAILED'
         send(response, message === 'REVIEW_NOT_FOUND' ? 404 : 409, { error: message })
@@ -448,11 +778,12 @@ const server = createServer(async (request, response) => {
 
     const assuranceRunMatch = url.pathname.match(/^\/v1\/assurance\/runs\/([^/]+)$/)
     if (request.method === 'GET' && assuranceRunMatch?.[1]) {
-      if (!authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const run = assuranceStore.get(assuranceRunMatch[1])
+      const run = await assuranceStore.get(assuranceRunMatch[1], identity.tenantId)
       if (!run) {
         send(response, 404, { error: 'ASSURANCE_RUN_NOT_FOUND' })
         return
@@ -473,7 +804,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === 'PUT' && contractMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -486,9 +817,51 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    const releaseDiffMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/diffs$/)
+    if (request.method === 'GET' && releaseDiffMatch?.[1]) {
+      if (!await authenticate(request)) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const fromDigest = url.searchParams.get('from')
+      const toDigest = url.searchParams.get('to')
+      if (!fromDigest || !toDigest) {
+        send(response, 400, { error: 'RELEASE_DIFF_ENDPOINTS_REQUIRED' })
+        return
+      }
+      const entry = registry.get(releaseDiffMatch[1])
+      if (!entry) {
+        send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
+        return
+      }
+      const from = entry.releases.find((release) => release.digest === fromDigest)
+      const to = entry.releases.find((release) => release.digest === toDigest)
+      if (!from || !to) {
+        send(response, 404, { error: 'RELEASE_NOT_FOUND' })
+        return
+      }
+      send(response, 200, buildReleaseDiffArtifact(entry.contractId, from, to))
+      return
+    }
+
+    const releaseEventsMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/release-events$/)
+    if (request.method === 'GET' && releaseEventsMatch?.[1]) {
+      if (!await authenticate(request)) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const entry = registry.get(releaseEventsMatch[1])
+      if (!entry) {
+        send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
+        return
+      }
+      send(response, 200, entry.releaseEvents ?? [])
+      return
+    }
+
     const releaseMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/releases$/)
     if (request.method === 'POST' && releaseMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -504,7 +877,7 @@ const server = createServer(async (request, response) => {
 
     const restoreMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/restores$/)
     if (request.method === 'POST' && restoreMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -524,7 +897,7 @@ const server = createServer(async (request, response) => {
 
     const runtimeStatusMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/runtime-status$/)
     if (request.method === 'POST' && runtimeStatusMatch?.[1]) {
-      if (!authenticate(request)) {
+      if (!await authenticate(request)) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -542,17 +915,47 @@ const server = createServer(async (request, response) => {
       return
     }
 
+    const rollbackMatch = url.pathname.match(/^\/v1\/contracts\/([^/]+)\/rollbacks$/)
+    if (request.method === 'POST' && rollbackMatch?.[1]) {
+      const principal = await authenticate(request)
+      if (!principal) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      const body = await readJson<{ digest?: string; rationale?: string }>(request)
+      if (!body.digest) {
+        send(response, 400, { error: 'RELEASE_DIGEST_REQUIRED' })
+        return
+      }
+      if (!body.rationale?.trim()) {
+        send(response, 400, { error: 'ROLLBACK_RATIONALE_REQUIRED' })
+        return
+      }
+      try {
+        send(response, 200, await registry.rollbackRelease(rollbackMatch[1], body.digest, body.rationale, principal.principalId))
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'ROLLBACK_FAILED'
+        send(response, message === 'CONTRACT_NOT_FOUND' || message === 'RELEASE_NOT_FOUND' ? 404 : 409, { error: message })
+      }
+      return
+    }
+
     if (request.method === 'GET' && url.pathname === '/v1/keys/current') {
-      send(response, 200, {
-        keyId,
-        algorithm: 'Ed25519',
-        publicKey: publicKey.export({ format: 'jwk' }),
-      })
+      const [active] = planSigner.publicKeys()
+      send(response, 200, { keyId: planSigner.activeKeyId, algorithm: 'Ed25519', publicKey: active })
+      return
+    }
+
+    // Every key a verifier should trust, so a plan signed before a rotation can still be checked
+    // offline for as long as it is valid.
+    if (request.method === 'GET' && url.pathname === '/v1/keys') {
+      send(response, 200, { keys: planSigner.publicKeys() })
       return
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/runtime-approvals') {
-      if (!authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -561,12 +964,13 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, runtimeApprovalStore.list(contractId))
+      send(response, 200, await runtimeApprovalStore.list(contractId, identity.tenantId))
       return
     }
 
     if (request.method === 'GET' && url.pathname === '/v1/executions') {
-      if (!authenticate(request)) {
+      const identity = await authenticate(request)
+      if (!identity) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
@@ -575,12 +979,12 @@ const server = createServer(async (request, response) => {
         send(response, 400, { error: 'CONTRACT_ID_REQUIRED' })
         return
       }
-      send(response, 200, executionStore.list(contractId))
+      send(response, 200, await executionStore.list(contractId, identity.tenantId))
       return
     }
 
     if (request.method === 'POST' && url.pathname === '/v1/compile') {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED', message: 'Use a Bearer token; identity is derived from the token, never the request body.' })
         return
@@ -597,71 +1001,107 @@ const server = createServer(async (request, response) => {
       }
 
       const selectedContractId = body.contractId ?? counterpartyRiskContract.id
-      const mode: DispositionMode = body.mode === 'DRY_RUN' ? 'DRY_RUN' : 'AUTHORIZED'
-      const entry = registry.get(selectedContractId)
-      // A dry-run compiles the draft so a new contract reaches the money moment without publishing (E3, G3).
-      const selectedContract = mode === 'DRY_RUN' ? entry?.draft : registry.latestPublished(selectedContractId)
+      // DRY_RUN compiles the draft, so a contract reaches the money moment before it is published
+      // (E3, fixes G3). It returns a disposition that explains and explicitly does not authorize.
+      const compileMode: DispositionMode = body.mode === 'DRY_RUN' ? 'DRY_RUN' : 'AUTHORIZED'
+      const selectedContract = compileMode === 'DRY_RUN'
+        ? registry.get(selectedContractId)?.draft
+        : await publishedContract(selectedContractId)
       if (!selectedContract) {
-        send(response, mode === 'DRY_RUN' ? 404 : 409, mode === 'DRY_RUN'
+        send(response, compileMode === 'DRY_RUN' ? 404 : 409, compileMode === 'DRY_RUN'
           ? { error: 'CONTRACT_NOT_FOUND' }
           : { error: 'CONTRACT_NOT_PUBLISHED', message: 'Publish this contract before compiling authorized questions, or compile with mode DRY_RUN.' })
         return
       }
-      const startedAt = process.hrtime.bigint()
-      const compiled = new ContextCompiler(selectedContract).compile({ ...body, mode })
-      const result = mode === 'DRY_RUN' ? compiled : await prepareCompile(compiled, selectedContract, principal.principalId)
-      const latencyMs = Number(process.hrtime.bigint() - startedAt) / 1e6
-      if (result.clarification) {
-        clarifications.set(result.clarification.id, {
-          request: { ...body, mode },
-          typeId: result.clarification.entityTypeId,
-        })
-      }
-      const enriched = await recordDisposition({ result, contract: selectedContract, question: body.question, mode, purposeId: body.purposeId, principalId: principal.principalId, latencyMs })
+      const runtimeContract = materializeSimulatedContext(selectedContract)
+      const compileStartedAt = process.hrtime.bigint()
+      const result = await withSpan('lattice.compile', {
+        'lattice.contract_id': runtimeContract.id,
+        'lattice.contract_version': runtimeContract.version,
+        'lattice.tenant_id': principal.tenantId ?? 'none',
+      }, async (span) => {
+        const resolver = resolverFor(principal, request)
+        const intentResolution = await withSpan('lattice.resolve_intent', {}, async () => resolver.resolve(body, runtimeContract))
+        const raw = new ContextCompiler(runtimeContract).compile(body, { intentResolution, ...subjectOf(principal) })
+        // A dry run is never signed and never raises a runtime approval: it authorizes nothing.
+        const compiled = compileMode === 'DRY_RUN' ? raw : await prepareCompile(raw, runtimeContract, principal, runtimeApprovalStore)
+        rememberClarification(compiled, principal, body, intentResolution)
+        recordCompileDecision(span, compiled)
+        return compiled
+      })
+      const enriched = await recordDisposition(evolution, registry, {
+        result,
+        contract: runtimeContract,
+        question: body.question,
+        mode: compileMode,
+        purposeId: body.purposeId,
+        principalId: principal.principalId,
+        latencyMs: Number(process.hrtime.bigint() - compileStartedAt) / 1e6,
+      })
       send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...enriched, principal })
       return
     }
 
     const clarificationMatch = url.pathname.match(/^\/v1\/clarifications\/([^/]+)$/)
     if (request.method === 'POST' && clarificationMatch?.[1]) {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const pending = clarifications.get(clarificationMatch[1])
+      const pending = clarifications.get(clarificationMatch[1], subjectOf(principal))
       if (!pending) {
         send(response, 404, { error: 'CLARIFICATION_NOT_FOUND' })
         return
       }
-      const body = await readJson<{ entityId?: string }>(request)
-      if (!body.entityId) {
-        send(response, 400, { error: 'ENTITY_ID_REQUIRED' })
-        return
-      }
-      const pendingContractId = pending.request.contractId ?? counterpartyRiskContract.id
-      const pendingMode: DispositionMode = pending.request.mode === 'DRY_RUN' ? 'DRY_RUN' : 'AUTHORIZED'
-      const selectedContract = pendingMode === 'DRY_RUN' ? registry.get(pendingContractId)?.draft : registry.latestPublished(pendingContractId)
+      const body = await readJson<{ entityId?: string; operationId?: string }>(request)
+      const selectedContract = await publishedContract(pending.request.contractId ?? counterpartyRiskContract.id)
       if (!selectedContract) {
         send(response, 409, { error: 'CONTRACT_NOT_PUBLISHED' })
         return
       }
+      const runtimeContract = materializeSimulatedContext(selectedContract)
       const clarificationStartedAt = process.hrtime.bigint()
-      const compiled = new ContextCompiler(selectedContract).compile({
-        ...pending.request,
-        selections: { ...pending.request.selections, [pending.typeId]: body.entityId },
+      if (pending.kind === 'ENTITY' && !body.entityId) {
+        send(response, 400, { error: 'ENTITY_ID_REQUIRED' })
+        return
+      }
+      if (pending.kind === 'OPERATION' && (!body.operationId || !pending.candidateOperationIds.includes(body.operationId))) {
+        send(response, 400, { error: 'INVALID_OPERATION_SELECTION', candidates: pending.candidateOperationIds })
+        return
+      }
+      const selectedOperationId = pending.kind === 'ENTITY' ? pending.operationId : body.operationId!
+      const result = await prepareCompile(
+        new ContextCompiler(runtimeContract).compile({
+          ...pending.request,
+          ...(pending.kind === 'ENTITY' ? {
+            selections: { ...pending.request.selections, [pending.typeId]: body.entityId! },
+          } : {}),
+        }, {
+          intentResolution: pending.intentResolution,
+          selectedOperationId,
+          ...subjectOf(principal),
+        }), runtimeContract, principal, runtimeApprovalStore,
+      )
+      clarifications.delete(clarificationMatch[1])
+      rememberClarification(result, principal, pending.request, pending.intentResolution, selectedOperationId)
+      const enriched = await recordDisposition(evolution, registry, {
+        result,
+        contract: runtimeContract,
+        question: pending.request.question,
+        mode: pending.request.mode === 'DRY_RUN' ? 'DRY_RUN' : 'AUTHORIZED',
+        purposeId: pending.request.purposeId,
+        principalId: principal.principalId,
+        latencyMs: Number(process.hrtime.bigint() - clarificationStartedAt) / 1e6,
+        clarificationId: clarificationMatch[1],
       })
-      const result = pendingMode === 'DRY_RUN' ? compiled : await prepareCompile(compiled, selectedContract, principal.principalId)
-      const latencyMs = Number(process.hrtime.bigint() - clarificationStartedAt) / 1e6
-      if (result.decision === 'RESOLVED') clarifications.delete(clarificationMatch[1])
-      const enriched = await recordDisposition({ result, contract: selectedContract, question: pending.request.question, mode: pendingMode, purposeId: pending.request.purposeId, principalId: principal.principalId, latencyMs, clarificationId: clarificationMatch[1] })
       send(response, result.decision === 'RESOLVED' ? 200 : result.decision === 'APPROVAL_REQUIRED' ? 202 : 422, { ...enriched, principal })
       return
     }
 
     const runtimeDecisionMatch = url.pathname.match(/^\/v1\/runtime-approvals\/([^/]+)\/decisions$/)
     if (request.method === 'POST' && runtimeDecisionMatch?.[1]) {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
@@ -672,7 +1112,7 @@ const server = createServer(async (request, response) => {
         return
       }
       try {
-        send(response, 201, await runtimeApprovalStore.decide(runtimeDecisionMatch[1], body.decision, body.rationale.trim(), principal.principalId))
+        send(response, 201, await runtimeApprovalStore.decide(runtimeDecisionMatch[1], body.decision, body.rationale.trim(), principal.principalId, principal.tenantId))
       } catch (error) {
         const message = error instanceof Error ? error.message : 'RUNTIME_APPROVAL_DECISION_FAILED'
         send(response, message === 'RUNTIME_APPROVAL_NOT_FOUND' ? 404 : 409, { error: message })
@@ -682,17 +1122,18 @@ const server = createServer(async (request, response) => {
 
     const runtimeResumeMatch = url.pathname.match(/^\/v1\/runtime-approvals\/([^/]+)\/resume$/)
     if (request.method === 'POST' && runtimeResumeMatch?.[1]) {
-      if (!authenticate(request)) {
+      const principal = await authenticate(request)
+      if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const approval = runtimeApprovalStore.get(runtimeResumeMatch[1])
+      const approval = await runtimeApprovalStore.get(runtimeResumeMatch[1], principal.tenantId)
       if (!approval) {
         send(response, 404, { error: 'RUNTIME_APPROVAL_NOT_FOUND' })
         return
       }
       if (approval.status === 'RESUMED' && approval.signedPlanId) {
-        send(response, 200, { approval, plan: plans.get(approval.signedPlanId) })
+        send(response, 200, { approval, plan: plans.get(approval.signedPlanId, subjectOf(principal))?.plan })
         return
       }
       if (approval.status !== 'APPROVED') {
@@ -705,21 +1146,32 @@ const server = createServer(async (request, response) => {
         return
       }
       const now = new Date()
+      // The renewed plan is re-bound to the operator resuming it, who holds the role required
+      // to execute. The requester's original plan is never handed on as a bearer capability.
       const renewedPlan: UnsignedExecutionPlan = {
         ...approval.pendingPlan,
         planId: `plan_${randomUUID()}`,
+        principalId: principal.principalId,
+        ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
         expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString(),
         nonce: randomUUID(),
       }
-      const signedPlan = signAndStore(renewedPlan, approval.contractId)
-      const resumed = await runtimeApprovalStore.markResumed(approval.id, signedPlan.planId, now)
+      const signedPlan = await signAndStore(renewedPlan, approval.contractId, principal)
+      const resumed = await runtimeApprovalStore.markResumed(approval.id, signedPlan.planId, principal.tenantId, now)
       send(response, 200, { approval: resumed, plan: signedPlan })
       return
     }
 
     const verifyMatch = url.pathname.match(/^\/v1\/plans\/([^/]+)\/verify$/)
     if (request.method === 'POST' && verifyMatch?.[1]) {
-      const plan = plans.get(verifyMatch[1])
+      const principal = await authenticate(request)
+      if (!principal) {
+        send(response, 401, { error: 'UNAUTHENTICATED' })
+        return
+      }
+      // A plan belonging to another subject is reported as absent rather than forbidden, so
+      // the response cannot be used to probe for live plan identifiers.
+      const plan = plans.get(verifyMatch[1], subjectOf(principal))?.plan
       if (!plan) {
         send(response, 404, { error: 'PLAN_NOT_FOUND' })
         return
@@ -739,22 +1191,30 @@ const server = createServer(async (request, response) => {
 
     const executeMatch = url.pathname.match(/^\/v1\/plans\/([^/]+)\/execute$/)
     if (request.method === 'POST' && executeMatch?.[1]) {
-      const principal = authenticate(request)
+      const principal = await authenticate(request)
       if (!principal) {
         send(response, 401, { error: 'UNAUTHENTICATED' })
         return
       }
-      const plan = plans.get(executeMatch[1])
-      const contractId = planContractIds.get(executeMatch[1])
-      if (!plan || !contractId) {
+      const stored = plans.get(executeMatch[1], subjectOf(principal))
+      if (!stored) {
         send(response, 404, { error: 'PLAN_NOT_FOUND' })
+        return
+      }
+      const { plan, contractId } = stored
+      const body = await readJson<ExecutePlanRequest & { grantedPermissions?: unknown }>(request)
+      if (body.grantedPermissions !== undefined) {
+        send(response, 400, {
+          error: 'PERMISSIONS_IN_BODY_FORBIDDEN',
+          message: 'Granted permissions are derived from the authenticated identity, never from the request body.',
+        })
         return
       }
       if (!verifyPlan(plan) || Date.now() > new Date(plan.expiresAt).getTime()) {
         send(response, 422, { error: 'PLAN_INVALID_OR_EXPIRED' })
         return
       }
-      if (executionStore.findByPlanId(plan.planId)) {
+      if (await executionStore.findConsumedByPlanId(plan.planId)) {
         send(response, 409, { error: 'PLAN_NONCE_ALREADY_CONSUMED' })
         return
       }
@@ -763,12 +1223,13 @@ const server = createServer(async (request, response) => {
         send(response, 409, { error: 'PLAN_RELEASE_NO_LONGER_ACTIVE' })
         return
       }
-      const body = await readJson<ExecutePlanRequest>(request)
-      const grantedPermissions = Array.isArray(body.grantedPermissions) ? [...new Set(body.grantedPermissions)] : []
-      const missingPermissions = plan.requiredPermissions.filter((permission) => !grantedPermissions.includes(permission))
+      const grantedPermissions = resolveGrantedPermissions(principal)
+      const missing = missingPermissions(grantedPermissions, plan.requiredPermissions)
       const startedAt = new Date().toISOString()
-      if (missingPermissions.length > 0) {
+      if (missing.length > 0) {
+        // Recorded for audit, but deliberately not treated as consuming the plan's nonce.
         const receipt = await executionStore.append({
+          ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
           contractId,
           contractVersion: activeContract.version,
           plan,
@@ -779,11 +1240,20 @@ const server = createServer(async (request, response) => {
           grantedPermissions,
           bindingResults: [],
         })
-        send(response, 403, { error: 'REQUIRED_PERMISSION_MISSING', missingPermissions, receipt })
+        send(response, 403, { error: 'REQUIRED_PERMISSION_MISSING', missingPermissions: missing, receipt })
         return
       }
-      const bindingResults = await executeBindings(plan, activeContract)
+      const bindingResults = await withSpan('lattice.execute_bindings', {
+        'lattice.operation': plan.operation,
+        'lattice.risk_tier': plan.riskTier,
+        'lattice.grounding': plan.grounding,
+        'lattice.bindings': plan.sourceBindings.length,
+      }, async () => executeBindings(plan, activeContract, {
+        ...(principal.tenantId ? { digestSalt: principal.tenantId } : {}),
+        ...delegationFor(request),
+      }))
       const receipt = await executionStore.append({
+        ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
         contractId,
         contractVersion: activeContract.version,
         plan,
@@ -794,11 +1264,12 @@ const server = createServer(async (request, response) => {
         grantedPermissions,
         bindingResults,
       })
+      await withSpan('lattice.execution_receipt', {}, async (span) => { recordExecution(span, receipt) })
       send(response, receipt.status === 'SUCCESS' ? 200 : 502, receipt)
       return
     }
 
-    if (await handleEvolutionRoutes(request, response, url)) return
+    if (await handleEvolutionRoutes({ request, response, url, identity: requestIdentity, registry, evolution, assuranceStore, reviewStore, executionStore })) return
 
     send(response, 404, { error: 'NOT_FOUND' })
   } catch (error) {
@@ -806,25 +1277,129 @@ const server = createServer(async (request, response) => {
       send(response, 422, { error: error.message, issues: error.issues })
       return
     }
+    if (error instanceof ContractRegistryConflictError) {
+      send(response, 409, { error: 'CONTRACT_MODIFIED_CONCURRENTLY', message: error.message })
+      return
+    }
     const message = error instanceof Error ? error.message : 'Unknown error'
     send(response, message === 'INVALID_JSON' || message === 'PAYLOAD_TOO_LARGE' ? 400 : 500, {
       error: message,
     })
   }
-})
+}
 
-server.listen(port, '127.0.0.1', () => {
-  process.stdout.write(`Lattice Context API listening at http://127.0.0.1:${port}\n`)
-})
+/**
+ * Listens only when this module is the program being run.
+ *
+ * Imported as a handler — which is how the Vercel Function uses it — binding a port would either
+ * fail or quietly hold one open for the lifetime of the invocation.
+ */
+if (process.env.LATTICE_DISABLE_LISTEN !== 'true') {
+  createServer(handleRequest).listen(port, host, () => {
+    process.stdout.write(`Lattice Context API listening at http://${host}:${port}\n`)
+  })
+}
+
+
+/**
+ * Chooses where semantic candidates come from for this request.
+ *
+ * The persisted index is release-scoped and read under the caller's own token, so it has to be
+ * built per request rather than once at startup. Without Supabase or without an embedding
+ * endpoint there is nothing to read, and the process-level resolver — lexical, or the in-memory
+ * hybrid — answers instead.
+ */
+
+/**
+ * Supplies the caller's own token so a DELEGATED binding runs as them.
+ *
+ * Without a configured exchange there is nothing to delegate with, and a binding that asked for
+ * delegation fails rather than quietly running as the service principal — which would apply none
+ * of the platform's row filters while the receipt claimed otherwise.
+ */
+
+/**
+ * Labels discovered fields with the classification the data catalog already holds.
+ *
+ * Discovery is the moment an author first sees a source column, and it is the only moment they
+ * are choosing what to map. Arriving pre-labelled is what stops a second, diverging judgement
+ * being made in the Studio. A catalog that cannot be read leaves the fields unlabelled rather
+ * than blocking discovery — but it is never reported as "nothing sensitive here".
+ */
+async function applyCatalogClassifications(binding: SourceBinding, preview: BindingPreview): Promise<void> {
+  if (!catalogSource) return
+
+  const resource = binding.connector?.resource
+  const prefix = [resource?.catalog, resource?.database, resource?.schema, resource?.object].filter(Boolean).join('.')
+  if (!prefix) return
+
+  const columns = preview.operations.flatMap((operation) => operation.fields.map((field) => ({
+    field,
+    qualifiedName: `${prefix}.${field.path.replace(/^\$\./, '')}`,
+  })))
+
+  try {
+    const assertions = await catalogSource.classify(columns.map((column) => ({ qualifiedName: column.qualifiedName })))
+    for (const column of columns) {
+      const assertion = assertions.get(column.qualifiedName)
+      if (assertion) column.field.classification = assertion
+    }
+  } catch (error) {
+    console.warn('[catalog.classify]', { catalog: catalogSource.catalog, error: error instanceof Error ? error.message : 'unknown' })
+  }
+}
+
+function delegationFor(request: IncomingMessage): { delegation?: ExecuteBindingsOptions['delegation'] } {
+  const subjectToken = request.headers.authorization?.replace(/^Bearer /i, '').trim()
+  if (!tokenExchange || !subjectToken) return {}
+  return {
+    delegation: {
+      subjectToken,
+      exchange: (token, scope) => tokenExchange!.exchange(token, scope),
+      scopeFor: (provider) => delegationScopeFor(provider),
+    },
+  }
+}
+
+function resolverFor(identity: RequestIdentity, request: IncomingMessage): IntentResolver {
+  if (!supabaseRegistryConfig || !embeddingProvider || !identity.tenantId) return intentResolver
+  return new PersistedIntentResolver({
+    projectUrl: supabaseRegistryConfig.projectUrl,
+    publishableKey: supabaseRegistryConfig.publishableKey,
+    organizationId: identity.tenantId,
+    authorization: request.headers.authorization ?? '',
+    embeddingProvider,
+  })
+}
+
 
 /* ------------------------------------------------------------------ *
  * Evolution & evaluation routes (E3–E19, E21).
  * ------------------------------------------------------------------ */
 
+interface EvolutionContext {
+  request: IncomingMessage
+  response: ServerResponse
+  url: URL
+  identity: RequestIdentity | undefined
+  registry: ContractRegistry
+  evolution: EvolutionStores
+  assuranceStore: AssuranceStore
+  reviewStore: ReviewStore
+  executionStore: ExecutionStore
+}
+
+/**
+ * Every `/v1/` path is already authenticated and role-checked by the caller, so these handlers
+ * take the resolved identity rather than re-authenticating. Returning false means "not my route".
+ */
 // eslint-disable-next-line complexity
-async function handleEvolutionRoutes(request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> {
+async function handleEvolutionRoutes({ request, response, url, identity, registry, evolution, assuranceStore, reviewStore, executionStore }: EvolutionContext): Promise<boolean> {
   const method = request.method ?? 'GET'
   const path = url.pathname
+  const tenantId = identity?.tenantId
+  const principalId = identity?.principalId ?? 'principal_anonymous'
+  const roleOf = (id: string) => evolution.principal.get(id)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY'
 
   /* ---- Declared purpose and derived risk tier (E4) ---- */
 
@@ -833,13 +1408,20 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
     const contract = contractId ? registry.get(contractId)?.draft : undefined
     const domain = url.searchParams.get('domain') ?? contract?.domain ?? ''
     const available = purposesForDomain(domain)
-    const allowed = contract?.purposeIds
-    send(response, 200, allowed && allowed.length > 0 ? available.filter((purpose) => allowed.includes(purpose.id)) : available satisfies DeclaredPurpose[])
+    /*
+     * The contract is the authority. The compiler denies any purpose a contract has not declared,
+     * so returning the global catalogue for a contract that declares none would offer choices that
+     * are guaranteed to be refused. `catalog` is the starter set a steward can adopt; `purposes` is
+     * what a caller may actually name right now.
+     */
+    const declared: DeclaredPurpose[] = contract?.purposes ?? []
+    send(response, 200, contractId
+      ? { purposes: declared, catalog: available.filter((purpose) => !declared.some((candidate) => candidate.id === purpose.id)) }
+      : { purposes: available, catalog: [] })
     return true
   }
 
   if (method === 'POST' && path === '/v1/risk-tier') {
-    if (!authenticate(request)) return unauthenticated(response)
     const body = await readJson<{ contractId?: string; purposeId?: string; operationId?: string }>(request)
     const contract = registry.get(body.contractId ?? '')?.draft
     if (!contract) {
@@ -853,7 +1435,6 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
   /* ---- Disposition trail (E5) ---- */
 
   if (method === 'GET' && path === '/v1/dispositions') {
-    if (!authenticate(request)) return unauthenticated(response)
     const query: DispositionQuery = {
       ...optional('contractId', url), ...optional('workspaceId', url), ...optional('purposeId', url), ...optional('principalId', url), ...optional('cursor', url), ...optional('from', url), ...optional('to', url),
       ...(url.searchParams.get('decision') ? { decision: url.searchParams.get('decision') as RuntimeDecision } : {}),
@@ -861,14 +1442,13 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
       ...(url.searchParams.get('mode') ? { mode: url.searchParams.get('mode') as DispositionMode } : {}),
       ...(url.searchParams.get('limit') ? { limit: Number(url.searchParams.get('limit')) } : {}),
     }
-    send(response, 200, dispositionStore.query(query))
+    send(response, 200, evolution.disposition.query(query))
     return true
   }
 
   const dispositionMatch = path.match(/^\/v1\/dispositions\/([^/]+)$/)
   if (method === 'GET' && dispositionMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const record = dispositionStore.get(dispositionMatch[1])
+    const record = evolution.disposition.get(dispositionMatch[1])
     if (!record) {
       send(response, 404, { error: 'DISPOSITION_NOT_FOUND' })
       return true
@@ -878,36 +1458,33 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
   }
 
   if (method === 'GET' && path === '/v1/retention') {
-    if (!authenticate(request)) return unauthenticated(response)
-    send(response, 200, dispositionStore.retention())
+    send(response, 200, evolution.disposition.retention())
     return true
   }
 
   /* ---- Attestations (E16) ---- */
 
   if (method === 'GET' && path === '/v1/attestations') {
-    if (!authenticate(request)) return unauthenticated(response)
-    send(response, 200, attestationStore.list({ ...optional('subjectId', url), ...(url.searchParams.get('subjectKind') ? { subjectKind: url.searchParams.get('subjectKind') as Parameters<typeof attestationStore.list>[0] extends { subjectKind?: infer K } ? K : never } : {}) }))
+    send(response, 200, evolution.attestation.list({ ...optional('subjectId', url), ...(url.searchParams.get('subjectKind') ? { subjectKind: url.searchParams.get('subjectKind') as Parameters<typeof evolution.attestation.list>[0] extends { subjectKind?: infer K } ? K : never } : {}) }))
     return true
   }
 
   const attestationVerifyMatch = path.match(/^\/v1\/attestations\/([^/]+)\/verify$/)
   if (method === 'POST' && attestationVerifyMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const attestation = attestationStore.get(attestationVerifyMatch[1])
+    const attestation = evolution.attestation.get(attestationVerifyMatch[1])
     if (!attestation) {
       send(response, 404, { error: 'ATTESTATION_NOT_FOUND' })
       return true
     }
-    const verification = attestationStore.verify(attestation.id, resolveAttestationSubject(attestation.subjectKind, attestation.subjectId), keyId)
+    const subject = await resolveAttestationSubject({ request, response, url, identity, registry, evolution, assuranceStore, reviewStore, executionStore }, attestation.subjectKind, attestation.subjectId)
+    const verification = evolution.attestation.verify(attestation.id, subject, planSigner.activeKeyId)
     send(response, verification?.verified ? 200 : 422, verification)
     return true
   }
 
   const attestationMatch = path.match(/^\/v1\/attestations\/([^/]+)$/)
   if (method === 'GET' && attestationMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const attestation = attestationStore.get(attestationMatch[1])
+    const attestation = evolution.attestation.get(attestationMatch[1])
     if (!attestation) {
       send(response, 404, { error: 'ATTESTATION_NOT_FOUND' })
       return true
@@ -919,26 +1496,23 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
   /* ---- Case sets (E6) ---- */
 
   if (method === 'GET' && path === '/v1/case-sets') {
-    if (!authenticate(request)) return unauthenticated(response)
-    send(response, 200, caseSetStore.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
+    send(response, 200, evolution.caseSet.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
     return true
   }
 
   if (method === 'POST' && path === '/v1/case-sets') {
-    if (!authenticate(request)) return unauthenticated(response)
     const body = await readJson<CreateCaseSetRequest>(request)
     if (!body.name?.trim() || !body.scope) {
       send(response, 400, { error: 'INVALID_CASE_SET', message: 'A name and a scope are required.' })
       return true
     }
-    send(response, 201, await caseSetStore.create(body))
+    send(response, 201, await evolution.caseSet.create(body))
     return true
   }
 
   const caseSetCasesMatch = path.match(/^\/v1\/case-sets\/([^/]+)\/cases$/)
   if (caseSetCasesMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const caseSet = caseSetStore.get(caseSetCasesMatch[1])
+    const caseSet = evolution.caseSet.get(caseSetCasesMatch[1])
     if (!caseSet) {
       send(response, 404, { error: 'CASE_SET_NOT_FOUND' })
       return true
@@ -953,15 +1527,14 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
         send(response, 400, { error: 'INVALID_EVAL_CASE', message: 'A case id and question are required.' })
         return true
       }
-      send(response, 200, await caseSetStore.upsertCase(caseSet.id, body.case))
+      send(response, 200, await evolution.caseSet.upsertCase(caseSet.id, body.case))
       return true
     }
   }
 
   const caseSetMatch = path.match(/^\/v1\/case-sets\/([^/]+)$/)
   if (caseSetMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const caseSet = caseSetStore.get(caseSetMatch[1])
+    const caseSet = evolution.caseSet.get(caseSetMatch[1])
     if (!caseSet) {
       send(response, 404, { error: 'CASE_SET_NOT_FOUND' })
       return true
@@ -976,7 +1549,7 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
         send(response, 400, { error: 'CASE_SET_ID_MISMATCH' })
         return true
       }
-      send(response, 200, await caseSetStore.replace(caseSet.id, body.caseSet))
+      send(response, 200, await evolution.caseSet.replace(caseSet.id, body.caseSet))
       return true
     }
   }
@@ -984,16 +1557,13 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
   /* ---- Evaluation runs, diff, failure routing (E7, E8, E10) ---- */
 
   if (method === 'GET' && path === '/v1/eval/runs') {
-    if (!authenticate(request)) return unauthenticated(response)
-    send(response, 200, evalRunStore.list({ ...optional('contractId', url), ...optional('caseSetId', url) }))
+    send(response, 200, evolution.evalRun.list({ ...optional('contractId', url), ...optional('caseSetId', url) }))
     return true
   }
 
   if (method === 'POST' && path === '/v1/eval/runs') {
-    const principal = authenticate(request)
-    if (!principal) return unauthenticated(response)
     const body = await readJson<CreateEvalRunRequest>(request)
-    const caseSet = caseSetStore.get(body.caseSetId ?? '')
+    const caseSet = evolution.caseSet.get(body.caseSetId ?? '')
     const entry = registry.get(body.contractId ?? '')
     if (!caseSet || !entry) {
       send(response, 404, { error: caseSet ? 'CONTRACT_NOT_FOUND' : 'CASE_SET_NOT_FOUND' })
@@ -1016,24 +1586,24 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
       ...(workspaceIdFor(entry) ? { workspaceId: workspaceIdFor(entry) } : {}),
       mode,
       environment: body.environment ?? 'local',
-      triggeredBy: principal.principalId,
-      principalChain: principalStore.chainFor(principal.principalId),
+      triggeredBy: principalId,
+      ...(tenantId ? { tenantId } : {}),
+      principalChain: evolution.principal.chainFor(principalId),
       ...(body.baselineRunId ? { baselineRunId: body.baselineRunId } : {}),
       now,
     })
-    for (const record of dispositions) await dispositionStore.append(record)
+    for (const record of dispositions) await evolution.disposition.append(record)
     const evidence = evidenceForEvalRun(run)
-    const stored = await evalRunStore.append({ ...run, evidenceRecordId: evidence.id })
-    await attestationStore.mint({ subjectKind: 'EVAL_RUN', subjectId: stored.id, predicateType: predicateForSubject.EVAL_RUN, subject: stored, signerId: principal.principalId, signerRoleAtSigning: roleOf(principal.principalId) })
+    const stored = await evolution.evalRun.append({ ...run, evidenceRecordId: evidence.id })
+    await evolution.attestation.mint({ subjectKind: 'EVAL_RUN', subjectId: stored.id, predicateType: predicateForSubject.EVAL_RUN, subject: stored, signerId: principalId, signerRoleAtSigning: evolution.principal.get(principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' })
     send(response, 201, stored)
     return true
   }
 
   const evalDiffMatch = path.match(/^\/v1\/eval\/runs\/([^/]+)\/diff$/)
   if (method === 'GET' && evalDiffMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const candidate = evalRunStore.get(evalDiffMatch[1])
-    const baseline = evalRunStore.get(url.searchParams.get('baseline') ?? '')
+    const candidate = evolution.evalRun.get(evalDiffMatch[1])
+    const baseline = evolution.evalRun.get(url.searchParams.get('baseline') ?? '')
     if (!candidate || !baseline) {
       send(response, 404, { error: candidate ? 'BASELINE_RUN_NOT_FOUND' : 'EVAL_RUN_NOT_FOUND' })
       return true
@@ -1044,8 +1614,7 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
 
   const evalCancelMatch = path.match(/^\/v1\/eval\/runs\/([^/]+)\/cancel$/)
   if (method === 'POST' && evalCancelMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const run = evalRunStore.get(evalCancelMatch[1])
+    const run = evolution.evalRun.get(evalCancelMatch[1])
     if (!run) {
       send(response, 404, { error: 'EVAL_RUN_NOT_FOUND' })
       return true
@@ -1054,14 +1623,13 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
       send(response, 409, { error: 'EVAL_RUN_ALREADY_FINISHED' })
       return true
     }
-    send(response, 200, await evalRunStore.replace({ ...run, status: 'CANCELLED', completedAt: new Date().toISOString() }))
+    send(response, 200, await evolution.evalRun.replace({ ...run, status: 'CANCELLED', completedAt: new Date().toISOString() }))
     return true
   }
 
   const evalRunMatch = path.match(/^\/v1\/eval\/runs\/([^/]+)$/)
   if (method === 'GET' && evalRunMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const run = evalRunStore.get(evalRunMatch[1])
+    const run = evolution.evalRun.get(evalRunMatch[1])
     if (!run) {
       send(response, 404, { error: 'EVAL_RUN_NOT_FOUND' })
       return true
@@ -1074,8 +1642,7 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
 
   const blastRadiusMatch = path.match(/^\/v1\/reviews\/([^/]+)\/blast-radius$/)
   if (method === 'GET' && blastRadiusMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const review = reviewStore.get(blastRadiusMatch[1])
+    const review = await reviewStore.get(blastRadiusMatch[1], tenantId)
     const entry = review ? registry.get(review.contractId) : undefined
     if (!review || !entry) {
       send(response, 404, { error: 'REVIEW_NOT_FOUND' })
@@ -1086,15 +1653,14 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
       workspaceId: workspaceIdFor(entry),
       targetKind: review.targetKind,
       targetId: review.targetId,
-      dispositions: dispositionStore.all().filter((record) => record.contractId === entry.contractId),
+      dispositions: evolution.disposition.all().filter((record) => record.contractId === entry.contractId),
     }))
     return true
   }
 
   const reviewDelegateMatch = path.match(/^\/v1\/reviews\/([^/]+)\/delegate$/)
   if (method === 'POST' && reviewDelegateMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const review = reviewStore.get(reviewDelegateMatch[1])
+    const review = await reviewStore.get(reviewDelegateMatch[1], tenantId)
     if (!review) {
       send(response, 404, { error: 'REVIEW_NOT_FOUND' })
       return true
@@ -1117,8 +1683,7 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
 
   const reviewMatch = path.match(/^\/v1\/reviews\/([^/]+)$/)
   if (method === 'GET' && reviewMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const review = reviewStore.get(reviewMatch[1])
+    const review = await reviewStore.get(reviewMatch[1], tenantId)
     if (!review) {
       send(response, 404, { error: 'REVIEW_NOT_FOUND' })
       return true
@@ -1130,34 +1695,29 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
   /* ---- Negative decisions (E13) ---- */
 
   if (method === 'GET' && path === '/v1/negative-decisions') {
-    if (!authenticate(request)) return unauthenticated(response)
-    send(response, 200, negativeDecisionStore.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
+    send(response, 200, evolution.negativeDecision.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
     return true
   }
 
   if (method === 'POST' && path === '/v1/negative-decisions') {
-    const principal = authenticate(request)
-    if (!principal) return unauthenticated(response)
     const body = await readJson<CreateNegativeDecisionRequest>(request)
     if (!body.workspaceId || !body.prohibited?.subject?.trim() || !body.rationale?.trim() || !body.reviewBy) {
       send(response, 400, { error: 'INVALID_NEGATIVE_DECISION', message: 'A workspace, a prohibited subject, a rationale, and a review-by date are required.' })
       return true
     }
-    send(response, 201, await negativeDecisionStore.create(body, principal.principalId))
+    send(response, 201, await evolution.negativeDecision.create(body, principalId))
     return true
   }
 
   const negativeWithdrawMatch = path.match(/^\/v1\/negative-decisions\/([^/]+)\/withdraw$/)
   if (method === 'POST' && negativeWithdrawMatch?.[1]) {
-    const principal = authenticate(request)
-    if (!principal) return unauthenticated(response)
     const body = await readJson<{ rationale?: string }>(request)
     if (!body.rationale?.trim() || body.rationale.trim().length < 12) {
       send(response, 400, { error: 'RATIONALE_REQUIRED', message: 'A rationale of at least 12 characters is required.' })
       return true
     }
     try {
-      send(response, 200, await negativeDecisionStore.withdraw(negativeWithdrawMatch[1], body.rationale.trim(), principal.principalId))
+      send(response, 200, await evolution.negativeDecision.withdraw(negativeWithdrawMatch[1], body.rationale.trim(), principalId))
     } catch (error) {
       send(response, 404, { error: error instanceof Error ? error.message : 'NEGATIVE_DECISION_NOT_FOUND' })
     }
@@ -1166,8 +1726,7 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
 
   const negativeMatch = path.match(/^\/v1\/negative-decisions\/([^/]+)$/)
   if (method === 'GET' && negativeMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const decision = negativeDecisionStore.get(negativeMatch[1])
+    const decision = evolution.negativeDecision.get(negativeMatch[1])
     if (!decision) {
       send(response, 404, { error: 'NEGATIVE_DECISION_NOT_FOUND' })
       return true
@@ -1179,36 +1738,32 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
   /* ---- Drift, source health, counterfactual replay (E14) ---- */
 
   if (method === 'GET' && path === '/v1/drift') {
-    if (!authenticate(request)) return unauthenticated(response)
-    send(response, 200, driftStore.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
+    send(response, 200, evolution.drift.list({ ...optional('workspaceId', url), ...optional('contractId', url) }))
     return true
   }
 
   if (method === 'POST' && path === '/v1/drift/scan') {
-    if (!authenticate(request)) return unauthenticated(response)
     const body = await readJson<{ workspaceId?: string }>(request)
     const detected = registry.list()
       .filter((entry) => !body.workspaceId || workspaceIdFor(entry) === body.workspaceId)
       .flatMap((entry) => detectDrift(entry, registry.getWorkspace(workspaceIdFor(entry))))
-    send(response, 200, await driftStore.upsertMany(detected))
+    send(response, 200, await evolution.drift.upsertMany(detected))
     return true
   }
 
   if (method === 'GET' && path === '/v1/source-health') {
-    if (!authenticate(request)) return unauthenticated(response)
     const entry = registry.get(url.searchParams.get('contractId') ?? '')
     if (!entry) {
       send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
       return true
     }
-    send(response, 200, sourceHealthFor(entry.draft, driftStore.list({ contractId: entry.contractId })))
+    send(response, 200, sourceHealthFor(entry.draft, evolution.drift.list({ contractId: entry.contractId })))
     return true
   }
 
   const driftReplayMatch = path.match(/^\/v1\/drift\/([^/]+)\/replay$/)
   if (method === 'POST' && driftReplayMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const event = driftStore.get(driftReplayMatch[1])
+    const event = evolution.drift.get(driftReplayMatch[1])
     const entry = event?.contractId ? registry.get(event.contractId) : undefined
     if (!event || !entry) {
       send(response, 404, { error: 'DRIFT_EVENT_NOT_FOUND' })
@@ -1216,19 +1771,18 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
     }
     const counterfactual = replayDrift({
       event,
-      dispositions: dispositionStore.all().filter((record) => record.contractId === entry.contractId && record.mode === 'AUTHORIZED'),
+      dispositions: evolution.disposition.all().filter((record) => record.contractId === entry.contractId && record.mode === 'AUTHORIZED'),
       contract: entry.draft,
+      ...(tenantId ? { tenantId } : {}),
     })
-    await driftStore.replace({ ...event, counterfactual })
+    await evolution.drift.replace({ ...event, counterfactual })
     send(response, 200, counterfactual)
     return true
   }
 
   const driftActionMatch = path.match(/^\/v1\/drift\/([^/]+)\/actions$/)
   if (method === 'POST' && driftActionMatch?.[1]) {
-    const principal = authenticate(request)
-    if (!principal) return unauthenticated(response)
-    const event = driftStore.get(driftActionMatch[1])
+    const event = evolution.drift.get(driftActionMatch[1])
     if (!event) {
       send(response, 404, { error: 'DRIFT_EVENT_NOT_FOUND' })
       return true
@@ -1249,17 +1803,16 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
         targetLabel: event.subject.label,
         impact: event.severity,
         evidenceRefs: [],
-      }, principal.principalId)
+      }, principalId, tenantId)
     }
     const status = body.action === 'ACKNOWLEDGE' ? 'ACKNOWLEDGED' as const : body.action === 'RESOLVE' ? 'RESOLVED' as const : body.action === 'ALLOW_READ_ONLY' ? 'ACKNOWLEDGED' as const : event.status
-    send(response, 200, await driftStore.replace({ ...event, status }))
+    send(response, 200, await evolution.drift.replace({ ...event, status }))
     return true
   }
 
   const driftMatch = path.match(/^\/v1\/drift\/([^/]+)$/)
   if (method === 'GET' && driftMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const event = driftStore.get(driftMatch[1])
+    const event = evolution.drift.get(driftMatch[1])
     if (!event) {
       send(response, 404, { error: 'DRIFT_EVENT_NOT_FOUND' })
       return true
@@ -1271,7 +1824,6 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
   /* ---- Per-use eligibility (E11) ---- */
 
   if (method === 'GET' && path === '/v1/eligibility') {
-    if (!authenticate(request)) return unauthenticated(response)
     const entry = registry.get(url.searchParams.get('contractId') ?? '')
     if (!entry) {
       send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
@@ -1281,11 +1833,11 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
     send(response, 200, buildEligibility({
       entry,
       contract: entry.draft,
-      assuranceRuns: assuranceStore.list(entry.contractId),
-      reviews: reviewStore.list(entry.contractId),
-      driftEvents: driftStore.list({ contractId: entry.contractId }),
-      dispositions: dispositionStore.all().filter((record) => record.contractId === entry.contractId),
-      autonomousGrantAvailable: principalStore.grants({ workspaceId }).some((grant) => grant.status === 'ACTIVE' && grant.riskTierCeiling === 'OPERATIONAL_ACTION'),
+      assuranceRuns: await assuranceStore.list(entry.contractId, tenantId),
+      reviews: await reviewStore.list(entry.contractId, tenantId),
+      driftEvents: evolution.drift.list({ contractId: entry.contractId }),
+      dispositions: evolution.disposition.all().filter((record) => record.contractId === entry.contractId),
+      autonomousGrantAvailable: evolution.principal.grants({ workspaceId }).some((grant) => grant.status === 'ACTIVE' && grant.riskTierCeiling === 'OPERATIONAL_ACTION'),
     }))
     return true
   }
@@ -1293,57 +1845,49 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
   /* ---- Identity and delegation (E15) ---- */
 
   if (method === 'GET' && path === '/v1/session') {
-    const identity = authenticate(request)
-    if (!identity) return unauthenticated(response)
     // A bearer identity that is not in the declared directory is recorded as exactly what it
     // verifiably is, so the session always resolves to a real Principal rather than a chain link.
-    if (!principalStore.get(identity.principalId)) {
-      await principalStore.observe([identity.principalId], registry.listWorkspaces().map((workspace) => workspace.id))
+    if (!evolution.principal.get(principalId)) {
+      await evolution.principal.observe([principalId], registry.listWorkspaces().map((workspace) => workspace.id))
     }
-    send(response, 200, { principal: principalStore.get(identity.principalId), chain: principalStore.chainFor(identity.principalId) })
+    send(response, 200, { principal: evolution.principal.get(principalId), chain: evolution.principal.chainFor(principalId) })
     return true
   }
 
   if (method === 'GET' && path === '/v1/principals') {
-    if (!authenticate(request)) return unauthenticated(response)
-    send(response, 200, principalStore.all(url.searchParams.get('workspaceId') ?? undefined))
+    send(response, 200, evolution.principal.all(url.searchParams.get('workspaceId') ?? undefined))
     return true
   }
 
   if (method === 'GET' && path === '/v1/identity-graph') {
-    if (!authenticate(request)) return unauthenticated(response)
-    send(response, 200, principalStore.identityGraph(url.searchParams.get('workspaceId') ?? undefined))
+    send(response, 200, evolution.principal.identityGraph(url.searchParams.get('workspaceId') ?? undefined))
     return true
   }
 
   if (method === 'GET' && path === '/v1/delegations') {
-    if (!authenticate(request)) return unauthenticated(response)
-    send(response, 200, principalStore.grants({ ...optional('workspaceId', url), ...optional('principalId', url) }))
+    send(response, 200, evolution.principal.grants({ ...optional('workspaceId', url), ...optional('principalId', url) }))
     return true
   }
 
   if (method === 'POST' && path === '/v1/delegations') {
-    const principal = authenticate(request)
-    if (!principal) return unauthenticated(response)
     const body = await readJson<CreateDelegationGrantRequest>(request)
     if (!body.toPrincipalId || !Array.isArray(body.scope) || body.scope.length === 0 || !body.maximumActions) {
       send(response, 400, { error: 'INVALID_DELEGATION', message: 'A delegate, at least one scope, and a maximum action budget are required.' })
       return true
     }
-    send(response, 201, await principalStore.createGrant(body, principal.principalId))
+    send(response, 201, await evolution.principal.createGrant(body, principalId))
     return true
   }
 
   const grantRevokeMatch = path.match(/^\/v1\/delegations\/([^/]+)\/revoke$/)
   if (method === 'POST' && grantRevokeMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
     const body = await readJson<{ rationale?: string }>(request)
     if (!body.rationale?.trim()) {
       send(response, 400, { error: 'RATIONALE_REQUIRED' })
       return true
     }
     try {
-      send(response, 200, await principalStore.revokeGrant(grantRevokeMatch[1], body.rationale.trim()))
+      send(response, 200, await evolution.principal.revokeGrant(grantRevokeMatch[1], body.rationale.trim()))
     } catch (error) {
       send(response, 404, { error: error instanceof Error ? error.message : 'GRANT_NOT_FOUND' })
     }
@@ -1352,8 +1896,7 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
 
   const principalMatch = path.match(/^\/v1\/principals\/([^/]+)$/)
   if (method === 'GET' && principalMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const principal = principalStore.get(principalMatch[1])
+    const principal = evolution.principal.get(principalMatch[1])
     if (!principal) {
       send(response, 404, { error: 'PRINCIPAL_NOT_FOUND' })
       return true
@@ -1365,17 +1908,14 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
   /* ---- Emergency authorization and its retrospective queue (E18) ---- */
 
   if (method === 'GET' && path === '/v1/emergency-authorizations') {
-    if (!authenticate(request)) return unauthenticated(response)
-    send(response, 200, emergencyStore.list({
+    send(response, 200, evolution.emergency.list({
       ...optional('contractId', url), ...optional('workspaceId', url),
-      ...(url.searchParams.get('status') ? { status: url.searchParams.get('status') as Parameters<typeof emergencyStore.list>[0] extends { status?: infer S } ? S : never } : {}),
+      ...(url.searchParams.get('status') ? { status: url.searchParams.get('status') as Parameters<typeof evolution.emergency.list>[0] extends { status?: infer S } ? S : never } : {}),
     }))
     return true
   }
 
   if (method === 'POST' && path === '/v1/emergency-authorizations') {
-    const principal = authenticate(request)
-    if (!principal) return unauthenticated(response)
     const body = await readJson<CreateEmergencyAuthorizationRequest>(request)
     if (!body.contractId || !registry.get(body.contractId)) {
       send(response, 404, { error: 'CONTRACT_NOT_FOUND' })
@@ -1386,23 +1926,21 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
       send(response, 400, { error: 'INVALID_EMERGENCY_REQUEST', message: 'A justification of at least 80 characters, an action budget, a validity window, at least one approver role, and at least one compensating control are required.' })
       return true
     }
-    const authorization = await emergencyStore.create(body, principal.principalId)
-    await attestationStore.mint({ subjectKind: 'EMERGENCY_AUTHORIZATION', subjectId: authorization.id, predicateType: predicateForSubject.EMERGENCY_AUTHORIZATION, subject: authorization, signerId: principal.principalId, signerRoleAtSigning: roleOf(principal.principalId) })
+    const authorization = await evolution.emergency.create(body, principalId)
+    await evolution.attestation.mint({ subjectKind: 'EMERGENCY_AUTHORIZATION', subjectId: authorization.id, predicateType: predicateForSubject.EMERGENCY_AUTHORIZATION, subject: authorization, signerId: principalId, signerRoleAtSigning: evolution.principal.get(principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' })
     send(response, 201, authorization)
     return true
   }
 
   const emergencyApprovalMatch = path.match(/^\/v1\/emergency-authorizations\/([^/]+)\/approvals$/)
   if (method === 'POST' && emergencyApprovalMatch?.[1]) {
-    const principal = authenticate(request)
-    if (!principal) return unauthenticated(response)
     const body = await readJson<{ role?: string; rationale?: string }>(request)
     if (!body.role || !body.rationale?.trim() || body.rationale.trim().length < 12) {
       send(response, 400, { error: 'INVALID_EMERGENCY_APPROVAL', message: 'A role and a rationale of at least 12 characters are required.' })
       return true
     }
     try {
-      send(response, 200, await emergencyStore.approve(emergencyApprovalMatch[1], body.role, body.rationale.trim(), principal.principalId))
+      send(response, 200, await evolution.emergency.approve(emergencyApprovalMatch[1], body.role, body.rationale.trim(), principalId))
     } catch (error) {
       const message = error instanceof Error ? error.message : 'EMERGENCY_APPROVAL_FAILED'
       send(response, message === 'EMERGENCY_AUTHORIZATION_NOT_FOUND' ? 404 : 409, { error: message })
@@ -1412,15 +1950,13 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
 
   const emergencyRetrospectiveMatch = path.match(/^\/v1\/emergency-authorizations\/([^/]+)\/retrospective$/)
   if (method === 'POST' && emergencyRetrospectiveMatch?.[1]) {
-    const principal = authenticate(request)
-    if (!principal) return unauthenticated(response)
     const body = await readJson<EmergencyRetrospectiveRequest>(request)
     if (!['JUSTIFIED', 'UNJUSTIFIED', 'PROCESS_GAP'].includes(body.verdict) || !body.notes?.trim()) {
       send(response, 400, { error: 'INVALID_RETROSPECTIVE', message: 'A verdict and notes are required.' })
       return true
     }
     try {
-      send(response, 200, await emergencyStore.recordRetrospective(emergencyRetrospectiveMatch[1], body, principal.principalId))
+      send(response, 200, await evolution.emergency.recordRetrospective(emergencyRetrospectiveMatch[1], body, principalId))
     } catch (error) {
       send(response, 404, { error: error instanceof Error ? error.message : 'EMERGENCY_AUTHORIZATION_NOT_FOUND' })
     }
@@ -1429,8 +1965,7 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
 
   const emergencyMatch = path.match(/^\/v1\/emergency-authorizations\/([^/]+)$/)
   if (method === 'GET' && emergencyMatch?.[1]) {
-    if (!authenticate(request)) return unauthenticated(response)
-    const authorization = emergencyStore.get(emergencyMatch[1])
+    const authorization = evolution.emergency.get(emergencyMatch[1])
     if (!authorization) {
       send(response, 404, { error: 'EMERGENCY_AUTHORIZATION_NOT_FOUND' })
       return true
@@ -1442,8 +1977,6 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
   /* ---- Activity feed and command palette search (E19, E21) ---- */
 
   if (method === 'GET' && path === '/v1/activity') {
-    const principal = authenticate(request)
-    if (!principal) return unauthenticated(response)
     const workspaceId = url.searchParams.get('workspaceId') ?? undefined
     const contractId = url.searchParams.get('contractId') ?? undefined
     send(response, 200, buildActivity({
@@ -1451,42 +1984,36 @@ async function handleEvolutionRoutes(request: IncomingMessage, response: ServerR
       ...(contractId ? { contractId } : {}),
       limit: Math.min(Number(url.searchParams.get('limit') ?? 50), 200),
       entries: registry.list(),
-      dispositions: dispositionStore.all(),
-      assuranceRuns: registry.list().flatMap((entry) => assuranceStore.list(entry.contractId)),
-      evalRuns: evalRunStore.list(),
-      driftEvents: driftStore.all(),
-      reviews: registry.list().flatMap((entry) => reviewStore.list(entry.contractId)),
-      emergencyAuthorizations: emergencyStore.list(),
-      negativeDecisions: negativeDecisionStore.list(),
-      viewer: { principalId: principal.principalId, roles: principalStore.get(principal.principalId)?.roles ?? [] },
+      dispositions: evolution.disposition.all(),
+      assuranceRuns: (await Promise.all(registry.list().map((entry) => assuranceStore.list(entry.contractId, tenantId)))).flat(),
+      evalRuns: evolution.evalRun.list(),
+      driftEvents: evolution.drift.all(),
+      reviews: (await Promise.all(registry.list().map((entry) => reviewStore.list(entry.contractId, tenantId)))).flat(),
+      emergencyAuthorizations: evolution.emergency.list(),
+      negativeDecisions: evolution.negativeDecision.list(),
+      viewer: { principalId, roles: evolution.principal.get(principalId)?.roles ?? [] },
     }))
     return true
   }
 
   if (method === 'GET' && path === '/v1/search') {
-    if (!authenticate(request)) return unauthenticated(response)
     const workspaceId = url.searchParams.get('workspaceId') ?? undefined
     send(response, 200, search({
       query: url.searchParams.get('q') ?? '',
       ...(workspaceId ? { workspaceId } : {}),
       workspaces: registry.listWorkspaces(),
       entries: registry.list(),
-      dispositions: dispositionStore.all(),
-      evalRuns: evalRunStore.list(),
-      caseSets: caseSetStore.all().map((caseSet) => summarize(caseSet)),
-      reviews: registry.list().flatMap((entry) => reviewStore.list(entry.contractId)),
-      driftEvents: driftStore.all(),
-      principals: principalStore.all(workspaceId),
+      dispositions: evolution.disposition.all(),
+      evalRuns: evolution.evalRun.list(),
+      caseSets: evolution.caseSet.all().map((caseSet) => summarize(caseSet)),
+      reviews: (await Promise.all(registry.list().map((entry) => reviewStore.list(entry.contractId, tenantId)))).flat(),
+      driftEvents: evolution.drift.all(),
+      principals: evolution.principal.all(workspaceId),
     }))
     return true
   }
 
   return false
-}
-
-function unauthenticated(response: ServerResponse): boolean {
-  send(response, 401, { error: 'UNAUTHENTICATED' })
-  return true
 }
 
 function optional<K extends string>(key: K, url: URL): Partial<Record<K, string>> {
@@ -1496,10 +2023,6 @@ function optional<K extends string>(key: K, url: URL): Partial<Record<K, string>
 
 function workspaceIdFor(entry: ContractRegistryEntry): string {
   return entry.draft.ontologyRef?.workspaceId ?? `workspace-${entry.draft.domain}`
-}
-
-function roleOf(principalId: string): string {
-  return principalStore.get(principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY'
 }
 
 /**
@@ -1548,13 +2071,21 @@ function evidenceForEvalRun(run: EvalRun) {
 }
 
 /** Resolves the artifact an attestation covers so verification recomputes a real digest. */
-function resolveAttestationSubject(subjectKind: string, subjectId: string): unknown {
-  if (subjectKind === 'DISPOSITION') return dispositionStore.get(subjectId)
-  if (subjectKind === 'EVAL_RUN') return evalRunStore.get(subjectId)
-  if (subjectKind === 'EMERGENCY_AUTHORIZATION') return emergencyStore.get(subjectId)
-  if (subjectKind === 'ASSURANCE_RUN') return assuranceStore.get(subjectId)
-  if (subjectKind === 'EXECUTION') return registry.list().flatMap((entry) => executionStore.list(entry.contractId)).find((receipt) => receipt.id === subjectId)
-  if (subjectKind === 'REVIEW_DECISION') return registry.list().flatMap((entry) => reviewStore.list(entry.contractId)).find((review) => review.decision?.id === subjectId)?.decision
+async function resolveAttestationSubject(context: EvolutionContext, subjectKind: string, subjectId: string): Promise<unknown> {
+  const { registry, evolution, assuranceStore, reviewStore, executionStore } = context
+  const tenantId = context.identity?.tenantId
+  if (subjectKind === 'DISPOSITION') return evolution.disposition.get(subjectId)
+  if (subjectKind === 'EVAL_RUN') return evolution.evalRun.get(subjectId)
+  if (subjectKind === 'EMERGENCY_AUTHORIZATION') return evolution.emergency.get(subjectId)
+  if (subjectKind === 'ASSURANCE_RUN') return assuranceStore.get(subjectId, tenantId)
+  if (subjectKind === 'EXECUTION') {
+    const receipts = (await Promise.all(registry.list().map((entry) => executionStore.list(entry.contractId, tenantId)))).flat()
+    return receipts.find((receipt) => receipt.id === subjectId)
+  }
+  if (subjectKind === 'REVIEW_DECISION') {
+    const reviews = (await Promise.all(registry.list().map((entry) => reviewStore.list(entry.contractId, tenantId)))).flat()
+    return reviews.find((review) => review.decision?.id === subjectId)?.decision
+  }
   return undefined
 }
 
@@ -1573,7 +2104,7 @@ interface RecordDispositionInput {
  * Every compile persists — resolved, clarification, approval, abstention and denial alike.
  * Without this the core output of the product does not survive a second keystroke (G1).
  */
-async function recordDisposition({ result, contract, question, mode, purposeId, principalId, latencyMs, clarificationId }: RecordDispositionInput): Promise<CompileResponse> {
+async function recordDisposition(evolution: EvolutionStores, registry: ContractRegistry, { result, contract, question, mode, purposeId, principalId, latencyMs, clarificationId }: RecordDispositionInput): Promise<CompileResponse> {
   const now = new Date()
   const plan = result.plan ?? result.pendingPlan
   const operationId = plan?.operation
@@ -1599,15 +2130,15 @@ async function recordDisposition({ result, contract, question, mode, purposeId, 
     ...(result.approval ? { approvalId: result.approval.id } : {}),
     ...(clarificationId ?? result.clarification?.id ? { clarificationId: clarificationId ?? result.clarification!.id } : {}),
     principalId,
-    principalChain: principalStore.chainFor(principalId),
+    principalChain: evolution.principal.chainFor(principalId),
     compilation,
     evidenceRefs: plan?.evidenceRefs ?? [],
     latencyMs,
     createdAt: now.toISOString(),
     provenance: 'RE_EXECUTED',
   })
-  const attestation = await attestationStore.mint({ subjectKind: 'DISPOSITION', subjectId: record.id, predicateType: predicateForSubject.DISPOSITION, subject: record, signerId: principalId, signerRoleAtSigning: roleOf(principalId) })
-  const stored = await dispositionStore.append({ ...record, attestationIds: [attestation.id] })
+  const attestation = await evolution.attestation.mint({ subjectKind: 'DISPOSITION', subjectId: record.id, predicateType: predicateForSubject.DISPOSITION, subject: record, signerId: principalId, signerRoleAtSigning: evolution.principal.get(principalId)?.roles[0] ?? 'BEARER_TOKEN_IDENTITY' })
+  const stored = await evolution.disposition.append({ ...record, attestationIds: [attestation.id] })
   return {
     ...result,
     dispositionId: stored.id,
@@ -1619,7 +2150,7 @@ async function recordDisposition({ result, contract, question, mode, purposeId, 
   }
 }
 
-async function prepareCompile(result: CompileResponse, contract: ContextContract, requestedBy: string): Promise<CompileResponse> {
+async function prepareCompile(result: CompileResponse, contract: ContextContract, principal: RequestIdentity, runtimeApprovalStore: RuntimeApprovalStore): Promise<CompileResponse> {
   if (result.decision === 'APPROVAL_REQUIRED' && result.pendingPlan) {
     const operation = contract.operations.find((candidate) => candidate.id === result.pendingPlan?.operation)
     const policy = operation ? contract.policies.find((candidate) => candidate.riskTier === operation.riskTier) : undefined
@@ -1628,51 +2159,108 @@ async function prepareCompile(result: CompileResponse, contract: ContextContract
       return withoutPendingPlan
     }
     const approval = await runtimeApprovalStore.create({
+      ...(principal.tenantId ? { tenantId: principal.tenantId } : {}),
       contractId: contract.id,
       contractVersion: contract.version,
       contractDigest: contract.digest,
       operationId: operation.id,
       policyId: policy.id,
       riskTier: operation.riskTier,
-      requestedBy,
+      requestedBy: principal.principalId,
       pendingPlan: result.pendingPlan,
     })
     return { ...result, approval }
   }
-  return finalize(result, contract.id)
+  return finalize(result, contract.id, principal)
 }
 
-function finalize(result: CompileResponse, contractId: string): CompileResponse {
+function rememberClarification(
+  result: CompileResponse,
+  principal: RequestIdentity,
+  request: CompileRequest,
+  intentResolution: IntentResolution,
+  selectedOperationId?: string,
+): void {
+  if (!result.clarification) return
+  const subject = subjectOf(principal)
+  if (result.clarification.kind === 'OPERATION') {
+    clarifications.set(result.clarification.id, subject, {
+      kind: 'OPERATION',
+      request,
+      candidateOperationIds: result.clarification.candidates.map((candidate) => candidate.operationId),
+      intentResolution,
+    })
+    return
+  }
+  const operationId = selectedOperationId ?? intentResolution.candidates[0]?.operationId
+  if (!operationId) return
+  clarifications.set(result.clarification.id, subject, {
+    kind: 'ENTITY',
+    request,
+    typeId: result.clarification.entityTypeId,
+    operationId,
+    intentResolution,
+  })
+}
+
+async function finalize(result: CompileResponse, contractId: string, principal: RequestIdentity): Promise<CompileResponse> {
   if (!result.plan) return result
-  const signed = signAndStore(result.plan, contractId)
+  const signed = await signAndStore(result.plan, contractId, principal)
   return { ...result, plan: signed }
 }
 
-function signAndStore(plan: UnsignedExecutionPlan, contractId: string): SignedExecutionPlan {
-  const signed = signPlan(plan)
-  plans.set(signed.planId, signed)
-  planContractIds.set(signed.planId, contractId)
+async function signAndStore(plan: UnsignedExecutionPlan, contractId: string, principal: RequestIdentity): Promise<SignedExecutionPlan> {
+  const signed = await signPlan(plan)
+  plans.set(signed.planId, subjectOf(principal), { plan: signed, contractId }, planRetentionUntil(signed))
   return signed
 }
 
-function signPlan(plan: UnsignedExecutionPlan): SignedExecutionPlan {
-  const payload = Buffer.from(JSON.stringify(plan))
-  const signature = sign(null, payload, privateKey).toString('base64url')
-  return { ...plan, keyId, signatureAlgorithm: 'Ed25519', signature }
+function planRetentionUntil(plan: SignedExecutionPlan): number {
+  return new Date(plan.expiresAt).getTime() + expiredPlanGraceMs
+}
+
+function subjectOf(identity: RequestIdentity): Subject {
+  return { principalId: identity.principalId, ...(identity.tenantId ? { tenantId: identity.tenantId } : {}) }
+}
+
+async function signPlan(plan: UnsignedExecutionPlan): Promise<SignedExecutionPlan> {
+  const signature = await planSigner.sign(Buffer.from(JSON.stringify(plan)))
+  return { ...plan, keyId: planSigner.activeKeyId, signatureAlgorithm: planSigner.algorithm, signature }
 }
 
 function verifyPlan(plan: SignedExecutionPlan): boolean {
-  const { keyId: _keyId, signatureAlgorithm: _algorithm, signature, ...unsigned } = plan
-  return verify(null, Buffer.from(JSON.stringify(unsigned)), publicKey, Buffer.from(signature, 'base64url'))
+  const { keyId, signatureAlgorithm: _algorithm, signature, ...unsigned } = plan
+  return planSigner.verify(Buffer.from(JSON.stringify(unsigned)), signature, keyId)
 }
 
-function authenticate(request: IncomingMessage): { tenantId: string; principalId: string } | undefined {
-  const authorization = request.headers.authorization
-  if (!authorization?.startsWith('Bearer ') || authorization.length <= 7) return undefined
-  const token = authorization.slice(7)
-  return {
-    tenantId: 'tenant_dev',
-    principalId: `principal_${createHash('sha256').update(token).digest('hex').slice(0, 12)}`,
+async function authenticate(request: IncomingMessage): Promise<RequestIdentity | undefined> {
+  const cached = requestIdentityCache.get(request)
+  if (cached) return cached
+  const resolution = resolveRequestIdentity(request)
+  requestIdentityCache.set(request, resolution)
+  return resolution
+}
+
+function requiredTenantId(identity: RequestIdentity): string {
+  if (!identity.tenantId) throw new Error('SUPABASE_REGISTRY_TENANT_REQUIRED')
+  return identity.tenantId
+}
+
+async function resolveRequestIdentity(request: IncomingMessage): Promise<RequestIdentity | undefined> {
+  const identity = await authenticator.authenticate(request.headers.authorization)
+  if (!identity) return undefined
+  const organizationHeader = request.headers['x-lattice-organization']
+  const requestedOrganizationId = Array.isArray(organizationHeader) ? undefined : organizationHeader?.trim()
+  if (!tenantMembershipResolver) {
+    if (requestedOrganizationId && identity.tenantId && requestedOrganizationId !== identity.tenantId) return undefined
+    return identity
+  }
+  if (!requestedOrganizationId) return undefined
+  try {
+    const role = await tenantMembershipResolver.resolve(request.headers.authorization, requestedOrganizationId, identity.principalId)
+    return role ? applyTenantMembership(identity, requestedOrganizationId, role) : undefined
+  } catch {
+    return undefined
   }
 }
 
@@ -1692,9 +2280,19 @@ async function readJson<T>(request: IncomingMessage): Promise<T> {
   }
 }
 
-function setCors(response: ServerResponse): void {
-  response.setHeader('Access-Control-Allow-Origin', studioOrigin)
-  response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+/**
+ * Echoes back the caller's own origin when it is allowed, rather than a single fixed value.
+ * A browser only accepts the response when the header matches the requesting origin exactly, so
+ * with several allowed origins the header has to depend on who is asking. Unrecognized origins
+ * get the first allowed one, which is the same rejection they would get from a fixed header.
+ */
+function setCors(request: IncomingMessage, response: ServerResponse): void {
+  const requestOrigin = request.headers.origin
+  const allowedOrigin = requestOrigin && allowedStudioOrigins.includes(requestOrigin) ? requestOrigin : allowedStudioOrigins[0]
+  if (allowedOrigin) response.setHeader('Access-Control-Allow-Origin', allowedOrigin)
+  // Caches keyed only on the URL would otherwise hand one origin's response to another.
+  response.setHeader('Vary', 'Origin')
+  response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Lattice-Organization')
   response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS')
 }
 

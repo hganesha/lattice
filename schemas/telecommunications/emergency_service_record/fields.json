@@ -1,0 +1,26 @@
+{
+  "document_type": "emergency_service_record",
+  "vertical": "telecommunications",
+  "family": "telco_public_safety",
+  "schema_version": "telco_emergency_service_record_v1",
+  "fields": [
+    { "name": "emergency_service_record_id", "type": "string", "required": true, "description": "Unique minimized public-safety service record." },
+    { "name": "service_subscription_id", "type": "string", "required": true, "description": "Subscription associated with provisioning or test evidence." },
+    { "name": "emergency_911_service_type", "type": "string", "required": true, "description": "Voice 911, text-to-911, real-time text, or equivalent service." },
+    { "name": "emergency_911_provisioning_status", "type": "string", "required": true, "description": "Provisioned, pending, failed, suspended, or not applicable." },
+    { "name": "emergency_911_tested_at", "type": "string", "required": false, "description": "Timestamp of an approved non-live or coordinated validation." },
+    { "name": "emergency_psap_identifier", "type": "string", "required": false, "description": "Minimized reference to the responsible PSAP." },
+    { "name": "emergency_911_service_area", "type": "string", "required": true, "description": "Geographic 911 service area." },
+    { "name": "emergency_dispatchable_location_available", "type": "boolean", "required": true, "description": "Whether dispatchable location can be delivered when technically feasible and applicable." },
+    { "name": "emergency_location_accuracy_method", "type": "string", "required": true, "description": "Network, device, hybrid, dispatchable, or z-axis location method." },
+    { "name": "emergency_location_confidence_percent", "type": "number", "required": false, "description": "Confidence level provided with location information." },
+    { "name": "emergency_location_uncertainty_meters", "type": "number", "required": false, "description": "Uncertainty radius or equivalent measure." },
+    { "name": "emergency_text_to_911_supported", "type": "boolean", "required": true, "description": "Whether text-to-911 is supported in the relevant area." },
+    { "name": "emergency_bounce_back_enabled", "type": "boolean", "required": true, "description": "Whether the required unavailable-service bounce-back is enabled." },
+    { "name": "emergency_reseller_obligation_status", "type": "string", "required": true, "description": "NVO or reseller evidence of its independent 911 obligations." },
+    { "name": "emergency_host_network_dependency", "type": "string", "required": false, "description": "Host-network capability relied on by the reseller." },
+    { "name": "emergency_privacy_use_restriction", "type": "string", "required": true, "description": "Restriction on non-911 use of dispatchable or vertical location data." },
+    { "name": "emergency_regulation_citations", "type": "string", "required": true, "description": "Applicable 47 CFR Part 9 citations." },
+    { "name": "emergency_compliance_status", "type": "string", "required": true, "description": "Evidence-backed emergency-service readiness state." }
+  ]
+}

@@ -152,8 +152,9 @@ h2 { font-size: 18px; }
 h3 { font-size: 15px; }
 
 :where(.panel,.summary-grid) { color: var(--text); background: var(--surface) !important; border-color: var(--border) !important; }
-:where(.builder-toolbar,.compiler-bar,.contracts-hero,.binding-hero,.assurance-hero,.review-hero,.policy-hero,.evidence-hero,.release-hero,.runtime-readiness,.runtime-approval-hero) { color: var(--text); background: var(--surface-raised) !important; border-color: var(--border) !important; }
+:where(.builder-toolbar,.compiler-bar,.contracts-hero,.contract-editor-hero,.binding-hero,.assurance-hero,.review-hero,.policy-hero,.evidence-hero,.release-hero,.runtime-readiness,.runtime-approval-hero) { color: var(--text); background: var(--surface-raised) !important; border-color: var(--border) !important; }
 .contracts-hero-actions { display: flex; align-items: flex-end; gap: 10px; }
+.contracts-primary-actions { display: flex; align-items: center; gap: 8px; }
 .contract-canvas-selector { display: block; width: min(360px,30vw); color: var(--text-muted); }
 .contract-canvas-selector>span { display: block; margin-bottom: 6px; font: 500 var(--ui-meta-size) "DM Mono",monospace; letter-spacing: 1px; }
 .contract-canvas-selector select { display: block; width: 100%; min-height: 38px; padding: 7px 34px 7px 10px; border: 1px solid var(--border-strong); border-radius: 7px; color: var(--text); background: var(--surface); }
@@ -167,9 +168,21 @@ h3 { font-size: 15px; }
 .validation-checks .pass { color: var(--success-strong) !important; }
 .validation-checks .fail { color: var(--danger) !important; }
 .relation-list:focus-visible { border-radius: 5px; }
-.summary-card { min-height: 112px; padding: 21px 23px; }
-.summary-value { font-size: 26px !important; }
-.summary-meta { font-size: var(--ui-font-min) !important; margin-top: 5px; }
+.summary-grid { margin-bottom: 10px; }
+.summary-card {
+  min-height: 74px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  grid-template-areas:
+    "label value"
+    "meta value";
+  align-content: center;
+  column-gap: 16px;
+  padding: 11px 16px;
+}
+.summary-label { grid-area: label; align-self: end; }
+.summary-value { grid-area: value; align-self: center; margin-top: 0; font-size: 21px !important; }
+.summary-meta { grid-area: meta; align-self: start; margin-top: 3px; font-size: var(--ui-font-min) !important; line-height: 1.3; }
 .ghost,.release,.compile-button { min-height: 38px; padding: 9px 14px; border-color: var(--border-strong) !important; }
 .ghost { color: var(--text) !important; background: var(--surface-raised) !important; }
 .ghost:hover { background: var(--surface-soft) !important; }
@@ -189,9 +202,18 @@ h3 { font-size: 15px; }
 
 .builder-workbench { grid-template-columns: minmax(760px,1fr) 370px; gap: 16px; }
 .builder-inspector { min-width: 0; }
-.schema-canvas.flow-mode { height: clamp(620px,calc(100vh - 400px),860px); min-height: 620px; background-color: var(--canvas) !important; background-image: radial-gradient(var(--canvas-grid) .8px,transparent .8px) !important; }
+.schema-canvas.flow-mode { height: clamp(620px,calc(100vh - 360px),900px); min-height: 620px; background-color: var(--canvas) !important; background-image: radial-gradient(var(--canvas-grid) .8px,transparent .8px) !important; }
 .flow-mode .react-flow,.runtime-graph { background: var(--canvas) !important; }
 .ontology-flow-node,.runtime-flow-node { width: 220px !important; color: var(--text) !important; background: var(--surface-raised) !important; border-color: var(--border-strong) !important; font-size: 12px !important; line-height: 1.4 !important; }
+.large-icon,.starter-icon { border: 1px solid color-mix(in srgb,var(--accent) 28%,var(--border)); color: var(--accent-strong); background: var(--accent-soft); }
+.starter-icon svg { width: 18px; height: 18px; }
+.runtime-node-content { display: flex; align-items: center; gap: 10px; min-width: 0; text-align: left; }
+.runtime-node-content>span { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border: 1px solid color-mix(in srgb,var(--accent) 28%,var(--border)); border-radius: 7px; color: var(--accent-strong); background: var(--accent-soft); }
+.runtime-node-content>span svg { width: 17px; height: 17px; }
+.runtime-node-content>div { min-width: 0; }
+.runtime-node-content b,.runtime-node-content small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-node-content b { color: var(--text); font: 600 var(--ui-font-min) Inter,sans-serif; }
+.runtime-node-content small { margin-top: 4px; color: var(--text-muted); font: var(--ui-meta-size) "DM Mono",monospace; }
 .ontology-lane-node { pointer-events: none !important; padding: 0 !important; border: 1px dashed var(--border-strong) !important; border-radius: 12px !important; color: var(--text-secondary) !important; background: color-mix(in srgb,var(--surface) 72%,transparent) !important; box-shadow: none !important; }
 .ontology-lane-content { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 13px; border-bottom: 1px solid var(--border); font: 600 var(--ui-meta-size) "DM Mono",monospace; letter-spacing: .8px; text-transform: uppercase; }
 .ontology-lane-content em { display: grid; place-items: center; min-width: 21px; height: 21px; padding-inline: 5px; border-radius: 999px; color: var(--accent); background: var(--accent-soft); font-style: normal; }
@@ -276,7 +298,8 @@ h3 { font-size: 15px; }
   background: radial-gradient(circle at 25% 18%,color-mix(in srgb,var(--accent) 23%,transparent),transparent 42%),var(--surface-raised);
 }
 
-.enterprise-use-case-marker { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: auto; border: 1px solid color-mix(in srgb,var(--accent) 48%,var(--border)); border-radius: 12px; color: var(--accent-strong); background: var(--accent-soft); font: 700 14px Manrope,sans-serif; letter-spacing: .5px; }
+.enterprise-use-case-marker { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: auto; border: 1px solid color-mix(in srgb,var(--accent) 48%,var(--border)); border-radius: 12px; color: var(--accent-strong); background: var(--accent-soft); }
+.enterprise-use-case-marker svg { width: 24px; height: 24px; stroke-width: 1.75; }
 .enterprise-use-case>aside b { color: var(--text); font: 600 13px/1.35 Manrope,sans-serif; }
 .enterprise-use-case>aside small { margin-top: 6px; color: var(--text-muted); line-height: 1.4; }
 .enterprise-use-case-body { min-width: 0; padding: 21px 23px 19px; }
@@ -425,10 +448,155 @@ h3 { font-size: 15px; }
 .runtime-empty>span svg { width: 30px; height: 30px; }
 .header-actions button svg { width: 13px; height: 13px; vertical-align: -2px; }
 
+/* Collapsible application rails preserve working state while returning canvas space. */
+.sidebar-brand-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.sidebar-brand-row .brand { min-width: 0; }
+.panel-collapse-button { display: grid; place-items: center; width: 30px; height: 30px; flex: 0 0 auto; padding: 0; border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); background: var(--surface-raised); cursor: pointer; }
+.panel-collapse-button:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-soft); }
+.panel-collapse-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.panel-collapse-button svg { width: 15px; height: 15px; }
+.nav-collapsed { grid-template-columns: 76px minmax(0,1fr) !important; }
+.nav-collapsed .sidebar { width: auto !important; padding-inline: 12px; }
+.nav-collapsed .sidebar-brand-row { flex-direction: column; align-items: center; }
+.nav-collapsed .brand { padding: 0 0 10px; }
+.nav-collapsed .brand > span:last-child,
+.nav-collapsed .workspace-switcher > div,
+.nav-collapsed .nav-label,
+.nav-collapsed .nav-item > span:not(.nav-icon),
+.nav-collapsed .nav-item > em,
+.nav-collapsed .sidebar-footer > div { display: none; }
+.nav-collapsed .workspace-switcher { justify-content: center; padding: 7px; margin-block: 14px; }
+.nav-collapsed .workspace-icon { flex: 0 0 auto; }
+.nav-collapsed nav { align-items: center; }
+.nav-collapsed .nav-item { justify-content: center; width: 42px; padding: 0; }
+.nav-collapsed .nav-icon { width: 18px; }
+.nav-collapsed .sidebar-footer { justify-content: center; padding-inline: 0; }
+.collapsible-inspector-header { min-height: 48px; display: flex; align-items: center; border-bottom: 1px solid var(--border); }
+.collapsible-inspector-header > .inspector-tabs,
+.collapsible-inspector-header > header { min-width: 0; flex: 1; border-bottom: 0 !important; margin-bottom: 0; }
+.collapsible-inspector-header > .panel-collapse-button { margin: 8px; }
+.collapsible-inspector.collapsed { min-width: 48px; min-height: 0; }
+.collapsible-inspector.collapsed .collapsible-inspector-header { justify-content: center; border-bottom: 0; }
+.collapsible-inspector.collapsed .panel-collapse-button { margin: 8px 0; }
+.builder-workbench.inspector-collapsed,
+.runtime-workbench.inspector-collapsed,
+.evidence-layout.inspector-collapsed,
+.release-layout.inspector-collapsed { grid-template-columns: minmax(0,1fr) 48px !important; }
+
 /* Loading spinner used by empty/loading states. */
 .lattice-spin { animation: lattice-spin .8s linear infinite; }
 @keyframes lattice-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .lattice-spin { animation: none; } }
+
+/* Ontology canvas layout selector and readable 2.5D isometric projection. */
+.model-actions .compact-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 8px !important;
+  border-radius: 6px;
+  font-size: var(--ui-meta-size);
+}
+.model-actions .compact-action svg { width: 13px; height: 13px; flex: none; }
+.canvas-layout-controls {
+  position: absolute;
+  z-index: 10;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid color-mix(in srgb,var(--border-strong) 86%,transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb,var(--surface) 90%,transparent);
+  box-shadow: 0 8px 22px color-mix(in srgb,#000 30%,transparent);
+  backdrop-filter: blur(10px);
+}
+.layout-view-selector {
+  display: inline-flex;
+  gap: 2px;
+}
+.layout-view-selector button,
+.canvas-layout-controls>.layout-toggle {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 !important;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+.layout-view-selector button svg,
+.canvas-layout-controls>.layout-toggle svg { width: 15px; height: 15px; }
+.layout-view-selector button:hover,
+.canvas-layout-controls>.layout-toggle:hover { color: var(--text); background: var(--surface-raised); }
+.layout-view-selector button.selected {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--accent) 28%,transparent);
+}
+.canvas-layout-controls>.layout-toggle.active { color: var(--accent-strong); }
+.layout-toggle:disabled { opacity: .45; cursor: not-allowed; }
+
+.ontology-canvas-isometric .react-flow {
+  background-color: var(--canvas) !important;
+  background-image:
+    linear-gradient(30deg,color-mix(in srgb,var(--canvas-grid) 38%,transparent) 1px,transparent 1px),
+    linear-gradient(150deg,color-mix(in srgb,var(--canvas-grid) 26%,transparent) 1px,transparent 1px) !important;
+  background-size: 36px 21px !important;
+}
+.ontology-canvas-isometric .react-flow__background { opacity: .2; }
+.ontology-canvas-isometric .ontology-lane-node {
+  overflow: hidden;
+  border-style: solid !important;
+  border-radius: 4px !important;
+  background:
+    linear-gradient(145deg,color-mix(in srgb,var(--accent) 7%,var(--surface)) 0%,color-mix(in srgb,var(--surface) 78%,transparent) 58%,color-mix(in srgb,var(--canvas) 90%,transparent) 100%) !important;
+  box-shadow: inset -18px -18px 40px color-mix(in srgb,#000 22%,transparent) !important;
+  clip-path: polygon(22px 0,100% 0,calc(100% - 22px) 100%,0 100%);
+  filter: drop-shadow(12px 16px 13px color-mix(in srgb,#000 36%,transparent));
+}
+.ontology-canvas-isometric .ontology-lane-content {
+  padding-inline: 28px 18px;
+  background: linear-gradient(90deg,color-mix(in srgb,var(--accent) 9%,transparent),transparent 65%);
+}
+.ontology-canvas-isometric .ontology-flow-node {
+  isolation: isolate;
+  box-shadow: 0 13px 25px color-mix(in srgb,#000 46%,transparent) !important;
+}
+.ontology-canvas-isometric .ontology-flow-node::before,
+.ontology-canvas-isometric .ontology-flow-node::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+.ontology-canvas-isometric .ontology-flow-node::before {
+  right: -9px;
+  bottom: -7px;
+  left: 8px;
+  height: 8px;
+  background: color-mix(in srgb,var(--surface-raised) 55%,#000);
+  clip-path: polygon(0 0,100% 0,calc(100% - 9px) 100%,9px 100%);
+}
+.ontology-canvas-isometric .ontology-flow-node::after {
+  top: 7px;
+  right: -9px;
+  bottom: -7px;
+  width: 10px;
+  background: color-mix(in srgb,var(--surface-raised) 66%,#000);
+  clip-path: polygon(0 0,100% 7px,100% 100%,0 calc(100% - 7px));
+}
+.ontology-canvas-isometric .ontology-flow-edge .react-flow__edge-path {
+  stroke: color-mix(in srgb,var(--accent) 28%,var(--text-muted));
+  stroke-width: 1.5;
+}
 
 /* Keyboard-shortcut hint on the compile button. */
 .compile-button .kbd-hint { display: inline-block; margin-left: 9px; padding: 1px 5px; border-radius: 4px; color: color-mix(in srgb,currentColor 62%,transparent); background: color-mix(in srgb,currentColor 12%,transparent); font: 500 var(--text-xs) "DM Mono",monospace; }

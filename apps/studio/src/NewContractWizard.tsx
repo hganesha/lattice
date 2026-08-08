@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { ContractRegistryEntry, ContractStarter, ImpactLevel, IndustryWorkspace } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
+import { Brand } from './Brand'
+import { EntityIcon } from './entityIcons'
 import { useMessages } from './i18n/messages'
 import { SelectOrCreateField } from './SelectOrCreateField'
 import { contractSuggestionsFor } from './contractSuggestions'
@@ -22,6 +24,8 @@ export function NewContractWizard({ onClose, onCreated, workspace }: NewContract
   const { t } = useMessages()
   const starters: Array<{ id: ContractStarter; icon: string; name: string; detail: string; objects: string }> = [
     { id: 'blank', icon: '◇', name: t('wizardStarterBlank'), detail: t('wizardStarterBlankDetail'), objects: t('wizardStarterCounts', { types: 0, relations: 0 }) },
+    { id: 'airline', icon: '✈', name: t('wizardStarterAirline'), detail: t('wizardStarterAirlineDetail'), objects: t('wizardStarterCounts', { types: 15, relations: 19 }) },
+    { id: 'telecommunications', icon: '⌁', name: t('wizardStarterTelecommunications'), detail: t('wizardStarterTelecommunicationsDetail'), objects: t('wizardStarterCounts', { types: 19, relations: 24 }) },
     { id: 'financial-services', icon: 'FS', name: t('wizardStarterFinancialServices'), detail: t('wizardStarterFinancialServicesDetail'), objects: t('wizardStarterCounts', { types: 15, relations: 14 }) },
     { id: 'energy', icon: 'EN', name: t('wizardStarterEnergy'), detail: t('wizardStarterEnergyDetail'), objects: t('wizardStarterCounts', { types: 4, relations: 3 }) },
     { id: 'healthcare', icon: 'HC', name: t('wizardStarterHealthcare'), detail: t('wizardStarterHealthcareDetail'), objects: t('wizardStarterCounts', { types: 7, relations: 6 }) },
@@ -73,7 +77,7 @@ export function NewContractWizard({ onClose, onCreated, workspace }: NewContract
     try {
       const response = await fetch(`${API_URL}/v1/contracts`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...brief,
           starter,
@@ -94,7 +98,7 @@ export function NewContractWizard({ onClose, onCreated, workspace }: NewContract
   return <div className="modal-backdrop wizard-backdrop" role="presentation">
     <section className="contract-wizard" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
       <aside className="wizard-rail">
-        <div className="brand"><span className="brand-mark">L</span><span>Lattice</span></div>
+        <Brand />
         <div className="wizard-rail-copy"><span>{t('wizardNewContract').toLocaleUpperCase()}</span><h2>{t('wizardDecisionsTitle')}</h2><p>{t('wizardDecisionsDescription')}</p></div>
         <ol>
           <WizardStep number={1} label={t('wizardStepBrief')} detail={t('wizardStepBriefDetail')} current={step} />
@@ -129,7 +133,7 @@ export function NewContractWizard({ onClose, onCreated, workspace }: NewContract
           </div>}
 
           {step === 3 && <div className="starter-grid">
-            {workspace ? <div className="concept-scope-picker"><header><div><span className="starter-icon">◎</span><span><b>{workspace.ontology.name}</b><small>{t('wizardSharedOntologyDetail')}</small></span></div><em>{t('wizardScopeSelected', { selected: conceptScope.length, total: workspace.ontology.entityTypes.length })}</em></header><div className="scope-presets"><button type="button" onClick={() => setConceptScope(recommendedScope(workspace))}>{t('wizardScopeRecommended')}</button><button type="button" onClick={() => setConceptScope(workspace.ontology.entityTypes.map((type) => type.id))}>{t('wizardScopeEntire')}</button><button type="button" onClick={() => setConceptScope([])}>{t('wizardScopeClear')}</button></div><div className="scope-options">{workspace.ontology.entityTypes.map((type) => <label key={type.id}><input type="checkbox" checked={conceptScope.includes(type.id)} onChange={() => setConceptScope((current) => current.includes(type.id) ? current.filter((id) => id !== type.id) : [...current, type.id])} /><span className="starter-icon">{type.icon}</span><span><b>{type.label}</b><small>{type.group} · {type.properties.length} properties</small></span></label>)}</div></div> : starters.map((option) => <label className={`starter-card ${starter === option.id ? 'selected' : ''}`} key={option.id}><input type="radio" name="starter" value={option.id} checked={starter === option.id} onChange={() => setStarter(option.id)} /><span className="starter-icon">{option.icon}</span><span><b>{option.name}</b><small>{option.detail}</small><em>{option.objects}</em></span><i>{starter === option.id ? '✓' : ''}</i></label>)}
+            {workspace ? <div className="concept-scope-picker"><header><div><span className="starter-icon">◎</span><span><b>{workspace.ontology.name}</b><small>{t('wizardSharedOntologyDetail')}</small></span></div><em>{t('wizardScopeSelected', { selected: conceptScope.length, total: workspace.ontology.entityTypes.length })}</em></header><div className="scope-presets"><button type="button" onClick={() => setConceptScope(recommendedScope(workspace))}>{t('wizardScopeRecommended')}</button><button type="button" onClick={() => setConceptScope(workspace.ontology.entityTypes.map((type) => type.id))}>{t('wizardScopeEntire')}</button><button type="button" onClick={() => setConceptScope([])}>{t('wizardScopeClear')}</button></div><div className="scope-options">{workspace.ontology.entityTypes.map((type) => <label key={type.id}><input type="checkbox" checked={conceptScope.includes(type.id)} onChange={() => setConceptScope((current) => current.includes(type.id) ? current.filter((id) => id !== type.id) : [...current, type.id])} /><span className="starter-icon"><EntityIcon icon={type.icon} /></span><span><b>{type.label}</b><small>{type.group} · {type.properties.length} properties</small></span></label>)}</div></div> : starters.map((option) => <label className={`starter-card ${starter === option.id ? 'selected' : ''}`} key={option.id}><input type="radio" name="starter" value={option.id} checked={starter === option.id} onChange={() => setStarter(option.id)} /><span className="starter-icon">{option.icon}</span><span><b>{option.name}</b><small>{option.detail}</small><em>{option.objects}</em></span><i>{starter === option.id ? '✓' : ''}</i></label>)}
             <div className="starter-note"><span>⌁</span><p><b>{t('wizardStarterOwnership')}</b> {t('wizardStarterNote')}</p></div>
           </div>}
           {error && <div className="wizard-error" role="alert">{error}</div>}

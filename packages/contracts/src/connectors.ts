@@ -10,7 +10,7 @@ export const connectorCatalog: ConnectorTemplate[] = [
   {
     id: 'MICROSOFT_FABRIC', label: 'Microsoft Fabric', category: 'WAREHOUSE', adapterType: 'DATABASE', transport: 'TDS',
     description: 'Bind a Fabric Warehouse or Lakehouse SQL analytics endpoint over TDS with Microsoft Entra identity.',
-    endpointPlaceholder: '<workspace>.datawarehouse.fabric.microsoft.com', credentialRefPlaceholder: 'managed-identity:fabric-runtime', permissionPlaceholder: 'fabric.warehouse.read',
+    endpointPlaceholder: '<item-id>.datawarehouse.fabric.microsoft.com', credentialRefPlaceholder: 'env:FABRIC_SQL_ACCESS_TOKEN', permissionPlaceholder: 'fabric.warehouse.read',
     operationVerb: 'QUERY', resourceFields: ['workspace', 'database', 'schema', 'object'], parameterStyle: 'NAMED', docsUrl: 'https://learn.microsoft.com/en-us/fabric/data-warehouse/connectivity',
   },
   {
@@ -28,7 +28,7 @@ export const connectorCatalog: ConnectorTemplate[] = [
   {
     id: 'POSTGRESQL', label: 'PostgreSQL', category: 'DATABASE', adapterType: 'DATABASE', transport: 'POSTGRES_WIRE',
     description: 'Bind a read-only parameterized query to a PostgreSQL database, schema, table, or view.',
-    endpointPlaceholder: 'postgresql://db.example.internal:5432', credentialRefPlaceholder: 'vault:postgres/context-reader', permissionPlaceholder: 'postgres.context.read',
+    endpointPlaceholder: 'postgresql://db.example.internal:5432/governed', credentialRefPlaceholder: 'env:POSTGRES_CONNECTION_URL', permissionPlaceholder: 'postgres.context.read',
     operationVerb: 'QUERY', resourceFields: ['database', 'schema', 'object'], parameterStyle: 'POSITIONAL', docsUrl: 'https://www.postgresql.org/docs/current/libpq-connect.html',
   },
   {
@@ -55,4 +55,16 @@ export function connectorTemplate(id: ConnectorTemplate['id']): ConnectorTemplat
   const template = connectorCatalog.find((item) => item.id === id)
   if (!template) throw new Error(`UNKNOWN_CONNECTOR:${id}`)
   return template
+}
+
+/** Default row ceiling for a governed read. Enough for a decision, not enough for an extract. */
+export const DEFAULT_MAXIMUM_ROWS = 50
+
+/** Hard ceiling a binding cannot raise, so no contract can turn a read into a bulk export. */
+export const MAXIMUM_ROWS_CEILING = 1_000
+
+export function resolveMaximumRows(requested: number | undefined): number {
+  if (requested === undefined) return DEFAULT_MAXIMUM_ROWS
+  if (!Number.isInteger(requested) || requested < 1) return DEFAULT_MAXIMUM_ROWS
+  return Math.min(requested, MAXIMUM_ROWS_CEILING)
 }

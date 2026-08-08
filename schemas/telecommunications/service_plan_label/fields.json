@@ -1,0 +1,24 @@
+{
+  "document_type": "service_plan_label",
+  "vertical": "telecommunications",
+  "family": "telco_product_service",
+  "schema_version": "telco_service_plan_label_v1",
+  "fields": [
+    { "name": "service_plan_id", "type": "string", "required": true, "description": "Provider plan identifier." },
+    { "name": "service_plan_name", "type": "string", "required": true, "description": "Customer-facing plan name." },
+    { "name": "product_offering_version", "type": "string", "required": true, "description": "Version of the marketed offering." },
+    { "name": "plan_service_type", "type": "string", "required": true, "description": "Mobile, fixed, voice, data, messaging, IoT, or bundle." },
+    { "name": "plan_monthly_price", "type": "number", "required": true, "description": "Recurring monthly price before disclosed taxes and fees." },
+    { "name": "plan_introductory_price", "type": "number", "required": false, "description": "Introductory price when offered." },
+    { "name": "plan_introductory_period_months", "type": "integer", "required": false, "description": "Duration of the introductory price." },
+    { "name": "plan_one_time_fees", "type": "number", "required": false, "description": "Disclosed one-time provider fees." },
+    { "name": "plan_data_allowance", "type": "number", "required": false, "description": "Included data allowance in the stated unit." },
+    { "name": "plan_overage_charge", "type": "number", "required": false, "description": "Charge after an allowance is exceeded." },
+    { "name": "plan_advertised_speed", "type": "number", "required": false, "description": "Advertised or typical service speed." },
+    { "name": "plan_latency", "type": "number", "required": false, "description": "Typical latency represented for the offering." },
+    { "name": "plan_network_management_disclosure", "type": "string", "required": true, "description": "Reference to applicable network-management practices." },
+    { "name": "plan_privacy_policy_reference", "type": "string", "required": true, "description": "Reference to the applicable privacy policy." },
+    { "name": "plan_label_effective_date", "type": "string", "required": true, "description": "Effective date of the consumer-facing disclosure." },
+    { "name": "plan_regulation_citations", "type": "string", "required": true, "description": "Applicable broadband transparency requirements." }
+  ]
+}

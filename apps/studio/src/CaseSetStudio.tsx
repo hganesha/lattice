@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CaseSet, CaseSetSummary, ContextContract, CreateCaseSetRequest, DeclaredPurpose, EvalCase, EvalCaseExpectation, EvalCaseType, EvalExpectedOutcome, EvalFailureCategory, RiskTier, RuntimeDecision } from '@lattice/contracts'
-import { apiFetch, loadSession } from './api'
+import { apiFetch } from './api'
 import { useResource } from './useResource'
 import { EmptyState, ErrorState, LoadingState, MetricTile, Pagination, SurfaceHero } from './SurfaceState'
 import { riskTone, shortDigest, type Tone } from './formatters'
@@ -261,11 +261,10 @@ interface CaseDraft {
 }
 
 function toDraft(initial: EvalCase | undefined, contract: ContextContract, purposes: DeclaredPurpose[]): CaseDraft {
-  const session = loadSession()
   if (!initial) return {
     id: `case_${Date.now().toString(36)}`, caseType: 'HAPPY_PATH', question: '', purposeId: purposes[0]?.id ?? '', riskTier: 'ANALYTICAL', outcome: 'PLAN', decisions: ['RESOLVED'], reasonCodes: '', operationId: '',
     forbiddenOperationIds: '', requiredEvidenceRefs: '', requiredPolicyIds: '', clarificationEntityTypeId: '', clarificationCandidateIds: '', maximumRiskTier: '', tags: '', failureMode: '',
-    goldRationale: '', reviewedBy: session.displayName, reviewedAt: new Date().toISOString().slice(0, 10),
+    goldRationale: '', reviewedBy: 'studio', reviewedAt: new Date().toISOString().slice(0, 10),
   }
   void contract
   return {
@@ -399,7 +398,7 @@ function CaseSetCreator({ contract, workspaceId, onClose, onCreated }: { contrac
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [scope, setScope] = useState<CaseSet['scope']>('CONTRACT')
-  const [owner, setOwner] = useState(loadSession().displayName)
+  const [owner, setOwner] = useState('studio')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 

@@ -57,14 +57,15 @@ test('auto-layout toggles manual movement and authoring opens in a side drawer',
   await page.setViewportSize({ width: 1440, height: 900 })
   await openOntology(page, 'DARK')
 
-  const layoutToggle = page.getByRole('button', { name: 'Auto-layout ON' })
+  // The toggle keeps one stable accessible name and reports state through aria-pressed.
+  const layoutToggle = page.getByRole('button', { name: 'Auto-layout' })
   await expect(layoutToggle).toHaveAttribute('aria-pressed', 'true')
   await layoutToggle.click()
-  await expect(page.getByRole('button', { name: 'Auto-layout OFF' })).toHaveAttribute('aria-pressed', 'false')
-  await page.getByRole('button', { name: 'Auto-layout OFF' }).click()
+  await expect(layoutToggle).toHaveAttribute('aria-pressed', 'false')
+  await layoutToggle.click()
   await expect(page.locator('.studio-toast')).toContainText('Applied semantic lanes with collision-free spacing')
 
-  await page.getByRole('button', { name: '＋ Entity type' }).click()
+  await page.getByRole('button', { name: 'Entity type', exact: true }).click()
   const entityDrawer = page.getByRole('complementary', { name: 'Create entity type' })
   await expect(entityDrawer).toBeVisible()
   await expect(page.getByRole('dialog', { name: 'Create entity type' })).toHaveCount(0)
@@ -72,7 +73,7 @@ test('auto-layout toggles manual movement and authoring opens in a side drawer',
   await entityDrawer.getByLabel('Display name').fill('Lease Charge')
   await entityDrawer.getByLabel('Description').fill('A governed charge assessed under a lease.')
   await entityDrawer.getByLabel('Domain group').selectOption('Property')
-  await entityDrawer.getByLabel('Icon').fill('LC')
+  await entityDrawer.getByRole('radiogroup', { name: 'Icon' }).getByRole('radio', { name: 'Document' }).click()
   await entityDrawer.getByRole('button', { name: 'Create type' }).click()
 
   await expect(page.locator('.ontology-flow-node')).toHaveCount(17)

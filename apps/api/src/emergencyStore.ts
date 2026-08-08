@@ -66,11 +66,11 @@ export class EmergencyStore {
       approvals: [] as EmergencyAuthorization['approvals'],
       compensatingControls: [...request.compensatingControls],
       status: 'PENDING' as const,
-      keyId: this.signer.keyId,
+      keyId: this.signer.activeKeyId,
     }
     const authorization: EmergencyAuthorization = {
       ...body,
-      signature: this.signer.sign(Buffer.from(canonicalJson(body))),
+      signature: await this.signer.sign(Buffer.from(canonicalJson(body))),
       artifactDigest: digest(body),
     }
     this.document.authorizations.push(authorization)

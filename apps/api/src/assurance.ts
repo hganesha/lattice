@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { connectorTemplate, type AssuranceCheckResult, type AssuranceRun, type ContextContract } from '@lattice/contracts'
+import { ContextCompiler } from '@lattice/compiler-core'
+import { connectorTemplate, materializeSimulatedContext, type AssuranceCheckResult, type AssuranceRun, type ContextContract } from '@lattice/contracts'
 
 export function runAssurance(contract: ContextContract, now = new Date()): AssuranceRun {
   const startedAt = now.toISOString()
@@ -62,6 +63,8 @@ export function runAssurance(contract: ContextContract, now = new Date()): Assur
   if (unapprovedPolicies.length > 0) checks.push(warning('release.policy_approval', 'RELEASE', `${unapprovedPolicies.length} runtime policies await approval`, 'Submit draft policy profiles to the Review Queue before publishing.', unapprovedPolicies.map((policy) => policy.id)))
   else if (contract.policies.length > 0) checks.push(check('release.policy_approval', 'RELEASE', 'Runtime policies are approved', true, `${contract.policies.length} policy profiles have governance approval.`, contract.policies.map((policy) => policy.id)))
 
+  checks.push(...resolutionChecks(contract, now))
+
   const failed = checks.filter((item) => item.status === 'FAIL').length
   const warnings = checks.filter((item) => item.status === 'WARNING').length
   const passed = checks.filter((item) => item.status === 'PASS').length
@@ -77,6 +80,63 @@ export function runAssurance(contract: ContextContract, now = new Date()): Assur
     checks,
     summary: { passed, failed, warnings },
   }
+}
+
+/**
+ * Compiles every competency question the contract publishes and asserts it still routes to the
+ * operation the author linked it to.
+ *
+ * Every other gate here inspects the document. This one exercises the resolver, which is the
+ * part that actually decides what a question does at runtime — and the part that silently
+ * changes when someone edits a keyword, retunes a threshold, or swaps the embedding model.
+ *
+ * Deliberately lexical-only: the resolver's deterministic path is what must not regress, and an
+ * assurance run cannot depend on a network call to an embedding endpoint.
+ */
+function resolutionChecks(contract: ContextContract, now: Date): AssuranceCheckResult[] {
+  if (contract.competencyQuestions.length === 0) return []
+
+  // Reference contracts resolve their entities from sample payloads; without this they would
+  // abstain here for reasons that have nothing to do with routing.
+  const runtimeContract = materializeSimulatedContext(contract, now)
+  const compiler = new ContextCompiler(runtimeContract, { now: () => now })
+
+  return contract.competencyQuestions.map((question) => {
+    const id = `resolution.${question.id}`
+    const label = 'Governed question routes to its linked operation'
+    const claims = [question.id, question.operationId]
+
+    const permittedPurposeId = permittedPurposeFor(runtimeContract, question.operationId)
+    const result = compiler.compile(
+      { question: question.question, ...(permittedPurposeId ? { purposeId: permittedPurposeId } : {}) },
+      { principalId: 'assurance', tenantId: 'assurance' },
+    )
+
+    // A refusal that names the linked operation is still correct routing: the question reached
+    // the right decision and was then stopped by an evidence, freshness, or approval gate.
+    const routed = result.intentResolution?.candidates[0]?.operationId
+    if (routed === question.operationId) {
+      return check(id, 'RESOLUTION', label, true, `"${truncateQuestion(question.question)}" routes to ${question.operationId} (${result.decision}).`, claims)
+    }
+
+    if (!routed) {
+      return check(id, 'RESOLUTION', label, false, `"${truncateQuestion(question.question)}" no longer resolves to any published operation; the compiler answered ${result.decision}.`, claims)
+    }
+
+    return check(id, 'RESOLUTION', label, false, `"${truncateQuestion(question.question)}" now routes to ${routed} rather than its linked ${question.operationId}.`, claims)
+  })
+}
+
+/** Supplies a purpose where policy demands one, so routing is tested rather than the purpose gate. */
+function permittedPurposeFor(contract: ContextContract, operationId: string): string | undefined {
+  const riskTier = contract.operations.find((operation) => operation.id === operationId)?.riskTier
+  const policy = contract.policies.find((candidate) => candidate.riskTier === riskTier)
+  if (!policy?.purposeRequired) return undefined
+  return policy.permittedPurposeIds?.[0] ?? contract.purposes?.[0]?.id
+}
+
+function truncateQuestion(question: string): string {
+  return question.length <= 80 ? question : `${question.slice(0, 77)}...`
 }
 
 function check(id: string, category: AssuranceCheckResult['category'], label: string, passes: boolean, message: string, affectedClaimIds: string[]): AssuranceCheckResult {

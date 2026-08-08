@@ -15,12 +15,16 @@
   },
   "dependencies": {
     "@lattice/contracts": "workspace:*",
+    "@lattice/exporter-core": "workspace:*",
+    "@supabase/supabase-js": "2.110.8",
     "@vitejs/plugin-react": "^4.3.0",
     "@xyflow/react": "^12.0.0",
+    "read-excel-file": "6.0.1",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-intl": "^10.1.18",
-    "vite": "^5.4.0"
+    "vite": "^5.4.0",
+    "@lattice/api": "workspace:*"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
@@ -31,6 +35,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "fflate": "^0.8.3",
     "jsdom": "^29.1.1",
     "typescript": "^5.4.0",
     "vitest": "^2.1.9"

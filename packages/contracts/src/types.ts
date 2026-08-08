@@ -2,6 +2,8 @@ import type {
   BlastRadius,
   CompilationRecord,
   DispositionMode,
+  PurposeAudience,
+  Reversibility,
   FourAxisState,
   ReviewRoutingPlan,
   RiskTierDerivation,
@@ -15,6 +17,11 @@ export type EvidenceStatus =
   | 'TEMPLATE_DERIVED'
   | 'CONFLICTING'
   | 'UNVERIFIED'
+  /** Materialized from a documented sample payload rather than a live source read. */
+  | 'SIMULATED'
+
+/** Whether the runtime objects behind a decision came from live sources or documented samples. */
+export type ContextGrounding = 'LIVE' | 'SIMULATED'
 
 export type EvidenceStrength = 'EXACT' | 'STRONG' | 'MODERATE' | 'WEAK' | 'INSUFFICIENT'
 
@@ -60,6 +67,28 @@ export interface CompetencyQuestion {
   operationId: string
 }
 
+/**
+ * How sensitive the values behind a governed property are.
+ *
+ * Ordered from least to most restricted. Enterprises already hold this judgement in Purview,
+ * Collibra, Unity Catalog, or Dataplex, so it is modelled as an assertion carrying its source
+ * rather than a field an author invents locally.
+ */
+export type DataClassification = 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL' | 'RESTRICTED'
+
+export interface ClassificationAssertion {
+  sensitivity: DataClassification
+  /** Regime labels the owning catalog applies, for example PII, PHI, PCI, or CPNI. */
+  categories?: string[]
+  /** CATALOG when federated from a data catalog; AUTHOR when asserted in the Studio. */
+  source: 'CATALOG' | 'AUTHOR'
+  /** Which catalog asserted it, for example `purview` or `unity-catalog`. */
+  catalog?: string
+  /** Where the assertion came from, so it can be traced back and re-synchronized. */
+  locator?: string
+  assertedAt?: string
+}
+
 export interface PropertyDefinition {
   id: string
   name: string
@@ -69,6 +98,8 @@ export interface PropertyDefinition {
   identifier?: boolean
   allowedValues?: string[]
   unit?: string
+  /** Sensitivity of the values this property carries. Absent means the workspace default applies. */
+  classification?: ClassificationAssertion
 }
 
 export interface EntityTypeDefinition {
@@ -165,6 +196,28 @@ export interface BindingConnectorConfig {
   resource: ConnectorResource
   queryTemplate?: string
   parameterStyle?: 'NAMED' | 'POSITIONAL' | 'NONE'
+  /**
+   * Argument names in the order the query's positional markers expect them.
+   *
+   * Required for positional providers whose template carries markers. Without it the binding
+   * would depend on JavaScript object key order, so adding a required entity type would
+   * silently rebind every parameter in the query.
+   */
+  parameterOrder?: string[]
+  /**
+   * Most rows this binding may return. Defaults to DEFAULT_MAXIMUM_ROWS and is capped at
+   * MAXIMUM_ROWS_CEILING, so a governed read cannot become an unbounded extract.
+   */
+  maximumRows?: number
+  /**
+   * Whose identity the query runs as.
+   *
+   * DELEGATED exchanges the asking user's token for one the platform accepts, so Unity Catalog
+   * row filters, column masks, and Fabric's own security apply to them. SERVICE — the default,
+   * for compatibility — runs as one shared principal, which means those controls never see the
+   * user. Every receipt records which was used, so the difference is never assumed.
+   */
+  identityMode?: 'SERVICE' | 'DELEGATED'
   readOnly: boolean
 }
 
@@ -204,6 +257,14 @@ export interface SourceBinding {
   method?: string
   sourceChecksum?: string
   mappings?: BindingFieldMapping[]
+  /**
+   * Which governed property supplies each query parameter.
+   *
+   * Without this a query is bound with Lattice's own entity identifier, which the source system
+   * has never seen. The same entity is keyed differently in different systems — an LEI here, an
+   * internal account number there — so the key is declared per binding rather than per entity.
+   */
+  parameters?: BindingParameter[]
   healthStatus?: 'NOT_TESTED' | 'VALID' | 'WARNING' | 'INVALID'
   executionMode?: 'SIMULATED' | 'HTTP' | 'CONNECTOR'
   samplePayload?: Record<string, unknown>
@@ -213,6 +274,15 @@ export interface SourceBinding {
   certification?: { authority: string; level: string; certifiedAt: string; expiresAt?: string }
 }
 
+export interface BindingParameter {
+  /** Name the query template uses, matching a `:name`/`@name` marker or an entry in parameterOrder. */
+  name: string
+  /** Entity type the compiler resolves to supply this parameter. */
+  targetTypeId: string
+  /** Property of that entity holding the key this source system recognizes. */
+  targetPropertyId: string
+}
+
 export interface ConnectorValidationRequest {
   binding: SourceBinding
 }
@@ -220,9 +290,40 @@ export interface ConnectorValidationRequest {
 export interface ConnectorValidationResult {
   provider: ConnectorProvider
   status: 'READY' | 'CONFIGURED' | 'INVALID'
-  driver: 'BUILT_IN_HTTP' | 'EXTERNAL_GATEWAY' | 'NOT_AVAILABLE'
+  driver: 'BUILT_IN_HTTP' | 'BUILT_IN_NATIVE' | 'EXTERNAL_GATEWAY' | 'NOT_AVAILABLE'
   credentialState: 'AVAILABLE' | 'EXTERNAL' | 'MISSING'
   checks: Array<{ id: string; status: 'PASS' | 'FAIL' | 'INFO'; message: string }>
+}
+
+export interface ConnectorDiscoveryRequest {
+  binding: SourceBinding
+  contractId?: string
+  workspaceId?: string
+  sourceName?: string
+}
+
+export type ConnectorHealthStatus = 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY'
+
+export interface ConnectorHealthRequest {
+  binding: SourceBinding
+}
+
+export interface ConnectorHealthRecord {
+  id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
+  bindingId: string
+  provider: ConnectorProvider
+  status: ConnectorHealthStatus
+  checkedAt: string
+  latencyMs: number
+  credentialSource: 'ENVIRONMENT' | 'BROKER' | 'RUNTIME' | 'DELEGATED' | 'UNRESOLVED'
+  probe: 'LIVE_DISCOVERY' | 'CONFIGURATION_ONLY'
+  lastSuccessfulAt?: string
+  freshnessStatus: FreshnessStatus
+  maximumFreshnessMinutes: number
+  checks: Array<{ id: string; status: 'PASS' | 'FAIL' | 'INFO'; message: string }>
+  errorCode?: string
 }
 
 export interface BindingFieldMapping {
@@ -231,6 +332,12 @@ export interface BindingFieldMapping {
   targetPropertyId: string
   sourceDataType: string
   confidence: 'EXACT' | 'SUGGESTED' | 'MANUAL'
+  /**
+   * Sensitivity asserted by the source system for this specific column, which overrides the
+   * target property's classification. A column tagged RESTRICTED in Unity Catalog stays
+   * restricted even when the ontology property it maps to is modelled as merely confidential.
+   */
+  classification?: ClassificationAssertion
 }
 
 export interface BindingSourceField {
@@ -238,6 +345,8 @@ export interface BindingSourceField {
   label: string
   dataType: string
   required: boolean
+  /** Sensitivity federated from the data catalog at discovery, so an author never re-decides it. */
+  classification?: ClassificationAssertion
 }
 
 export interface BindingOperationProposal {
@@ -270,7 +379,7 @@ export interface BindingPreviewRequest {
   operationLabel?: string
 }
 
-export type AssuranceCheckCategory = 'STRUCTURAL' | 'QUESTION' | 'MAPPING' | 'POLICY' | 'RELEASE'
+export type AssuranceCheckCategory = 'STRUCTURAL' | 'QUESTION' | 'MAPPING' | 'POLICY' | 'RELEASE' | 'RESOLUTION'
 export type AssuranceCheckStatus = 'PASS' | 'FAIL' | 'WARNING'
 
 export interface AssuranceCheckResult {
@@ -282,8 +391,20 @@ export interface AssuranceCheckResult {
   affectedClaimIds: string[]
 }
 
+/**
+ * Links one append-only artifact to its predecessor, so removing, reordering, or inserting a
+ * record breaks every link after it.
+ */
+export interface ArtifactChainLink {
+  sequence: number
+  previousDigest: string
+  chainDigest: string
+}
+
 export interface AssuranceRun {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
   contractId: string
   contractVersion: string
   contractDigest: string
@@ -292,6 +413,8 @@ export interface AssuranceRun {
   status: AssuranceCheckStatus
   score: number
   artifactDigest: string
+  /** Position in the append-only assurance ledger. */
+  chain?: ArtifactChainLink
   checks: AssuranceCheckResult[]
   summary: {
     passed: number
@@ -323,6 +446,8 @@ export interface ReviewDecisionArtifact {
 
 export interface ReviewRequestArtifact {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
   contractId: string
   contractVersion: string
   workspaceId?: string
@@ -371,6 +496,48 @@ export interface OperationDefinition {
   expectedResultSchema: string
 }
 
+/**
+ * A purpose a contract permits its context to be used for.
+ *
+ * Purpose limitation is the question regulators actually ask — GDPR and CPRA name it directly,
+ * and the EU AI Act asks for an intended purpose — so it is a declared, reviewable part of the
+ * contract rather than free text a caller supplies at runtime.
+ */
+/** The purpose a decision was compiled under, copied into the plan and the receipt. */
+export interface PinnedPurpose {
+  id: string
+  label: string
+  obligations?: string[]
+  jurisdictions?: string[]
+  retentionDays?: number
+  /** Free text the caller supplied alongside the declared purpose, for the audit trail. */
+  statedPurpose?: string
+}
+
+export interface DeclaredPurpose {
+  id: string
+  label: string
+  description: string
+  /** Obligations a caller accepts by compiling under this purpose, recorded with the decision. */
+  obligations?: string[]
+  /** Jurisdictions this purpose is lawful in, for example `EU` or `US-CA`. */
+  jurisdictions?: string[]
+  /** How long a result compiled under this purpose may be retained downstream. */
+  retentionDays?: number
+  /** Who ultimately sees the answer. Used by delegation audience checks (E4). */
+  audience?: PurposeAudience
+  /** Whether an action taken on this answer can be undone. */
+  reversibility?: Reversibility
+  /**
+   * Floor risk tier the purpose itself contributes. An operation may raise the derived tier above
+   * this and can never lower it. Absent on a contract-declared purpose, which floors at
+   * INFORMATIONAL until a steward sets one.
+   */
+  baseRiskTier?: RiskTier
+  /** Domains this purpose is offered for. Empty or absent means every domain. */
+  domains?: string[]
+}
+
 export interface GuardrailPolicy {
   id: string
   label: string
@@ -382,6 +549,13 @@ export interface GuardrailPolicy {
   version: string
   owner: string
   approvalStatus: ApprovalStatus
+  /**
+   * Refuse to compile at this risk tier unless the caller names a declared purpose. Off by
+   * default so existing contracts keep working; enable it wherever the data is regulated.
+   */
+  purposeRequired?: boolean
+  /** Restricts this tier to a subset of the contract's declared purposes. Empty means all. */
+  permittedPurposeIds?: string[]
 }
 
 export interface ContextTest {
@@ -491,6 +665,14 @@ export interface ContextContract {
   releaseStatus: ReleaseStatus
   digest: string
   versions: VersionPin
+  /**
+   * REFERENCE contracts may ground runtime decisions in documented sample payloads and are
+   * published for demonstration and regulatory reference only. LIVE (the default) forbids
+   * simulated bindings, so a leftover sample payload can never silently ground a decision.
+   */
+  runtimeMode?: 'LIVE' | 'REFERENCE'
+  /** Purposes this contract's context may lawfully be used for. */
+  purposes?: DeclaredPurpose[]
   competencyQuestions: CompetencyQuestion[]
   /** Reference to the workspace ontology. Embedded schema fields remain a runtime snapshot during migration. */
   ontologyRef?: OntologyReference
@@ -511,8 +693,6 @@ export interface ContextContract {
   schemaLayout?: Record<string, { x: number; y: number }>
   /** Four orthogonal axes (E11). Derived when absent. */
   state?: Partial<FourAxisState>
-  /** Declarable purposes for this contract; falls back to the domain slice of the global taxonomy. */
-  purposeIds?: string[]
 }
 
 export interface ContractRelease {
@@ -523,6 +703,51 @@ export interface ContractRelease {
   contract: ContextContract
 }
 
+export type ReleaseChangeKind =
+  | 'CONTRACT_METADATA'
+  | 'ENTITY_TYPE'
+  | 'RELATIONSHIP_TYPE'
+  | 'COMPETENCY_QUESTION'
+  | 'OPERATION'
+  | 'SOURCE_BINDING'
+  | 'POLICY'
+  | 'METRIC'
+  | 'CONTEXT_OBJECT'
+  | 'RELATIONSHIP_ASSERTION'
+  | 'EVIDENCE'
+  | 'TEST'
+
+export interface ReleaseChange {
+  id: string
+  kind: ReleaseChangeKind
+  label: string
+  change: 'ADDED' | 'REMOVED' | 'CHANGED'
+  impact: 'PATCH' | 'MINOR' | 'MAJOR'
+}
+
+export interface ReleaseDiffArtifact {
+  id: string
+  contractId: string
+  fromRelease: { version: string; digest: string }
+  toRelease: { version: string; digest: string }
+  changes: ReleaseChange[]
+  suggestedBump: 'NONE' | 'PATCH' | 'MINOR' | 'MAJOR'
+  generatedAt: string
+  artifactDigest: string
+}
+
+export interface ReleaseControlEvent {
+  id: string
+  contractId: string
+  action: 'ACTIVE_RELEASE_ROLLED_BACK'
+  fromRelease: { version: string; digest: string }
+  toRelease: { version: string; digest: string }
+  rationale: string
+  actorId: string
+  occurredAt: string
+  artifactDigest: string
+}
+
 export interface ContractRegistryEntry {
   contractId: string
   draft: ContextContract
@@ -530,12 +755,15 @@ export interface ContractRegistryEntry {
   releases: ContractRelease[]
   runtimeStatus: ReleaseRuntimeStatus
   activeReleaseDigest?: string
+  releaseEvents?: ReleaseControlEvent[]
 }
 
 export type ReleaseRuntimeStatus = 'NO_RELEASE' | 'ACTIVE' | 'SUSPENDED'
 
 export type ContractStarter =
   | 'blank'
+  | 'airline'
+  | 'telecommunications'
   | 'financial-services'
   | 'energy'
   | 'healthcare'
@@ -582,7 +810,7 @@ export interface ContractSummary {
   }
 }
 
-export type ImportFormat = 'AUTO' | 'JSON_SCHEMA' | 'OPENAPI'
+export type ImportFormat = 'AUTO' | 'JSON_SCHEMA' | 'OPENAPI' | 'RDF_XML' | 'TURTLE' | 'CSV'
 
 export interface ImportCollision {
   existingTypeId: string
@@ -626,9 +854,13 @@ export interface CompileRequest {
   question: string
   contractId?: string
   contractVersion?: string
-  purpose?: string
-  /** Declared purpose from the closed taxonomy (E4). Risk tier is derived from it, never from the question. */
+  /**
+   * Identifier of a declared purpose — either one the contract declares or one from the global
+   * taxonomy in `purposes.ts`. The risk tier is derived from it and never from the question text.
+   */
   purposeId?: string
+  /** Free-text statement of why the answer is needed, recorded alongside the declared purpose. */
+  purpose?: string
   /** DRY_RUN compiles against the draft and returns a non-authorizing disposition (E3). */
   mode?: DispositionMode
   asOf?: string
@@ -643,20 +875,86 @@ export interface ClarificationCandidate {
   rationale: string
 }
 
-export interface ClarificationContract {
+export interface EntityClarificationContract {
+  kind: 'ENTITY'
   id: string
   prompt: string
   entityTypeId: string
   candidates: ClarificationCandidate[]
 }
 
+export interface OperationClarificationCandidate {
+  operationId: string
+  label: string
+  description: string
+  riskTier: RiskTier
+  expectedAnswerShape: string
+  score: number
+  rationale: string[]
+}
+
+export interface OperationClarificationContract {
+  kind: 'OPERATION'
+  id: string
+  prompt: string
+  candidates: OperationClarificationCandidate[]
+}
+
+export type ClarificationContract = EntityClarificationContract | OperationClarificationContract
+
+export interface IntentCandidate {
+  operationId: string
+  matchedQuestionIds: string[]
+  lexicalScore: number
+  semanticScore?: number
+  aggregateScore: number
+  rationale: string[]
+}
+
+export interface IntentResolution {
+  resolverVersion: string
+  method: 'LEXICAL' | 'HYBRID'
+  indexDigest: string
+  modelVersion?: string
+  degradedReason?: string
+  candidates: IntentCandidate[]
+}
+
+export interface IntentDecisionEvidence {
+  resolverVersion: string
+  method: IntentResolution['method']
+  indexDigest: string
+  modelVersion?: string
+  operationId: string
+  matchedQuestionIds: string[]
+  lexicalScore: number
+  semanticScore?: number
+  aggregateScore: number
+  acceptance: 'AUTOMATIC' | 'USER_CONFIRMED'
+  candidateMargin: number
+  thresholds: {
+    minimumSupportedScore: number
+    automaticAcceptanceScore: number
+    minimumCandidateMargin: number
+  }
+}
+
 export interface UnsignedExecutionPlan {
-  schemaVersion: '1.0'
+  schemaVersion: '1.1'
   planId: string
   resolutionId: string
   decision: 'RESOLVED'
   riskTier: RiskTier
+  /** Principal the plan was issued to. Signed, and enforced on verification and execution. */
+  principalId: string
+  /** Tenant the plan was issued within. Signed, and enforced on verification and execution. */
+  tenantId?: string
+  /** Whether the resolved context came from live source reads or documented samples. */
+  grounding: ContextGrounding
+  /** The declared purpose this decision was compiled under, pinned so it is auditable. */
+  purpose?: PinnedPurpose
   operation: string
+  intent: IntentDecisionEvidence
   arguments: Record<string, { entityId: string } | string | number | boolean>
   metrics: Array<{ id: string; version: string }>
   sourceBindings: string[]
@@ -669,9 +967,15 @@ export interface UnsignedExecutionPlan {
   nonce: string
 }
 
+export type PlanSignatureAlgorithm = 'Ed25519' | 'ES256'
+
 export interface SignedExecutionPlan extends UnsignedExecutionPlan {
   keyId: string
-  signatureAlgorithm: 'Ed25519'
+  /**
+   * Ed25519 for locally-held keys; ES256 when a managed KMS holds the key, since neither AWS KMS
+   * nor Azure Key Vault signs Ed25519. Both are recorded on the plan so a verifier never guesses.
+   */
+  signatureAlgorithm: PlanSignatureAlgorithm
   signature: string
 }
 
@@ -681,6 +985,9 @@ export interface CompileResponse {
   reasonCodes: string[]
   explanation: string[]
   versions: VersionPin
+  /** Present once context objects have been resolved; mirrors the grounding pinned into the plan. */
+  grounding?: ContextGrounding
+  intentResolution?: IntentResolution
   clarification?: ClarificationContract
   plan?: SignedExecutionPlan | UnsignedExecutionPlan
   pendingPlan?: UnsignedExecutionPlan
@@ -709,6 +1016,8 @@ export interface RuntimeApprovalDecisionArtifact {
 
 export interface RuntimeApprovalArtifact {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
   contractId: string
   contractVersion: string
   contractDigest: string
@@ -738,22 +1047,55 @@ export interface BindingExecutionResult {
   status: 'SUCCESS' | 'FAILED'
   durationMs: number
   responseDigest?: string
-  mappedValues: Array<{
-    sourcePath: string
-    targetTypeId: string
-    targetPropertyId: string
-    value: unknown
-  }>
+  /** Whose identity the query ran as. Recorded so service-principal reads are never mistaken for user-level enforcement. */
+  identityMode: 'SERVICE' | 'DELEGATED'
+  /** Rows the binding returned, each mapped onto governed properties. */
+  rows: MappedRow[]
+  rowCount: number
+  /** True when the source had more rows than the binding's row limit allowed. */
+  truncated: boolean
   error?: string
+}
+
+export interface MappedRow {
+  rowIndex: number
+  values: MappedValueRecord[]
+}
+
+/**
+ * What a receipt is allowed to retain about one mapped value.
+ *
+ * An audit trail has to prove what was read without becoming an uncontrolled second copy of
+ * production data, so disclosure is graded by the value's classification rather than storing
+ * everything verbatim.
+ */
+export type ValueDisclosure = 'VALUE' | 'DIGEST' | 'WITHHELD'
+
+export interface MappedValueRecord {
+  sourcePath: string
+  targetTypeId: string
+  targetPropertyId: string
+  /** Present only when disclosure is VALUE. */
+  value?: unknown
+  /** Salted digest of the value when disclosure is DIGEST: comparable across runs, not readable. */
+  valueDigest?: string
+  disclosure: ValueDisclosure
+  classification: DataClassification
+  /** Regime labels that drove the disclosure decision, for example PII or CPNI. */
+  categories?: string[]
 }
 
 export interface ExecutionReceipt {
   id: string
+  /** Tenant that owns this artifact. Reads and writes are scoped to it. */
+  tenantId?: string
   contractId: string
   contractVersion: string
   contractDigest: string
   planId: string
   operationId: string
+  /** The declared purpose the executed plan was compiled under. */
+  purpose?: PinnedPurpose
   principalId: string
   status: 'SUCCESS' | 'FAILED' | 'DENIED'
   startedAt: string
@@ -763,8 +1105,48 @@ export interface ExecutionReceipt {
   evidenceRefs: string[]
   bindingResults: BindingExecutionResult[]
   artifactDigest: string
+  /** Position in the append-only execution ledger. */
+  chain?: ArtifactChainLink
 }
 
+/**
+ * Execution takes no client-supplied authorization input. Granted permissions are derived
+ * from the verified identity server-side; a body that asserts them is rejected.
+ */
 export interface ExecutePlanRequest {
-  grantedPermissions: string[]
+  grantedPermissions?: never
+}
+
+/**
+ * What a deployment is wired to, as reported by `GET /v1/integrations`.
+ *
+ * Deliberately describes configuration without disclosing it: an operator needs to know that
+ * Collibra is federating classifications and which host it points at, never the token used to
+ * reach it. `activeKeyId` is a public thumbprint, already published at `/v1/keys`.
+ */
+export interface IntegrationsSummary {
+  persistence: {
+    backend: 'SUPABASE' | 'FILESYSTEM'
+    /** False when ledgers are written to a filesystem the platform discards between invocations. */
+    durable: boolean
+  }
+  catalog:
+    | { configured: false }
+    | { configured: true; provider: 'purview' | 'unity-catalog' | 'collibra'; host?: string }
+  delegatedIdentity:
+    | { configured: false }
+    | { configured: true; provider: 'ENTRA' | 'OKTA'; host?: string }
+  signing: {
+    provider: 'LOCAL' | 'AZURE_KEY_VAULT' | 'AWS_KMS'
+    algorithm: string
+    activeKeyId: string
+    /** True when the key was generated at startup, so plans stop verifying after a restart. */
+    ephemeral: boolean
+  }
+  telemetry: { enabled: boolean }
+}
+
+/** `GET /v1/integrations`: how this deployment is wired, plus how its connectors are behaving. */
+export interface IntegrationsResponse extends IntegrationsSummary {
+  connectors: ConnectorHealthRecord[]
 }

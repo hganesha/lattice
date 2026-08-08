@@ -26,6 +26,9 @@
 .binding-card-main h3 { font: 600 10px Manrope; color: var(--text); }
 .binding-health { padding: 3px 5px; border: 1px solid var(--accent); border-radius: 3px; color: var(--accent-strong); background: var(--accent-soft); font: 6px DM Mono; }
 .binding-health.warning { border-color: var(--warning); color: var(--warning); background: var(--warning-soft); }
+.binding-health.degraded { border-color: var(--warning); color: var(--warning); background: var(--warning-soft); }
+.binding-health.unhealthy, .binding-health.invalid { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+.binding-health.healthy { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
 .binding-health.not_tested { color: var(--text-secondary); background: var(--surface-soft); border-color: var(--border); }
 .connector-validation { padding: 3px 5px; border: 1px solid var(--border-strong); border-radius: 3px; color: var(--text-secondary); background: var(--surface-soft); font: 6px DM Mono; }
 .connector-validation.ready { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
@@ -33,6 +36,7 @@
 .connector-validation.invalid { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
 .binding-card-main code { display: block; margin-top: 5px; color: var(--text-secondary); font: 7px DM Mono; }
 .binding-card-main p { margin-top: 4px; color: var(--text-muted); font-size: 7px; }
+.binding-card-main p.binding-health-detail { color: var(--text-secondary); font-family: DM Mono; }
 .binding-card-main > div:last-child { display: flex; gap: 5px; margin-top: 7px; }
 .binding-card-main > div:last-child span { padding: 3px 5px; border: 1px solid var(--border); border-radius: 3px; color: var(--text-muted); font: 6px DM Mono; }
 .binding-card-main .binding-card-actions { margin-top: 9px; }
@@ -68,6 +72,8 @@
 .connector-tile.featured { border-color: var(--accent); background: radial-gradient(circle at 8% 8%, var(--accent-soft), transparent 32%), var(--surface-raised); }
 .connector-tile-top { display: flex; align-items: center; justify-content: space-between; }
 .connector-monogram { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--accent); border-radius: 7px; color: var(--accent-strong); background: var(--accent-soft); font: 700 8px DM Mono; }
+.connector-monogram.brand-icon { overflow: hidden; border-color: color-mix(in srgb, var(--border-strong) 72%, transparent); background: #fff; }
+.connector-monogram.brand-icon img { display: block; width: 25px; height: 25px; object-fit: contain; }
 .connector-category { color: var(--text-muted); font: 6px DM Mono; letter-spacing: .5px; }
 .connector-tile h3 { margin-top: 15px; font: 600 11px Manrope; color: var(--text); }
 .connector-tile p { min-height: 48px; margin-top: 6px; color: var(--text-muted); font: 7px/1.5 Inter; }
@@ -92,6 +98,9 @@
 .connector-resource-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
 .binding-form-body input:focus, .binding-form-body select:focus, .binding-form-body textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
 .binding-form-body label small { display: block; margin-top: 5px; color: var(--text-muted); font: 6px Inter; }
+.binding-form-body label.live-discovery-choice { padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-soft); }
+.live-discovery-choice > span { display: flex; align-items: center; gap: 8px; color: var(--text); font: 8px Inter; }
+.binding-form-body .live-discovery-choice input { width: auto; margin: 0; }
 .binding-form-split { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .binding-mapping > .panel-header { height: 70px; }
 .binding-mapping > .panel-header select { max-width: 390px; padding: 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--text-secondary); font: 7px Inter; }

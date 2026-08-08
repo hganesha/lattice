@@ -1,0 +1,27 @@
+{
+  "document_type": "cpni_authorization",
+  "vertical": "telecommunications",
+  "family": "telco_privacy",
+  "schema_version": "telco_cpni_authorization_v1",
+  "fields": [
+    { "name": "privacy_authorization_id", "type": "string", "required": true, "description": "Unique authorization or protected-access decision identifier." },
+    { "name": "customer_account_number", "type": "string", "required": true, "description": "Account to which the authorization applies." },
+    { "name": "privacy_cpni_action", "type": "string", "required": true, "description": "Use, disclose, permit access, market, revoke, or limit action." },
+    { "name": "privacy_cpni_category", "type": "string", "required": true, "description": "Minimized category of CPNI involved." },
+    { "name": "privacy_approval_method", "type": "string", "required": true, "description": "Written, oral, or electronic approval method." },
+    { "name": "privacy_approval_status", "type": "string", "required": true, "description": "Opt-in, opt-out, disapproved, revoked, limited, or permitted-without-approval state." },
+    { "name": "privacy_approval_obtained_at", "type": "string", "required": false, "description": "Timestamp when customer approval was obtained." },
+    { "name": "privacy_revocation_at", "type": "string", "required": false, "description": "Timestamp when approval was revoked or limited." },
+    { "name": "privacy_authentication_method", "type": "string", "required": true, "description": "Approved method used to authenticate the customer." },
+    { "name": "privacy_authentication_result", "type": "string", "required": true, "description": "Successful, failed, escalated, or not required outcome." },
+    { "name": "privacy_access_channel", "type": "string", "required": true, "description": "Telephone, online, in-store, or approved business-customer channel." },
+    { "name": "privacy_disclosure_recipient_type", "type": "string", "required": false, "description": "Customer, affiliate, agent, third party, or legal recipient category." },
+    { "name": "privacy_marketing_campaign_id", "type": "string", "required": false, "description": "Campaign identifier when CPNI is used for marketing." },
+    { "name": "privacy_supervisory_approval_status", "type": "string", "required": false, "description": "Supervisory-review result for outbound marketing requests." },
+    { "name": "privacy_customer_notification_at", "type": "string", "required": false, "description": "Timestamp of an applicable account-change notification." },
+    { "name": "privacy_access_log_reference", "type": "string", "required": true, "description": "Reference to the immutable access or disclosure record." },
+    { "name": "privacy_record_retain_until", "type": "string", "required": true, "description": "Minimum retention date for the authorization and related audit evidence." },
+    { "name": "privacy_regulation_citations", "type": "string", "required": true, "description": "Applicable 47 CFR Part 64 Subpart U citations." },
+    { "name": "privacy_compliance_status", "type": "string", "required": true, "description": "Evidence-backed authorization and safeguard status." }
+  ]
+}

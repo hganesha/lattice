@@ -1,0 +1,27 @@
+{
+  "document_type": "usage_charging_record",
+  "vertical": "telecommunications",
+  "family": "telco_usage_charging",
+  "schema_version": "telco_usage_charging_record_v1",
+  "fields": [
+    { "name": "usage_record_id", "type": "string", "required": true, "description": "Unique privacy-minimized usage-event identifier." },
+    { "name": "service_subscription_id", "type": "string", "required": true, "description": "Subscription that generated the usage." },
+    { "name": "usage_type", "type": "string", "required": true, "description": "Voice, message, data, roaming, or other event type." },
+    { "name": "usage_session_started_at", "type": "string", "required": true, "description": "Usage-session start timestamp." },
+    { "name": "usage_session_ended_at", "type": "string", "required": false, "description": "Usage-session end timestamp." },
+    { "name": "usage_duration_seconds", "type": "integer", "required": false, "description": "Billable or measured duration." },
+    { "name": "usage_data_volume", "type": "number", "required": false, "description": "Measured data volume in the stated unit." },
+    { "name": "usage_message_count", "type": "integer", "required": false, "description": "Count of messaging events." },
+    { "name": "usage_roaming_indicator", "type": "boolean", "required": true, "description": "Whether the event occurred while roaming." },
+    { "name": "host_network_provider_name", "type": "string", "required": false, "description": "Host or visited network associated with the event." },
+    { "name": "network_resource_id", "type": "string", "required": false, "description": "Logical network or charging resource that produced the record." },
+    { "name": "charge_id", "type": "string", "required": true, "description": "Rated-charge identifier." },
+    { "name": "charge_rated_amount", "type": "number", "required": true, "description": "Rated monetary amount." },
+    { "name": "charge_currency", "type": "string", "required": true, "description": "Currency of the rated amount." },
+    { "name": "charge_tax_amount", "type": "number", "required": false, "description": "Associated tax amount." },
+    { "name": "charge_fee_amount", "type": "number", "required": false, "description": "Associated provider or regulatory fee." },
+    { "name": "charge_credit_amount", "type": "number", "required": false, "description": "Credit or adjustment applied to the usage." },
+    { "name": "usage_regulation_citations", "type": "string", "required": true, "description": "Applicable charging, retention, and privacy requirements." },
+    { "name": "usage_compliance_status", "type": "string", "required": true, "description": "Evidence-backed mediation and rating status." }
+  ]
+}

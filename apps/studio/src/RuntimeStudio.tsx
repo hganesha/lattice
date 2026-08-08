@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { canLoadGridOutageExample, loadGridOutageExample, type CompileResponse, type ContextContract, type DeclaredPurpose, type DispositionMode, type ReleaseRuntimeStatus, type RiskTierDerivation } from '@lattice/contracts'
-import { API_URL, authHeaders } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { CompileResolution } from './CompileResolution'
 import { RuntimeGraph } from './RuntimeGraph'
 import { RuntimeInspector } from './RuntimeInspector'
@@ -11,6 +11,7 @@ import { riskTone } from './formatters'
 import { routes, type SurfaceId } from './router'
 import { Toast } from './Toast'
 import { IconAlertTriangle, IconArrowUpRight, IconFlask, IconShieldCheck, IconZap } from './icons'
+import { PanelCollapseButton, usePersistentCollapsed } from './PanelCollapseButton'
 
 /**
  * E3 + E4 — the compiler bar declares a purpose and picks a mode before it compiles.
@@ -46,9 +47,13 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
   const [loading, setLoading] = useState(false)
   const [apiError, setApiError] = useState('')
   const [view, setView] = useState<'MAP' | 'TABLE'>('MAP')
+  const { collapsed: inspectorCollapsed, toggleCollapsed: toggleInspector } = usePersistentCollapsed('lattice:inspector-collapsed')
 
-  const purposes = useResource<DeclaredPurpose[]>(`/v1/purposes?domain=${encodeURIComponent(contract.domain)}&contractId=${encodeURIComponent(contract.id)}`)
-  const purposeOptions = purposes.data ?? []
+  const purposes = useResource<{ purposes: DeclaredPurpose[]; catalog: DeclaredPurpose[] }>(`/v1/purposes?domain=${encodeURIComponent(contract.domain)}&contractId=${encodeURIComponent(contract.id)}`)
+  // Only what this contract declares is offered: the compiler denies any other purpose, so listing
+  // the wider catalogue here would be offering choices guaranteed to be refused.
+  const declaredPurposes = purposes.data?.purposes ?? []
+  const purposeOptions = declaredPurposes
   const purpose = purposeOptions.find((option) => option.id === purposeId)
   const selected = contract.entities.find((entity) => entity.id === selectedId)
   const authorizedAvailable = contract.releaseStatus === 'PUBLISHED' && runtimeStatus === 'ACTIVE'
@@ -63,7 +68,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     const controller = new AbortController()
     setDeriving(true)
     setDerivationError('')
-    fetch(`${API_URL}/v1/risk-tier`, { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ contractId: contract.id, purposeId }), signal: controller.signal })
+    fetch(`${API_URL}/v1/risk-tier`, { method: 'POST', headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ contractId: contract.id, purposeId }), signal: controller.signal })
       .then(async (response) => {
         const payload = await response.json() as RiskTierDerivation & { error?: string; message?: string }
         if (controller.signal.aborted) return
@@ -97,7 +102,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     try {
       const response = await fetch(`${API_URL}/v1/compile`, {
         method: 'POST',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, contractId: contract.id, purposeId, mode }),
       })
       const payload = await response.json() as CompileResponse & { error?: string; message?: string }
@@ -113,17 +118,19 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     }
   }
 
-  async function resolveClarification(entityId: string) {
+  async function resolveClarification(candidateId: string) {
     if (!result?.clarification) return
+    // A clarification asks either which entity was meant or which operation to run.
+    const clarificationKind = result.clarification.kind
     setLoading(true)
     try {
       const response = await fetch(`${API_URL}/v1/clarifications/${result.clarification.id}`, {
         method: 'POST',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ entityId }),
+        headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(clarificationKind === 'ENTITY' ? { entityId: candidateId } : { operationId: candidateId }),
       })
       setResult(await response.json() as CompileResponse)
-      setSelectedId(entityId)
+      if (clarificationKind === 'ENTITY') setSelectedId(candidateId)
     } finally {
       setLoading(false)
     }
@@ -151,7 +158,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
       <div className="compiler-declaration">
         <p className="compiler-hint">{d('compilerPurposeDeclared')}</p>
         {purposes.status === 'ERROR' && <p className="compiler-hint warn">{d('compilerPurposeUnavailable', { detail: purposes.error })}</p>}
-        {purpose && <dl className="purpose-facts"><div><dt>{d('compilerPurposeAudience')}</dt><dd>{d(purposeAudienceMessageKeys[purpose.audience])}</dd></div><div><dt>{d('compilerPurposeReversibility')}</dt><dd>{d(reversibilityMessageKeys[purpose.reversibility])}</dd></div></dl>}
+        {purpose && (purpose.audience || purpose.reversibility) && <dl className="purpose-facts">{purpose.audience && <div><dt>{d('compilerPurposeAudience')}</dt><dd>{d(purposeAudienceMessageKeys[purpose.audience])}</dd></div>}{purpose.reversibility && <div><dt>{d('compilerPurposeReversibility')}</dt><dd>{d(reversibilityMessageKeys[purpose.reversibility])}</dd></div>}</dl>}
         {purpose && <p className="compiler-hint">{purpose.description}</p>}
         <p className="compiler-hint">{mode === 'DRY_RUN' ? d('compilerModeDryRunHint') : d('compilerModeAuthorizedHint')}</p>
         {!authorizedAvailable && <p className="compiler-hint warn">{d('compilerModeAuthorizedBlocked')}</p>}
@@ -190,7 +197,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     </div>}
     {result && <CompileResolution result={result} onChoose={(id) => void resolveClarification(id)} />}
 
-    <div className="workbench runtime-workbench">
+    <div className={`workbench runtime-workbench ${inspectorCollapsed ? 'inspector-collapsed' : ''}`}>
       <section className="map-panel panel">
         <div className="panel-header"><div><span className="panel-kicker">{t('runtimeObjectsKicker')}</span><h2>{t('runtimeMapTitle', { workflow: titleCase(contract.workflow) })}</h2></div><div className="view-controls"><button className={view === 'MAP' ? 'selected' : ''} onClick={() => setView('MAP')}>{t('runtimeMapView')}</button><button className={view === 'TABLE' ? 'selected' : ''} onClick={() => setView('TABLE')}>{t('runtimeTableView')}</button></div></div>
         <div className="legend"><span><i className="legend-dot exact"/>{t('runtimeExactEvidence')}</span><span><i className="legend-dot derived"/>{t('runtimeSupportedEvidence')}</span><span><i className="legend-line"/>{t('runtimeGovernedRelation')}</span></div>
@@ -198,7 +205,13 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
         <div className="map-footer"><span>{t('runtimeObjectCount', { count: contract.entities.length })}</span><span>{t('runtimeRelationshipCount', { count: contract.relationships.length })}</span><span className="spacer"/><span>{runtimeStatus === 'SUSPENDED' ? t('runtimeSuspended') : contract.releaseStatus === 'PUBLISHED' ? t('runtimePublishedVersion', { version: contract.version }) : t('runtimeUnpublishedDraft')}</span></div>
       </section>
 
-      <aside className="inspector panel"><div className="inspector-tabs"><span className="active">{t('runtimeInspector')}</span></div><RuntimeInspector entity={selected} contract={contract} /></aside>
+      <aside className={`inspector collapsible-inspector panel ${inspectorCollapsed ? 'collapsed' : ''}`} id="runtime-inspector">
+        <div className="collapsible-inspector-header">
+          {!inspectorCollapsed && <div className="inspector-tabs"><span className="active">{t('runtimeInspector')}</span></div>}
+          <PanelCollapseButton collapsed={inspectorCollapsed} collapseLabel={t('collapseInspector')} expandLabel={t('expandInspector')} panelId="runtime-inspector" side="right" onToggle={toggleInspector} />
+        </div>
+        {!inspectorCollapsed && <RuntimeInspector entity={selected} contract={contract} />}
+      </aside>
     </div>
 
     <section className="runtime-readiness"><div><span className="panel-kicker">{t('runtimeReadiness').toLocaleUpperCase()}</span><h2>{t('runtimeReadinessTitle')}</h2><p>{t('runtimeReadinessSummary', { operations: contract.operations.length, bindings: contract.bindings.length, policies: contract.policies.length })}</p></div><div><button className="ghost" onClick={onOpenAssurance}>{t('runtimeViewAssurance')}</button><button className="release" onClick={onManageRelease}>{contract.releaseStatus === 'PUBLISHED' ? `${t('manageRelease')} →` : t('runtimePublishContract')}</button></div></section>

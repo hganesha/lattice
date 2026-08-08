@@ -30,28 +30,28 @@ export const counterpartyRiskContract: ContextContract = {
     },
   ],
   entityTypes: [
-    { id: 'counterparty', label: 'Counterparty', description: 'A party against which the enterprise carries financial or contractual exposure.', group: 'Parties', icon: 'CP', properties: [
+    { id: 'counterparty', label: 'Counterparty', description: 'A party against which the enterprise carries financial or contractual exposure.', group: 'Parties', icon: 'handshake', properties: [
       { id: 'counterparty.lei', name: 'Legal entity identifier', dataType: 'string', description: 'ISO 17442 legal entity identifier.', required: true, identifier: true },
       { id: 'counterparty.rating', name: 'Internal credit rating', dataType: 'string', description: 'Current approved internal credit grade.' },
       { id: 'counterparty.sector', name: 'Industry sector', dataType: 'string', description: 'Governed industry classification.' },
     ], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'legal_entity', label: 'Legal Entity', description: 'A legally incorporated entity that enters transactions and owns exposure.', group: 'Parties', icon: 'LE', properties: [
+    { id: 'legal_entity', label: 'Legal Entity', description: 'A legally incorporated entity that enters transactions and owns exposure.', group: 'Parties', icon: 'organization', properties: [
       { id: 'legal_entity.jurisdiction', name: 'Jurisdiction', dataType: 'string', description: 'Primary legal jurisdiction.', required: true },
     ], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'instrument', label: 'Instrument', description: 'A contract or security that creates financial rights and obligations.', group: 'Markets', icon: 'IN', properties: [], evidenceStatus: 'TEMPLATE_DERIVED', approvalStatus: approved, impact: 'HIGH' },
-    { id: 'position', label: 'Position', description: 'An owned or owed quantity of an instrument at a point in time.', group: 'Markets', icon: 'PO', properties: [
+    { id: 'instrument', label: 'Instrument', description: 'A contract or security that creates financial rights and obligations.', group: 'Markets', icon: 'document', properties: [], evidenceStatus: 'TEMPLATE_DERIVED', approvalStatus: approved, impact: 'HIGH' },
+    { id: 'position', label: 'Position', description: 'An owned or owed quantity of an instrument at a point in time.', group: 'Markets', icon: 'trend', properties: [
       { id: 'position.notional', name: 'Notional amount', dataType: 'decimal', description: 'Contractual amount used to calculate cash flows.', required: true },
       { id: 'position.currency', name: 'Currency', dataType: 'string', description: 'ISO 4217 notional currency.', required: true },
     ], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'portfolio', label: 'Portfolio', description: 'A governed collection of positions used for risk and performance aggregation.', group: 'Markets', icon: 'PF', properties: [], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'HIGH' },
-    { id: 'netting_agreement', label: 'Netting Agreement', description: 'An enforceable agreement that determines which obligations may be netted.', group: 'Risk Controls', icon: 'NA', properties: [], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'collateral', label: 'Collateral', description: 'Assets pledged to mitigate an exposure under an agreement.', group: 'Risk Controls', icon: 'CO', properties: [
+    { id: 'portfolio', label: 'Portfolio', description: 'A governed collection of positions used for risk and performance aggregation.', group: 'Markets', icon: 'briefcase', properties: [], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'HIGH' },
+    { id: 'netting_agreement', label: 'Netting Agreement', description: 'An enforceable agreement that determines which obligations may be netted.', group: 'Risk Controls', icon: 'layers', properties: [], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
+    { id: 'collateral', label: 'Collateral', description: 'Assets pledged to mitigate an exposure under an agreement.', group: 'Risk Controls', icon: 'shield', properties: [
       { id: 'collateral.market_value', name: 'Market value', dataType: 'decimal', description: 'Current governed collateral valuation.', required: true },
     ], evidenceStatus: 'DIRECTLY_EVIDENCED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'credit_limit', label: 'Credit Limit', description: 'The approved maximum exposure for a governed scope.', group: 'Risk Controls', icon: 'CL', properties: [
+    { id: 'credit_limit', label: 'Credit Limit', description: 'The approved maximum exposure for a governed scope.', group: 'Risk Controls', icon: 'gauge', properties: [
       { id: 'credit_limit.amount', name: 'Approved amount', dataType: 'decimal', description: 'Maximum approved exposure for the limit scope.', required: true },
     ], evidenceStatus: 'DECLARED', approvalStatus: approved, impact: 'CRITICAL' },
-    { id: 'regulatory_report', label: 'Regulatory Report', description: 'A governed submission containing exposure and capital disclosures.', group: 'Governance', icon: 'RR', properties: [], evidenceStatus: 'TEMPLATE_DERIVED', approvalStatus: approved, impact: 'HIGH' },
+    { id: 'regulatory_report', label: 'Regulatory Report', description: 'A governed submission containing exposure and capital disclosures.', group: 'Governance', icon: 'clipboard', properties: [], evidenceStatus: 'TEMPLATE_DERIVED', approvalStatus: approved, impact: 'HIGH' },
   ],
   entities: [
     {
@@ -115,7 +115,10 @@ export const counterpartyRiskContract: ContextContract = {
     { id: 'ev-regulatory-catalog', type: 'TEMPLATE', title: 'Regulatory report applicability map', source: 'Financial Services Pack', locator: 'reports/ffiec-009', checksum: 'sha256:report', observedAt: '2026-07-01T00:00:00.000Z', validFrom: '2026-01-01T00:00:00.000Z', status: 'TEMPLATE_DERIVED' },
   ],
   bindings: [
-    { id: 'binding-risk-warehouse@1', sourceSystem: 'Risk Warehouse', operationId: 'risk.counterparty_exposure_assessment', environment: 'production', freshnessMinutes: 1440, requiredPermissions: ['risk.exposure.read'], expectedResultSchema: 'counterparty_exposure_assessment@1', version: '1.0.0', approvalStatus: approved, adapterType: 'OPENAPI', endpoint: 'https://risk.internal/v1/counterparty-exposure', method: 'GET', healthStatus: 'VALID', mappings: [
+    { id: 'binding-risk-warehouse@1', sourceSystem: 'Risk Warehouse', operationId: 'risk.counterparty_exposure_assessment', environment: 'production', freshnessMinutes: 1440, requiredPermissions: ['risk.exposure.read'], expectedResultSchema: 'counterparty_exposure_assessment@1', version: '1.0.0', approvalStatus: approved, adapterType: 'OPENAPI', endpoint: 'https://risk.internal/v1/counterparty-exposure', method: 'GET', healthStatus: 'VALID', parameters: [
+      // The warehouse keys on the LEI, not on Lattice's own CP-0103 identifier.
+      { name: 'counterparty_lei', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.lei' },
+    ], mappings: [
       { sourcePath: '$.counterparty.lei', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.lei', sourceDataType: 'string', confidence: 'EXACT' },
       { sourcePath: '$.counterparty.rating', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.rating', sourceDataType: 'string', confidence: 'EXACT' },
       { sourcePath: '$.position.notional', targetTypeId: 'position', targetPropertyId: 'position.notional', sourceDataType: 'number', confidence: 'EXACT' },
@@ -139,8 +142,19 @@ export const counterpartyRiskContract: ContextContract = {
       expectedResultSchema: 'counterparty_exposure_assessment@1',
     },
   ],
+  /**
+   * Purposes this contract permits. The compiler denies any purpose a contract has not declared,
+   * so this list — not the global starter catalogue in `purposes.ts` — is what a caller may name.
+   * These entries adopt catalogue ids so a steward can reason about them across contracts.
+   */
+  purposes: [
+    { id: 'situational_awareness', label: 'Situational awareness', description: 'Read governed exposure context to understand the current state. No decision is taken from the answer.', audience: 'INTERNAL', reversibility: 'REVERSIBLE', baseRiskTier: 'INFORMATIONAL', retentionDays: 30 },
+    { id: 'internal_analysis', label: 'Internal analysis', description: 'Analyse governed exposure for an internal study, model input, or exploratory question.', audience: 'INTERNAL', reversibility: 'REVERSIBLE', baseRiskTier: 'ANALYTICAL', retentionDays: 90 },
+    { id: 'regulatory_reporting', label: 'Regulatory reporting', description: 'Produce a figure or narrative that will be filed with, or shown to, a regulator.', audience: 'REGULATOR', reversibility: 'PARTIALLY_REVERSIBLE', baseRiskTier: 'PLANNING_DECISION', obligations: ['Retain the disposition and its evidence for the filing period.'], jurisdictions: ['EU', 'US'], retentionDays: 2555 },
+    { id: 'risk_limit_decision', label: 'Risk or limit decision', description: 'Sets, breaches, or releases a risk limit, exposure cap, or concentration threshold.', audience: 'INTERNAL', reversibility: 'PARTIALLY_REVERSIBLE', baseRiskTier: 'PLANNING_DECISION', obligations: ['Record the limit decision against the counterparty.'], retentionDays: 1825 },
+  ],
   policies: [
-    { id: 'policy-planning-evidence', label: 'Planning decision evidence', description: 'Planning decisions require strong evidence and current source bindings.', riskTier: 'PLANNING_DECISION', minimumEvidenceStrength: 'STRONG', maximumEvidenceAgeMinutes: 1440, approvalRequired: false, version: '1.0.0', owner: 'Credit Risk Policy', approvalStatus: approved },
+    { id: 'policy-planning-evidence', label: 'Planning decision evidence', description: 'Planning decisions require strong evidence and current source bindings.', riskTier: 'PLANNING_DECISION', minimumEvidenceStrength: 'STRONG', maximumEvidenceAgeMinutes: 1440, approvalRequired: false, version: '1.0.0', owner: 'Credit Risk Policy', approvalStatus: approved, purposeRequired: false, permittedPurposeIds: ['situational_awareness', 'internal_analysis', 'regulatory_reporting', 'risk_limit_decision'] },
   ],
   tests: [
     { id: 'test-path-exposure', type: 'QUESTION', label: 'Exposure path returns portfolios, collateral, limits, and evidence.', status: 'PASS', lastRun: '2026-07-18T23:30:00.000Z', affectedClaimIds: ['trades_with', 'held_in', 'governed_by', 'secured_by', 'constrained_by'] },

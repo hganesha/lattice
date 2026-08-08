@@ -230,6 +230,8 @@ export const dispositionMessages = defineMessages({
   executionDuration: { id: 'execution.duration', defaultMessage: 'Duration' },
   executionBindingResults: { id: 'execution.bindingResults', defaultMessage: 'Binding results' },
   executionNoBindingResults: { id: 'execution.noBindingResults', defaultMessage: 'No adapter was called by this execution.' },
+  executionTruncated: { id: 'execution.truncated', defaultMessage: 'row limit reached' },
+  executionIdentityMode: { id: 'execution.identityMode', defaultMessage: 'ran as {mode}' },
   executionMappedValues: { id: 'execution.mappedValues', defaultMessage: '{count, plural, one {# governed field} other {# governed fields}}' },
   executionPermissions: { id: 'execution.permissions', defaultMessage: 'Permissions' },
   executionRequired: { id: 'execution.required', defaultMessage: 'Required' },

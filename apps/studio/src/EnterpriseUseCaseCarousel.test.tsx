@@ -11,12 +11,20 @@ describe('EnterpriseUseCaseCarousel', () => {
     render(<LatticeI18nProvider><EnterpriseUseCaseCarousel /></LatticeI18nProvider>)
 
     expect(screen.getByRole('heading', { name: 'Aggregate risk exposure across fragmented books' })).toBeVisible()
+    expect(document.querySelector('[data-industry-icon="bank-risk"]')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Basel Committee · BCBS 239/ })).toHaveAttribute('href', 'https://www.bis.org/publ/bcbs239.htm')
 
     await user.click(screen.getByRole('button', { name: 'Next enterprise use case' }))
 
     expect(screen.getByRole('heading', { name: 'Decide prior authorization with traceable clinical context' })).toBeVisible()
+    expect(document.querySelector('[data-industry-icon="health-prior-authorization"]')).toBeInTheDocument()
     expect(screen.getByText('2 / 4')).toBeVisible()
     expect(screen.getByRole('link', { name: /Centers for Medicare & Medicaid Services/ })).toHaveAttribute('href', expect.stringContaining('cms-0057-f'))
+
+    await user.click(screen.getByRole('button', { name: 'Next enterprise use case' }))
+    expect(document.querySelector('[data-industry-icon="pharma-traceability"]')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Next enterprise use case' }))
+    expect(document.querySelector('[data-industry-icon="grid-restoration"]')).toBeInTheDocument()
   })
 })

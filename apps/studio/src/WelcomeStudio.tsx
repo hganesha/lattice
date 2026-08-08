@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CompileResponse, ContractRegistryEntry, ContractSummary } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { EnterpriseUseCaseCarousel } from './EnterpriseUseCaseCarousel'
 import { useMessages } from './i18n/messages'
 
@@ -22,12 +22,12 @@ export function WelcomeStudio({ contracts, onClose, onExplore, onCreate }: Welco
     setTryingId(contractId)
     setError('')
     try {
-      const entryResponse = await fetch(`${API_URL}/v1/contracts/${contractId}`)
+      const entryResponse = await fetch(`${API_URL}/v1/contracts/${contractId}`, { headers: apiAuthHeaders() })
       if (!entryResponse.ok) throw new Error()
       const entry = await entryResponse.json() as ContractRegistryEntry
       const question = entry.draft.competencyQuestions[0]?.question
       if (!question) throw new Error()
-      const compileResponse = await fetch(`${API_URL}/v1/compile`, { method: 'POST', headers: { Authorization: 'Bearer studio-demo', 'Content-Type': 'application/json' }, body: JSON.stringify({ contractId, question }) })
+      const compileResponse = await fetch(`${API_URL}/v1/compile`, { method: 'POST', headers: { ...apiAuthHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ contractId, question }) })
       const compiled = await compileResponse.json() as CompileResponse
       if (!compiled.decision) throw new Error()
       setResult({ contractId, decision: compiled.decision })

@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
 import { connectorCatalog, type ConnectorProvider, type ConnectorTemplate } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { useMessages } from './i18n/messages'
+import amazonS3Icon from './assets/connectors/amazon-s3.svg'
+import bigQueryIcon from './assets/connectors/bigquery.png'
+import databricksIcon from './assets/connectors/databricks.png'
+import fabricIcon from './assets/connectors/fabric.png'
+import kafkaIcon from './assets/connectors/kafka.png'
+import postgresIcon from './assets/connectors/postgres.png'
+import restApiIcon from './assets/connectors/restapi.png'
+import snowflakeIcon from './assets/connectors/snowflake.png'
 
 interface ConnectorPickerProps {
   onCancel: () => void
@@ -9,6 +17,16 @@ interface ConnectorPickerProps {
 }
 
 const featured = new Set<ConnectorProvider>(['DATABRICKS', 'MICROSOFT_FABRIC', 'SNOWFLAKE'])
+const connectorIcons: Partial<Record<ConnectorProvider, string>> = {
+  DATABRICKS: databricksIcon,
+  MICROSOFT_FABRIC: fabricIcon,
+  SNOWFLAKE: snowflakeIcon,
+  BIGQUERY: bigQueryIcon,
+  POSTGRESQL: postgresIcon,
+  KAFKA: kafkaIcon,
+  OBJECT_STORAGE: amazonS3Icon,
+  OPENAPI: restApiIcon,
+}
 
 export function ConnectorPicker({ onCancel, onSelect }: ConnectorPickerProps) {
   const { t } = useMessages()
@@ -17,7 +35,7 @@ export function ConnectorPicker({ onCancel, onSelect }: ConnectorPickerProps) {
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetch(`${API_URL}/v1/connectors`, { headers: { Authorization: 'Bearer studio-demo' }, signal: controller.signal })
+    void fetch(`${API_URL}/v1/connectors`, { headers: apiAuthHeaders(), signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`Connector catalog returned ${response.status}`)
         const payload = await response.json() as { connectors: ConnectorTemplate[] }
@@ -35,13 +53,13 @@ export function ConnectorPicker({ onCancel, onSelect }: ConnectorPickerProps) {
     <div className="connector-picker-body">
       <div className="connector-picker-intro"><div><span className="panel-kicker">{t('connectorGovernedAdapters').toLocaleUpperCase()} · {(catalogState === 'LIVE' ? t('connectorApiSynchronized') : catalogState === 'FALLBACK' ? t('connectorLocalFallback') : t('connectorSynchronizing')).toLocaleUpperCase()}</span><h3>{t('connectorIntroTitle')}</h3><p>{t('connectorIntroDescription')}</p></div><div className="connector-count"><b>{connectors.length}</b><span>{t('connectorTypes').toLocaleUpperCase()}</span></div></div>
       <div className="connector-grid">
-        {connectors.map((connector) => <button className={`connector-tile ${featured.has(connector.id) ? 'featured' : ''}`} onClick={() => onSelect(connector.id)} key={connector.id}>
-          <div className="connector-tile-top"><span className="connector-monogram">{monogram(connector.label)}</span><span className="connector-category">{connector.category.replace('_', ' ')}</span></div>
+        {connectors.map((connector) => { const icon = connectorIcons[connector.id]; return <button className={`connector-tile ${featured.has(connector.id) ? 'featured' : ''}`} onClick={() => onSelect(connector.id)} key={connector.id}>
+          <div className="connector-tile-top"><span className={`connector-monogram${icon ? ' brand-icon' : ''}`}>{icon ? <img src={icon} alt="" aria-hidden="true" /> : monogram(connector.label)}</span><span className="connector-category">{connector.category.replace('_', ' ')}</span></div>
           <h3>{connector.label}</h3>
           <p>{connector.description}</p>
           <div className="connector-tile-meta"><span>{connector.transport}</span><span>{connector.operationVerb}</span><span>{t('connectorReadOnly').toLocaleUpperCase()}</span></div>
           <strong>{t('connectorConfigure')}</strong>
-        </button>)}
+        </button> })}
       </div>
     </div>
     <footer className="binding-editor-footer"><div><span>{t('connectorCredentialBoundary')}</span></div></footer>

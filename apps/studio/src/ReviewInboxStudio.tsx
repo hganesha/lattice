@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ContractSummary, Principal, ReviewAssignment, ReviewRequestArtifact, ReviewRoutingPlan } from '@lattice/contracts'
-import { apiFetch, loadSession } from './api'
+import { apiFetch } from './api'
 import { useResource } from './useResource'
 import { EmptyState, ErrorState, LoadingState, MetricTile, Pagination, SurfaceHero } from './SurfaceState'
 import { impactTone } from './formatters'
@@ -63,7 +63,12 @@ function blockingRole(review: ReviewRequestArtifact, principalId: string, roles:
 
 export function ReviewInboxStudio({ workspaceId, contracts, activeContractId, detailId, onSelectContract, onNavigate, onNavigatePath }: ReviewInboxStudioProps) {
   const { t, formatDate, formatNumber } = useGovernanceMessages()
-  const session = useMemo(() => loadSession(), [])
+  // "Assigned to me" needs a real identity, so it comes from the API rather than from the browser.
+  const sessionResource = useResource<{ principal?: Principal }>('/v1/session')
+  const session = useMemo(() => ({
+    principalId: sessionResource.data?.principal?.id ?? '',
+    roles: sessionResource.data?.principal?.roles ?? [],
+  }), [sessionResource.data])
   const [view, setView] = useState<InboxView>('ASSIGNED')
   const [statusFilter, setStatusFilter] = useState<'OPEN' | 'DECIDED' | ''>('OPEN')
   const [roleFilter, setRoleFilter] = useState('')

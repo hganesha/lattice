@@ -63,6 +63,7 @@ export function loadGridOutageExample(contract: ContextContract, now = new Date(
   return {
     ...contract,
     releaseStatus: 'UNPUBLISHED',
+    runtimeMode: 'REFERENCE',
     entities: mergeById(contract.entities, entities),
     relationships: mergeById(contract.relationships, [relationship]),
     evidence: mergeById(contract.evidence, [evidence]),

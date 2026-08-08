@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ApprovalStatus, ContextContract, EvidenceRecord, ReviewRequestArtifact, ReviewTargetKind } from '@lattice/contracts'
-import { API_URL } from './api'
+import { API_URL, apiAuthHeaders } from './api'
 import { ReviewDecisionPanel } from './ReviewDecisionPanel'
 import { useMessages } from './i18n/messages'
 import { Toast } from './Toast'
@@ -34,7 +34,7 @@ export function ReviewQueueStudio({ contract, onChange, onDirtyChange }: ReviewQ
 
   useEffect(() => {
     const controller = new AbortController()
-    void fetch(`${API_URL}/v1/reviews?contractId=${encodeURIComponent(contract.id)}`, { headers: { Authorization: 'Bearer studio-demo' }, signal: controller.signal })
+    void fetch(`${API_URL}/v1/reviews?contractId=${encodeURIComponent(contract.id)}`, { headers: apiAuthHeaders(), signal: controller.signal })
       .then((response) => response.ok ? response.json() as Promise<ReviewRequestArtifact[]> : [])
       .then(setReviews)
       .catch(() => undefined)
@@ -57,7 +57,7 @@ export function ReviewQueueStudio({ contract, onChange, onDirtyChange }: ReviewQ
     try {
       const response = await fetch(`${API_URL}/v1/reviews`, {
         method: 'POST',
-        headers: { Authorization: 'Bearer studio-author', 'Content-Type': 'application/json' },
+        headers: { ...apiAuthHeaders('studio-author'), 'Content-Type': 'application/json' },
         body: JSON.stringify({ contractId: contract.id, contractVersion: contract.version, targetKind: claim.kind, targetId: claim.id, targetLabel: claim.label, impact: claim.impact, evidenceRefs: claim.evidenceRefs }),
       })
       const review = await response.json() as ReviewRequestArtifact & { error?: string }

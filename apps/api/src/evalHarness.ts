@@ -43,6 +43,8 @@ const gateLabels = new Map(evalGateDefinitions.map((definition) => [definition.i
 
 export interface RunEvaluationInput {
   runId: string
+  /** Tenant the run is scoped to. Signed into any plan the harness compiles. */
+  tenantId?: string
   name: string
   caseSet: CaseSet
   cases: EvalCase[]
@@ -81,12 +83,18 @@ export function runEvaluation(input: RunEvaluationInput): EvaluationOutput {
       id: () => `${input.runId}_${evalCase.id}_${sequence++}`,
     })
     const started = process.hrtime.bigint()
+    // Compiled as the principal that triggered the run: a plan is a capability issued to a
+    // subject, so a run that compiled as nobody could never produce one and every case would
+    // fail on PLAN_SUBJECT_REQUIRED rather than on what it is actually testing.
     const response = compiler.compile({
       question: evalCase.question,
       contractId: input.contract.id,
       purposeId: evalCase.purposeId,
       ...(evalCase.selections ? { selections: evalCase.selections } : {}),
       ...(evalCase.asOf ? { asOf: evalCase.asOf } : {}),
+    }, {
+      principalId: input.triggeredBy,
+      ...(input.tenantId ? { tenantId: input.tenantId } : {}),
     })
     const latencyMs = Number(process.hrtime.bigint() - started) / 1_000_000
     const plan = response.plan ?? response.pendingPlan
@@ -152,6 +160,7 @@ export function runEvaluation(input: RunEvaluationInput): EvaluationOutput {
 
   const latencies = results.map((result) => result.latencyMs).sort((left, right) => left - right)
   const scored = results.filter((result) => result.weightedScore !== undefined).map((result) => result.weightedScore ?? 0)
+  const gateFailures = results.filter((result) => result.status === 'GATE_FAIL').length
   const gateSummary: Partial<Record<EvalGateId, number>> = {}
   for (const result of results) {
     for (const gate of result.gates) if (gate.status === 'FAIL') gateSummary[gate.id] = (gateSummary[gate.id] ?? 0) + 1
@@ -182,8 +191,13 @@ export function runEvaluation(input: RunEvaluationInput): EvaluationOutput {
       passed: results.filter((result) => result.status === 'PASS').length,
       failed: results.filter((result) => result.status === 'FAIL').length,
       gateFailures: results.filter((result) => result.status === 'GATE_FAIL').length,
-      /** Mean over ungated cases only — a gated case has no score to average. */
-      ...(scored.length > 0 ? { weightedScore: Math.round(scored.reduce((sum, value) => sum + value, 0) / scored.length) } : {}),
+      /*
+       * A run with any hard-gate failure reports no score at all — not the mean of the cases that
+       * survived. Suppressing it only in the UI would still leave a number here for CI and the MCP
+       * server to read, and "92% with 14 gate failures" is precisely the misleading pairing this
+       * rubric exists to prevent.
+       */
+      ...(gateFailures === 0 && scored.length > 0 ? { weightedScore: Math.round(scored.reduce((sum, value) => sum + value, 0) / scored.length) } : {}),
       medianLatencyMs: percentile(latencies, 0.5),
       p95LatencyMs: percentile(latencies, 0.95),
     },
@@ -385,16 +399,23 @@ function scoreDimensions(
       clarificationScore = 0
       clarificationNote = 'The gold case expects a clarification; the compile raised none.'
     } else {
-      const typeMatches = !expected.clarificationEntityTypeId || clarification.entityTypeId === expected.clarificationEntityTypeId
+      // A clarification is either about which entity was meant or which operation; the gold case
+      // pins the entity type only for the first kind.
+      const subject = clarification.kind === 'ENTITY' ? clarification.entityTypeId : 'operation'
+      const typeMatches = !expected.clarificationEntityTypeId
+        || (clarification.kind === 'ENTITY' && clarification.entityTypeId === expected.clarificationEntityTypeId)
       const expectedCandidates = expected.clarificationCandidateIds ?? []
-      const offered = clarification.candidates.map((candidate) => candidate.entityId)
+      const offered = clarification.kind === 'ENTITY'
+        ? clarification.candidates.map((candidate) => candidate.entityId)
+        : clarification.candidates.map((candidate) => candidate.operationId)
       const candidateScore = expectedCandidates.length === 0 ? 1 : expectedCandidates.filter((id) => offered.includes(id)).length / expectedCandidates.length
       clarificationScore = (typeMatches ? 0.5 : 0) + candidateScore * 0.5
-      clarificationNote = `Clarification on ${clarification.entityTypeId} offered ${offered.join(', ') || 'no candidates'}.`
+      clarificationNote = `Clarification on ${subject} offered ${offered.join(', ') || 'no candidates'}.`
     }
   } else if (response.clarification) {
     clarificationScore = 0
-    clarificationNote = `A clarification on ${response.clarification.entityTypeId} was raised where the gold case expects ${expected.outcome}.`
+    const subject = response.clarification.kind === 'ENTITY' ? response.clarification.entityTypeId : 'operation'
+    clarificationNote = `A clarification on ${subject} was raised where the gold case expects ${expected.outcome}.`
   }
 
   const expectedReasonCodes = expected.reasonCodes ?? []

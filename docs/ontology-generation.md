@@ -1,6 +1,6 @@
 # Form-schema ontology generation
 
-Lattice deterministically derives shared industry ontologies from the implemented form schemas in `../Schemas`. The generator intentionally does not create one ontology per form. It consolidates repeated fields into canonical industry concepts, then adds governed relationships between those concepts.
+Lattice deterministically derives shared industry ontologies from the implemented form schemas in `../Schemas` and repository-owned vertical overrides in `schemas/`. The generator intentionally does not create one ontology per form. It consolidates repeated fields into canonical industry concepts, then adds governed relationships between those concepts.
 
 ## Run it
 
@@ -8,7 +8,7 @@ Lattice deterministically derives shared industry ontologies from the implemente
 pnpm generate:ontologies
 ```
 
-The command reads every available `fields.json`, writes the typed catalog to `packages/contracts/src/generatedIndustryOntologies.ts`, and writes a reviewable coverage report to `docs/generated-ontology-report.json`.
+The command resolves a vertical from `schemas/<vertical>` first and otherwise uses `../Schemas/<vertical>`, reads every available `fields.json`, writes the typed catalog to `packages/contracts/src/generatedIndustryOntologies.ts`, and writes a reviewable coverage report to `docs/generated-ontology-report.json`.
 
 ## Inference policy
 

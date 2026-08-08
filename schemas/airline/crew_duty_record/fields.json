@@ -1,0 +1,30 @@
+{
+  "document_type": "crew_duty_record",
+  "vertical": "airline",
+  "family": "airline_crew_management",
+  "schema_version": "airline_crew_duty_record_v1",
+  "fields": [
+    { "name": "air_carrier_name", "type": "string", "required": true, "description": "Certificate holder assigning the duty." },
+    { "name": "flight_number", "type": "string", "required": false, "description": "Flight number associated with the assignment." },
+    { "name": "crew_member_id", "type": "string", "required": true, "description": "Carrier-controlled identifier for the crew member." },
+    { "name": "crew_member_name", "type": "string", "required": true, "description": "Name of the assigned crew member." },
+    { "name": "crew_member_role", "type": "string", "required": true, "description": "Captain, first officer, augmented flightcrew, flight attendant, or other role." },
+    { "name": "duty_start_at", "type": "string", "required": true, "description": "Start of the assigned duty period with time zone." },
+    { "name": "duty_end_at", "type": "string", "required": false, "description": "Actual or projected end of duty with time zone." },
+    { "name": "flight_duty_period_minutes", "type": "integer", "required": true, "description": "Calculated flight duty period duration." },
+    { "name": "flight_time_minutes", "type": "integer", "required": true, "description": "Flight time credited to this assignment." },
+    { "name": "cumulative_flight_time_672_hours", "type": "integer", "required": true, "description": "Cumulative flight time in the preceding 672 consecutive hours." },
+    { "name": "cumulative_flight_time_365_days", "type": "integer", "required": true, "description": "Cumulative flight time in the preceding 365 calendar days." },
+    { "name": "rest_start_at", "type": "string", "required": true, "description": "Start of the immediately preceding rest period." },
+    { "name": "rest_end_at", "type": "string", "required": true, "description": "End of the immediately preceding rest period." },
+    { "name": "rest_minutes", "type": "integer", "required": true, "description": "Duration of the immediately preceding rest period." },
+    { "name": "sleep_opportunity_minutes", "type": "integer", "required": true, "description": "Uninterrupted sleep opportunity within the rest period." },
+    { "name": "acclimated_status", "type": "string", "required": true, "description": "Crew-member acclimation status used for the applicable flight-duty limit table." },
+    { "name": "fatigue_reported", "type": "boolean", "required": true, "description": "Whether the crew member reported fatigue or inability to perform safely." },
+    { "name": "fit_for_duty_attestation", "type": "boolean", "required": true, "description": "Crew-member fitness-for-duty attestation." },
+    { "name": "duty_extension_minutes", "type": "integer", "required": false, "description": "Any applied extension and its duration." },
+    { "name": "extension_authorization", "type": "string", "required": false, "description": "Record of the person, basis, and concurrence for an extension." },
+    { "name": "regulation_citations", "type": "string", "required": true, "description": "Applicable current 14 CFR Part 117 citations and carrier procedures." },
+    { "name": "compliance_status", "type": "string", "required": true, "description": "Assignment eligibility outcome with reasons and unresolved exceptions." }
+  ]
+}

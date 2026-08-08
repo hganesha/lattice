@@ -1,202 +1,84 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
-import type {
-  CreateReviewRequest,
-  ImpactLevel,
-  ReviewDecisionArtifact,
-  ReviewDecisionValue,
-  ReviewRequestArtifact,
-  ReviewRoutingPlan,
-  StructuredRejection,
-} from '@lattice/contracts'
+import type { CreateReviewRequest, ReviewDecisionArtifact, ReviewDecisionValue, ReviewRequestArtifact, StructuredRejection } from '@lattice/contracts'
+import { FileLedgerStorage, type LedgerStorage } from './governanceLedger.js'
 
-interface ReviewDocument {
-  schemaVersion: '1.0'
-  reviews: ReviewRequestArtifact[]
-}
-
-export interface ReviewQuery {
-  contractId?: string
-  workspaceId?: string
-  status?: ReviewRequestArtifact['status']
-  assignedRole?: string
-}
-
+/**
+ * Governance reviews, kept as an append-only ledger.
+ *
+ * Deciding a review used to overwrite the open artifact in place. The backing table has select
+ * and insert policies and deliberately no update, because a ledger you can rewrite proves
+ * nothing — so a decision is appended as a superseding artifact carrying the same review id, and
+ * the current state of a review is the last artifact written for it. That also means the record
+ * of who opened a review survives the decision, which overwriting destroyed.
+ */
+/** Typed capture recorded alongside a rejection, and the negative decision it produced (E13). */
 export interface DecisionExtras {
   structuredRejection?: StructuredRejection
   negativeDecisionId?: string
 }
 
 export class ReviewStore {
-  private writeQueue: Promise<void> = Promise.resolve()
-
-  private constructor(private readonly filePath: string, private document: ReviewDocument) {}
+  constructor(private readonly storage: LedgerStorage<ReviewRequestArtifact>) {}
 
   static async open(filePath: string): Promise<ReviewStore> {
-    try {
-      const store = new ReviewStore(filePath, JSON.parse(await readFile(filePath, 'utf8')) as ReviewDocument)
-      await store.backfillRouting()
-      return store
-    } catch (error) {
-      const missing = error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      if (!missing) throw error
-      const store = new ReviewStore(filePath, { schemaVersion: '1.0', reviews: [] })
-      await store.persist()
-      return store
-    }
+    return new ReviewStore(await FileLedgerStorage.open<ReviewRequestArtifact>(filePath, 'reviews', 'Review'))
   }
 
-  list(contractId: string): ReviewRequestArtifact[] {
-    return this.query({ contractId })
+  async list(contractId: string, tenantId: string | undefined): Promise<ReviewRequestArtifact[]> {
+    const reviews = await this.current()
+    return reviews.filter((review) => review.contractId === contractId && review.tenantId === tenantId).reverse()
   }
 
-  /** The cross-contract inbox (E12): a workspace scope and role filter, not just one contract. */
-  query(query: ReviewQuery): ReviewRequestArtifact[] {
-    return this.document.reviews
-      .filter((review) => (!query.contractId || review.contractId === query.contractId)
-        && (!query.workspaceId || review.workspaceId === query.workspaceId)
-        && (!query.status || review.status === query.status)
-        && (!query.assignedRole || (review.routingPlan?.assignments ?? []).some((assignment) => assignment.role === query.assignedRole)))
-      .map((review) => structuredClone(review))
-      .reverse()
+  async get(reviewId: string, tenantId: string | undefined): Promise<ReviewRequestArtifact | undefined> {
+    const reviews = await this.current()
+    return reviews.find((candidate) => candidate.id === reviewId && candidate.tenantId === tenantId)
   }
 
-  all(): ReviewRequestArtifact[] {
-    return this.document.reviews.map((review) => structuredClone(review))
-  }
-
-  get(reviewId: string): ReviewRequestArtifact | undefined {
-    const review = this.document.reviews.find((candidate) => candidate.id === reviewId)
-    return review ? structuredClone(review) : undefined
-  }
-
-  async create(input: CreateReviewRequest & { workspaceId?: string }, submittedBy: string, now = new Date()): Promise<ReviewRequestArtifact> {
-    const existing = this.document.reviews.find((review) => review.contractId === input.contractId && review.targetKind === input.targetKind && review.targetId === input.targetId && review.status === 'OPEN')
+  async create(input: CreateReviewRequest, submittedBy: string, tenantId: string | undefined, now = new Date()): Promise<ReviewRequestArtifact> {
+    const reviews = await this.current()
+    const existing = reviews.find((review) => review.tenantId === tenantId && review.contractId === input.contractId && review.targetKind === input.targetKind && review.targetId === input.targetId && review.status === 'OPEN')
     if (existing) return structuredClone(existing)
     const submittedAt = now.toISOString()
-    const { workspaceId, ...request } = input
-    const unsigned = { ...request, submittedAt, submittedBy }
-    const review: ReviewRequestArtifact = {
+    const unsigned = { ...(tenantId ? { tenantId } : {}), ...input, submittedAt, submittedBy }
+    return this.storage.append({
       id: `review_${randomUUID()}`,
       ...unsigned,
-      ...(workspaceId ? { workspaceId } : {}),
       status: 'OPEN',
       artifactDigest: digest(unsigned),
-      routingPlan: routingPlanFor(input.impact, submittedAt),
-    }
-    this.document.reviews.push(review)
-    await this.persist()
-    return structuredClone(review)
+    })
   }
 
-  async decide(reviewId: string, decision: ReviewDecisionValue, rationale: string, decidedBy: string, now = new Date(), extras: DecisionExtras = {}): Promise<ReviewRequestArtifact> {
-    const index = this.document.reviews.findIndex((review) => review.id === reviewId)
-    const review = this.document.reviews[index]
+  async decide(reviewId: string, decision: ReviewDecisionValue, rationale: string, decidedBy: string, tenantId: string | undefined, now = new Date(), extras: DecisionExtras = {}): Promise<ReviewRequestArtifact> {
+    const review = await this.get(reviewId, tenantId)
     if (!review) throw new Error('REVIEW_NOT_FOUND')
     if (review.status === 'DECIDED') throw new Error('REVIEW_ALREADY_DECIDED')
+    // These approvals are exactly what unblocks publishing, so the author cannot be the
+    // reviewer. Runtime approvals have always enforced this; governance reviews did not.
+    if (review.submittedBy === decidedBy) throw new Error('REVIEW_SEPARATION_REQUIRED')
     const decidedAt = now.toISOString()
     const unsignedDecision = { reviewId, decision, rationale, decidedAt, decidedBy }
+    // The rejection capture rides on the artifact but stays out of the digest: the digest covers
+    // the decision itself, and the negative decision id is only known after it is created.
     const artifact: ReviewDecisionArtifact = {
       id: `decision_${randomUUID()}`,
       ...unsignedDecision,
       artifactDigest: digest(unsignedDecision),
-      ...(extras.structuredRejection ? { structuredRejection: structuredClone(extras.structuredRejection) } : {}),
+      ...(extras.structuredRejection ? { structuredRejection: extras.structuredRejection } : {}),
       ...(extras.negativeDecisionId ? { negativeDecisionId: extras.negativeDecisionId } : {}),
     }
-    const routingPlan = review.routingPlan
-      ? {
-        ...review.routingPlan,
-        assignments: review.routingPlan.assignments.map((assignment, position) => (position === 0
-          ? { ...assignment, status: decision === 'REJECTED' ? 'REJECTED' as const : 'APPROVED' as const, decidedAt }
-          : assignment)),
-      }
-      : undefined
-    const decided: ReviewRequestArtifact = { ...review, status: 'DECIDED', decision: artifact, ...(routingPlan ? { routingPlan } : {}) }
-    this.document.reviews[index] = decided
-    await this.persist()
-    return structuredClone(decided)
+    // Keyed by the decision, identified as the review: a distinct row describing the same review.
+    return this.storage.append({ ...review, status: 'DECIDED', decision: artifact }, artifact.id)
   }
 
-  /** Out-of-office delegation (E12) — the assignment moves, the review does not restart. */
-  async delegate(reviewId: string, role: string, toPrincipalId: string, reason: string, now = new Date()): Promise<ReviewRequestArtifact> {
-    const index = this.document.reviews.findIndex((review) => review.id === reviewId)
-    const review = this.document.reviews[index]
-    if (!review) throw new Error('REVIEW_NOT_FOUND')
-    if (review.status === 'DECIDED') throw new Error('REVIEW_ALREADY_DECIDED')
-    const plan = review.routingPlan ?? routingPlanFor(review.impact, review.submittedAt)
-    if (!plan.assignments.some((assignment) => assignment.role === role)) throw new Error('REVIEW_ROLE_NOT_ASSIGNED')
-    const routingPlan: ReviewRoutingPlan = {
-      ...plan,
-      assignments: plan.assignments.map((assignment) => (assignment.role === role
-        ? { ...assignment, status: 'DELEGATED' as const, delegatedToPrincipalId: toPrincipalId, delegatedReason: reason, principalId: toPrincipalId, decidedAt: now.toISOString() }
-        : assignment)),
-    }
-    const next: ReviewRequestArtifact = { ...review, routingPlan }
-    this.document.reviews[index] = next
-    await this.persist()
-    return structuredClone(next)
-  }
-
-  private async backfillRouting(): Promise<void> {
-    let changed = false
-    this.document.reviews = this.document.reviews.map((review) => {
-      if (review.routingPlan) return review
-      changed = true
-      return { ...review, routingPlan: routingPlanFor(review.impact, review.submittedAt) }
-    })
-    if (changed) await this.persist()
-  }
-
-  private async persist(): Promise<void> {
-    this.writeQueue = this.writeQueue.then(async () => {
-      await mkdir(dirname(this.filePath), { recursive: true })
-      const temporaryPath = `${this.filePath}.tmp`
-      await writeFile(temporaryPath, `${JSON.stringify(this.document, null, 2)}\n`, 'utf8')
-      await rename(temporaryPath, this.filePath)
-    })
-    await this.writeQueue
-  }
-}
-
-/**
- * Routing derived from the impact of the target (E12): a critical claim is reviewed in sequence by
- * two roles inside a day; anything else runs in parallel with a longer clock.
- */
-export function routingPlanFor(impact: ImpactLevel, submittedAt: string): ReviewRoutingPlan {
-  const submitted = new Date(submittedAt).getTime()
-  if (impact === 'CRITICAL') {
-    return {
-      routing: 'SEQUENTIAL',
-      quorum: 2,
-      assignments: [
-        { role: 'Semantic owner', status: 'PENDING', order: 1 },
-        { role: 'Risk & compliance', status: 'PENDING', order: 2 },
-      ],
-      slaHours: 24,
-      dueAt: new Date(submitted + 24 * 3_600_000).toISOString(),
-      escalateToRole: 'Governance lead',
-    }
-  }
-  if (impact === 'HIGH') {
-    return {
-      routing: 'PARALLEL',
-      quorum: 2,
-      assignments: [
-        { role: 'Semantic owner', status: 'PENDING', order: 1 },
-        { role: 'Data steward', status: 'PENDING', order: 1 },
-      ],
-      slaHours: 48,
-      dueAt: new Date(submitted + 48 * 3_600_000).toISOString(),
-      escalateToRole: 'Governance lead',
-    }
-  }
-  return {
-    routing: 'PARALLEL',
-    quorum: 1,
-    assignments: [{ role: 'Semantic owner', status: 'PENDING', order: 1 }],
-    slaHours: 72,
-    dueAt: new Date(submitted + 72 * 3_600_000).toISOString(),
+  /**
+   * Folds the ledger down to the latest artifact for each review.
+   *
+   * Ledger order is chain order, so the last artifact bearing a review's id is its current state.
+   */
+  private async current(): Promise<ReviewRequestArtifact[]> {
+    const byReview = new Map<string, ReviewRequestArtifact>()
+    for (const artifact of await this.storage.list()) byReview.set(artifact.id, artifact)
+    return [...byReview.values()]
   }
 }
 

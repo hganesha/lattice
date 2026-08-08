@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EntityTypeDefinition } from '@lattice/contracts'
-import { buildOntologyLaneLayout, ONTOLOGY_NODE_HEIGHT, ONTOLOGY_NODE_WIDTH } from './ontologyLaneLayout'
+import { buildOntologyIsometricLayout, buildOntologyLaneLayout, ONTOLOGY_NODE_HEIGHT, ONTOLOGY_NODE_WIDTH } from './ontologyLaneLayout'
 
 function entity(id: string, group: string): EntityTypeDefinition {
   return {
@@ -59,5 +59,37 @@ describe('ontology lane layout', () => {
     expect(layout.lanes).toHaveLength(1)
     expect(layout.lanes[0]?.label).toBe('Property')
     expect(layout.lanes[0]?.entityTypeIds).toEqual(['property', 'new-property-type'])
+  })
+
+  it('projects entities diagonally on collision-free isometric planes', () => {
+    const entities = [
+      entity('party', 'Foundation'), entity('place', 'Foundation'), entity('asset', 'Foundation'),
+      entity('well', 'Operations'), entity('field', 'Operations'), entity('permit', 'Governance'),
+    ]
+    const layout = buildOntologyIsometricLayout(entities)
+
+    expect(layout.lanes.map((lane) => lane.label)).toEqual(['Foundation', 'Operations', 'Governance'])
+    expect(layout.positions.place!.x).toBeGreaterThan(layout.positions.party!.x)
+    expect(layout.positions.place!.y).toBeGreaterThan(layout.positions.party!.y)
+
+    for (const lane of layout.lanes) {
+      for (const id of lane.entityTypeIds) {
+        const position = layout.positions[id]!
+        expect(position.x).toBeGreaterThan(lane.position.x)
+        expect(position.x + ONTOLOGY_NODE_WIDTH).toBeLessThan(lane.position.x + lane.width)
+        expect(position.y).toBeGreaterThan(lane.position.y)
+        expect(position.y + ONTOLOGY_NODE_HEIGHT).toBeLessThan(lane.position.y + lane.height)
+      }
+    }
+
+    for (let left = 0; left < entities.length; left += 1) {
+      for (let right = left + 1; right < entities.length; right += 1) {
+        const a = layout.positions[entities[left]!.id]!
+        const b = layout.positions[entities[right]!.id]!
+        const separated = a.x + ONTOLOGY_NODE_WIDTH <= b.x || b.x + ONTOLOGY_NODE_WIDTH <= a.x
+          || a.y + ONTOLOGY_NODE_HEIGHT <= b.y || b.y + ONTOLOGY_NODE_HEIGHT <= a.y
+        expect(separated, `${entities[left]!.id} overlaps ${entities[right]!.id}`).toBe(true)
+      }
+    }
   })
 })

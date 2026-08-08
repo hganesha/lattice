@@ -1,44 +1,48 @@
-export const API_URL = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') ?? 'http://127.0.0.1:8787'
-
-const SESSION_KEY = 'lattice:session-principal'
-
-export interface StudioSession {
-  token: string
-  principalId: string
-  displayName: string
-  initials: string
-  roles: string[]
-}
-
 /**
- * The signed-in principal. Still a demo token exchange rather than a real IdP, but the
- * identity now comes from one place instead of a hard-coded `Bearer studio-demo` per call
- * and a hard-coded `HG` avatar (G6).
+ * Where the Context API lives, as seen from the browser.
+ *
+ * A deployed Studio serves the API from its own origin — `vercel.json` rewrites `/v1` and
+ * `/health` to wherever the API actually runs — so the built default is the empty string, which
+ * leaves every request as a same-origin relative path. Defaulting to a loopback address instead
+ * would bake `http://127.0.0.1:8787` into the bundle, and a visitor's browser resolves that to
+ * their own machine: the Studio reports the runtime offline and no request ever leaves the page.
+ *
+ * Set `VITE_API_URL` when the API is on a different origin. It is read at build time, not at
+ * runtime, so changing it means rebuilding.
  */
-export function loadSession(): StudioSession {
-  try {
-    const saved = localStorage.getItem(SESSION_KEY)
-    if (saved) return JSON.parse(saved) as StudioSession
-  } catch {
-    // fall through to the default session
+export const API_URL = import.meta.env.VITE_API_URL?.replace(/\/+$/, '') ?? (import.meta.env.DEV ? 'http://127.0.0.1:8787' : '')
+
+const ACCESS_TOKEN_KEY = 'lattice:oidc-access-token'
+const ACTIVE_ORGANIZATION_KEY = 'lattice:active-organization'
+
+export function apiAuthHeaders(developmentToken = 'studio-demo'): Record<string, string> {
+  const accessToken = typeof sessionStorage === 'undefined' ? undefined : sessionStorage.getItem(ACCESS_TOKEN_KEY)?.trim()
+  const organizationId = typeof sessionStorage === 'undefined' ? undefined : sessionStorage.getItem(ACTIVE_ORGANIZATION_KEY)?.trim()
+  const token = accessToken || (import.meta.env.DEV ? developmentToken : '')
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(organizationId ? { 'X-Lattice-Organization': organizationId } : {}),
   }
-  return defaultSession
 }
 
-export const defaultSession: StudioSession = {
-  token: 'studio-demo',
-  principalId: 'principal_studio_demo',
-  displayName: 'Studio Demo Steward',
-  initials: 'SD',
-  roles: ['DATA_STEWARD', 'SEMANTIC_OWNER'],
+export function setApiAccessToken(accessToken: string): void {
+  const normalized = accessToken.trim()
+  if (!normalized) throw new Error('OIDC_ACCESS_TOKEN_REQUIRED')
+  sessionStorage.setItem(ACCESS_TOKEN_KEY, normalized)
 }
 
-export function saveSession(session: StudioSession): void {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+export function clearApiAccessToken(): void {
+  sessionStorage.removeItem(ACCESS_TOKEN_KEY)
 }
 
-export function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
-  return { Authorization: `Bearer ${loadSession().token}`, ...extra }
+export function setActiveOrganizationId(organizationId: string): void {
+  const normalized = organizationId.trim()
+  if (!normalized) throw new Error('ACTIVE_ORGANIZATION_REQUIRED')
+  sessionStorage.setItem(ACTIVE_ORGANIZATION_KEY, normalized)
+}
+
+export function clearActiveOrganizationId(): void {
+  sessionStorage.removeItem(ACTIVE_ORGANIZATION_KEY)
 }
 
 export interface ApiError extends Error {
@@ -46,12 +50,20 @@ export interface ApiError extends Error {
   code?: string
 }
 
-/** Thin typed fetch: attaches identity, parses JSON, and surfaces the API's own error code. */
-export async function apiFetch<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
-  const { json, headers, ...rest } = init
+/**
+ * Thin typed fetch used by the evolution and evaluation surfaces: attaches the same identity and
+ * organization headers as every other call, parses JSON, and surfaces the API's own error code so a
+ * surface can show what actually failed instead of a generic message.
+ */
+export async function apiFetch<T>(path: string, init: RequestInit & { json?: unknown; developmentToken?: string } = {}): Promise<T> {
+  const { json, headers, developmentToken, ...rest } = init
   const response = await fetch(`${API_URL}${path}`, {
     ...rest,
-    headers: authHeaders({ ...(json === undefined ? {} : { 'Content-Type': 'application/json' }), ...(headers as Record<string, string> | undefined) }),
+    headers: {
+      ...apiAuthHeaders(developmentToken),
+      ...(json === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(headers as Record<string, string> | undefined),
+    },
     ...(json === undefined ? {} : { body: JSON.stringify(json) }),
   })
   const text = await response.text()

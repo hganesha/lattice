@@ -12,11 +12,13 @@ export type SurfaceId =
   | 'ontology'
   | 'ontology-bindings'
   | 'contracts'
+  | 'contract-editor'
   | 'bindings'
   // Operate
   | 'compiler'
   | 'dispositions'
   | 'executions'
+  | 'integrations'
   | 'runtime-approvals'
   // Govern
   | 'reviews'
@@ -35,8 +37,8 @@ export type SurfaceId =
   | 'activity'
 
 export const surfaceIds: readonly SurfaceId[] = [
-  'ontology', 'ontology-bindings', 'contracts', 'bindings',
-  'compiler', 'dispositions', 'executions', 'runtime-approvals',
+  'ontology', 'ontology-bindings', 'contracts', 'contract-editor', 'bindings',
+  'compiler', 'dispositions', 'executions', 'integrations', 'runtime-approvals',
   'reviews', 'policies', 'evidence', 'negative-decisions', 'releases',
   'assurance', 'evaluations', 'case-sets', 'drift',
   'identities', 'emergency', 'activity',
@@ -44,7 +46,7 @@ export const surfaceIds: readonly SurfaceId[] = [
 
 /** Surfaces that read only workspace state and never require an active contract. */
 export const workspaceSurfaces: readonly SurfaceId[] = [
-  'ontology', 'ontology-bindings', 'contracts', 'reviews', 'drift', 'identities', 'negative-decisions', 'case-sets', 'activity',
+  'ontology', 'ontology-bindings', 'contracts', 'reviews', 'drift', 'identities', 'negative-decisions', 'case-sets', 'activity', 'integrations',
 ] as const
 
 export const defaultSurface: SurfaceId = 'ontology'

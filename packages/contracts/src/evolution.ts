@@ -12,18 +12,6 @@ import type {
 export type PurposeAudience = 'INTERNAL' | 'PARTNER' | 'CUSTOMER' | 'REGULATOR' | 'PUBLIC'
 export type Reversibility = 'REVERSIBLE' | 'PARTIALLY_REVERSIBLE' | 'IRREVERSIBLE'
 
-export interface DeclaredPurpose {
-  id: string
-  label: string
-  description: string
-  audience: PurposeAudience
-  reversibility: Reversibility
-  /** Floor risk tier contributed by the purpose itself; the operation may raise it, never lower it. */
-  baseRiskTier: RiskTier
-  /** Domains this purpose is offered for. Empty means every domain. */
-  domains: string[]
-}
-
 export interface RiskTierDerivation {
   riskTier: RiskTier
   purposeId: string
@@ -554,7 +542,8 @@ export interface CreateNegativeDecisionRequest {
   rationale: string
   effectiveFrom?: string
   reviewBy: string
-  exceptions?: Array<Omit<NegativeDecisionException, 'id' | 'approvedAt'>>
+  /** `approvedBy` is filled from the authenticated principal; a client may not assert it. */
+  exceptions?: Array<Omit<NegativeDecisionException, 'id' | 'approvedAt' | 'approvedBy'> & { approvedBy?: string }>
   reviewId?: string
 }
 
@@ -563,7 +552,7 @@ export interface StructuredRejection {
   prohibited: NegativeDecision['prohibited']
   applicability: NegativeDecision['applicability']
   reviewBy: string
-  exceptions?: Array<Omit<NegativeDecisionException, 'id' | 'approvedAt'>>
+  exceptions?: Array<Omit<NegativeDecisionException, 'id' | 'approvedAt' | 'approvedBy'> & { approvedBy?: string }>
 }
 
 /* ------------------------------------------------------------------ *
