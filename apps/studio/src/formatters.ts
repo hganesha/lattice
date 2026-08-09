@@ -1,4 +1,4 @@
-import type { EvalCaseType, EvalDiffStatus, EvalGateId, RuntimeDecision, ImpactLevel, RiskTier } from '@lattice/contracts'
+import type { EvalCaseType, EvalDiffStatus, EvalGateId, ReleaseRuntimeStatus, ReleaseStatus, RuntimeDecision, ImpactLevel, RiskTier } from '@lattice/contracts'
 
 /** Display helpers shared by the new surfaces so tone mapping is defined once. */
 
@@ -75,6 +75,25 @@ export function impactTone(impact: ImpactLevel): Tone {
   if (impact === 'HIGH') return 'warning'
   if (impact === 'MEDIUM') return 'info'
   return 'neutral'
+}
+
+/**
+ * An unpublished contract is `warning`, not `neutral`: it is the state in which
+ * nothing the contract says can authorize anything, which is the single most
+ * consequential fact a surface can tell an author about the object they are
+ * editing. This matches the contract-status summary card.
+ */
+export function releaseTone(status: ReleaseStatus): Tone {
+  if (status === 'PUBLISHED') return 'success'
+  if (status === 'CANDIDATE') return 'info'
+  if (status === 'SUSPENDED' || status === 'RETIRED') return 'danger'
+  return 'warning'
+}
+
+export function runtimeTone(status: ReleaseRuntimeStatus): Tone {
+  if (status === 'ACTIVE') return 'success'
+  if (status === 'SUSPENDED') return 'danger'
+  return 'warning'
 }
 
 export function diffTone(status: EvalDiffStatus): Tone {

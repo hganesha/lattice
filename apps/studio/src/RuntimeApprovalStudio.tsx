@@ -10,6 +10,8 @@ import { ExecutionReceiptCard } from './ExecutionReceiptCard'
 import { API_URL, apiAuthHeaders } from './api'
 import { useMessages } from './i18n/messages'
 import { Toast } from './Toast'
+import { SurfaceHero } from './SurfaceState'
+import { releaseFact } from './surfaceContext'
 
 interface RuntimeApprovalStudioProps {
   contract: ContextContract
@@ -116,10 +118,15 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
   const governedPolicy = governedOperation ? contract.policies.find((policy) => policy.riskTier === governedOperation.riskTier && policy.approvalRequired) : undefined
 
   return <section className="runtime-approval-studio">
-    <section className="runtime-approval-hero panel">
-      <div><span className="panel-kicker">{t('approvalCheckpoint').toLocaleUpperCase()}</span><h2>{t('approvalTitle')}</h2><p>{t('approvalDescription')}</p></div>
+    <SurfaceHero
+      kicker={t('approvalCheckpoint').toLocaleUpperCase()}
+      title={contract.name}
+      description={t('approvalDescription')}
+      facts={[releaseFact(t, contract)]}
+      tint="governance"
+    >
       <div className="approval-hero-stats"><span><b>{pendingCount}</b>{t('approvalPending')}</span><span><b>{receipts.length}</b>{t('approvalReceipts')}</span></div>
-    </section>
+    </SurfaceHero>
 
     {!governedPolicy && canLoadGridOutageExample(contract) && <section className="approval-setup panel">
       <div><span className="panel-kicker">{t('approvalDemoBaseline').toLocaleUpperCase()}</span><h3>{t('approvalGovernOutage')}</h3><p>{t('approvalDemoDescription')}</p></div>

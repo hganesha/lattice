@@ -51,15 +51,49 @@ export function ErrorState({ title, detail, retryLabel, onRetry }: ErrorStatePro
   return <div className="surface-state error" role="alert"><span className="surface-state-icon" aria-hidden="true">!</span><h3>{title}</h3><p>{detail}</p>{retryLabel && onRetry && <div className="surface-state-actions"><button className="ghost" onClick={onRetry}>{retryLabel}</button></div>}</div>
 }
 
+/**
+ * One fact about the object the surface is acting on — its version pin, its
+ * release state, the scope it inherits from.
+ *
+ * A hero that only carries the feature's name and slogan is the same on every
+ * visit; it cannot tell you *which* contract you are editing policies for, at
+ * what version, or whether it is published. The facts strip is what makes the
+ * bar context-aware, so it holds only what changes with the object.
+ */
+export interface HeroFact {
+  label: string
+  value: string
+  tone?: Tone
+}
+
 interface SurfaceHeroProps {
   kicker: string
+  /** The object being acted on, wherever the surface has one — the contract or
+   * ontology name, not a restatement of the page title the app header already
+   * shows. */
   title: string
-  description: string
+  description?: string
+  facts?: readonly HeroFact[]
+  /** Names the semantic role the surface belongs to; see `.surface-hero` in surface-kit.css. */
+  tint?: 'governance' | 'info' | 'warning' | 'none'
   children?: ReactNode
 }
 
-export function SurfaceHero({ kicker, title, description, children }: SurfaceHeroProps) {
-  return <div className="surface-hero"><div><span className="panel-kicker">{kicker}</span><h2>{title}</h2><p>{description}</p></div>{children && <div className="surface-hero-actions">{children}</div>}</div>
+export function SurfaceHero({ kicker, title, description, facts, tint, children }: SurfaceHeroProps) {
+  return <div className={tint ? `surface-hero tint-${tint}` : 'surface-hero'}>
+    <div>
+      <span className="panel-kicker">{kicker}</span>
+      <h2>{title}</h2>
+      {description && <p>{description}</p>}
+      {facts && facts.length > 0 && <dl className="surface-hero-facts">
+        {facts.map((fact) => <div key={fact.label}>
+          <dt>{fact.label}</dt>
+          <dd>{fact.tone && <i className={`mini-dot ${fact.tone}`} aria-hidden="true" />}{fact.value}</dd>
+        </div>)}
+      </dl>}
+    </div>
+    {children && <div className="surface-hero-actions">{children}</div>}
+  </div>
 }
 
 interface MetricTileProps {

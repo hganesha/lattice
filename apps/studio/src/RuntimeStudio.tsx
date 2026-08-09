@@ -12,6 +12,8 @@ import { routes, type SurfaceId } from './router'
 import { Toast } from './Toast'
 import { IconAlertTriangle, IconArrowUpRight, IconFlask, IconShieldCheck, IconZap } from './icons'
 import { PanelCollapseButton, usePersistentCollapsed } from './PanelCollapseButton'
+import { SurfaceHero } from './SurfaceState'
+import { releaseFact, runtimeFact } from './surfaceContext'
 
 /**
  * E3 + E4 — the compiler bar declares a purpose and picks a mode before it compiles.
@@ -145,6 +147,16 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
     : d('compilerCompileAuthorized')
 
   return <section className="runtime-studio-page">
+    {/* Which contract is about to be compiled, and whether it can authorize
+      * anything. The compile bar below offers an Authorized mode that is inert
+      * on an unpublished draft, so the release state has to be readable before
+      * the choice is made, not after the button refuses. */}
+    <SurfaceHero
+      kicker={t('navCompiler').toLocaleUpperCase()}
+      title={contract.name}
+      facts={[releaseFact(t, contract), runtimeFact(t, runtimeStatus)]}
+    />
+
     <section className="compiler-bar">
       <div className="spark" aria-hidden="true"><IconZap /></div>
       <div className="question-field"><label htmlFor="compiler-question">{t('runtimeCompileQuestion')}</label><input id="compiler-question" aria-label={t('runtimeQuestionLabel')} value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void compile() }} /></div>
