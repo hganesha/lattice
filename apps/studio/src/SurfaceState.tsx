@@ -96,6 +96,39 @@ export function SurfaceHero({ kicker, title, description, facts, tint, children 
   </div>
 }
 
+interface IconChicletProps {
+  icon: ReactNode
+  /** The button's name. Shown on hover and keyboard focus, and always exposed to
+   * assistive tech — an icon-only control that carries its label only in a
+   * tooltip is unnamed to anyone who cannot hover. */
+  label: string
+  onClick: () => void
+  pressed?: boolean
+  className?: string
+}
+
+/**
+ * A square icon-only control with a deferred label.
+ *
+ * The page header ran six text buttons — Intro, Help, theme, text size, density,
+ * Share view — none of which is a decision the page is asking you to make, and
+ * together they crowded out the one line that names the contract. Icon chiclets
+ * put that space back; the tooltip (`data-tooltip`, drawn in CSS) and the
+ * aria-label keep the names reachable by pointer, keyboard and screen reader.
+ */
+export function IconChiclet({ icon, label, onClick, pressed, className }: IconChicletProps) {
+  return <button
+    type="button"
+    className={`ghost icon-chiclet${className ? ` ${className}` : ''}`}
+    aria-label={label}
+    data-tooltip={label}
+    {...(pressed === undefined ? {} : { 'aria-pressed': pressed })}
+    onClick={onClick}
+  >
+    {icon}
+  </button>
+}
+
 interface MetricTileProps {
   label: string
   value: string

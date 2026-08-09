@@ -405,3 +405,27 @@ export const IconX = (p: IconProps) => (
     <path d="m6 6 12 12" />
   </Icon>
 )
+
+export const IconInfo = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 16v-4" />
+    <path d="M12 8h.01" />
+  </Icon>
+)
+
+export const IconHelpCircle = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <path d="M12 17h.01" />
+  </Icon>
+)
+
+export const IconShare = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+    <polyline points="16 6 12 2 8 6" />
+    <path d="M12 2v13" />
+  </Icon>
+)

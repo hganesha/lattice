@@ -98,13 +98,14 @@
   /* The page header carries a title plus a long run of controls. At the body
    * ramp those controls no longer fit on one line at desktop widths, so the
    * title block is allowed to shrink and the controls keep their own line. */
-  header { margin-bottom: var(--space-5); gap: var(--space-4); }
-  header > div:first-child { min-width: 0; }
   /* The controls are fixed-size and must stay hittable, so they claim their
-   * content width first; the identity block takes what is left and ellipses.
-   * Letting both shrink split the row evenly and wrapped the controls onto
-   * three lines while the breadcrumb was still clipped. */
-  .header-identity { flex: 1 1 auto; min-width: 0; }
+   * content width first and the identity block takes what is left. Letting both
+   * shrink split the row evenly and wrapped the controls while the title was
+   * still clipped. When even that will not fit, the whole row wraps and the
+   * controls drop to their own line — better than shrinking them into a grid. */
+  header { margin-bottom: var(--space-5); gap: var(--space-2) var(--space-4); flex-wrap: wrap; }
+  header > div:first-child { min-width: 0; }
+  .header-identity { flex: 1 1 22ch; min-width: 0; }
   .header-actions { flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
   .header-actions > button { white-space: nowrap; }
   .eyebrow { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -217,16 +218,62 @@
   .surface-row :where(b, h3) { color: var(--fg-default); }
   .surface-row :where(p, small, time, code) { color: var(--fg-secondary); }
 
-  .display-controls { display: flex; align-items: center; gap: 8px; }
-  .display-control { display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; }
-  .display-control[aria-pressed="true"] { border-color: color-mix(in oklab,var(--interactive-fill) 60%,var(--border-default)); background: var(--interactive-bg); }
-  .theme-toggle,.density-toggle { width: 38px; padding-inline: 0; color: var(--fg-secondary); }
-  .density-toggle svg { width: 17px; height: 17px; }
-  .theme-toggle svg { width: 17px; height: 17px; }
-  .text-scale-toggle { min-width: 91px; }
-  .text-scale-symbol { font: 700 var(--text-body)/1 var(--font-display); letter-spacing: -.5px; }
-  .language-picker { display: block; }
-  .language-picker select { width: 108px; min-height: 38px; padding-block: 7px; font-size: var(--text-meta); }
+  .display-controls { display: flex; align-items: center; gap: var(--space-2); }
+  .display-control[aria-pressed="true"],.icon-chiclet[aria-pressed="true"] { border-color: color-mix(in oklab,var(--interactive-fill) 60%,var(--border-default)); background: var(--interactive-bg); }
+
+  /* One square for every icon-only control in the chrome. 38px is the existing
+   * toggle width and clears the 24px pointer-target floor with room to spare. */
+  .icon-chiclet {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    padding: 0;
+    color: var(--fg-secondary);
+  }
+  .icon-chiclet:hover { color: var(--fg-default); background: var(--bg-hover); }
+  .icon-chiclet svg { width: 17px; height: 17px; }
+  .text-scale-symbol { font: 700 var(--text-support)/1 var(--font-display); letter-spacing: -.5px; }
+
+  /* The label a chiclet no longer shows. Right-anchored because these sit in the
+   * top-right corner, where a centred tooltip on the last one would run off the
+   * viewport and scroll the page sideways. The delay keeps a tooltip from
+   * flashing at every icon the pointer merely crosses on its way somewhere. */
+  :where(.icon-chiclet,.language-picker)[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    right: 0;
+    z-index: var(--z-dropdown);
+    padding: var(--space-1) var(--space-2);
+    border: var(--border-width) solid var(--border-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-raised);
+    color: var(--fg-default);
+    font: 500 var(--text-meta)/1.4 var(--font-sans);
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease 400ms;
+  }
+  :where(.icon-chiclet,.language-picker)[data-tooltip]:hover::after,
+  :where(.icon-chiclet,.language-picker):has(:focus-visible)::after,
+  .icon-chiclet[data-tooltip]:focus-visible::after { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    :where(.icon-chiclet,.language-picker)[data-tooltip]::after { transition: none; }
+  }
+
+  /* The select carries the value, so it keeps a real control; the visible code
+   * is painted over it and the select itself is transparent above it. */
+  .language-picker { position: relative; display: inline-flex; }
+  .language-picker select { width: 52px; min-height: 38px; padding: 0 0 0 var(--space-2); color: transparent; font-size: var(--text-meta); }
+  .language-picker select option { color: var(--fg-default); }
+  .language-code { position: absolute; inset: 0; display: grid; place-items: center; padding-right: 12px; color: var(--fg-secondary); font: 500 var(--text-meta) var(--font-mono); pointer-events: none; }
   .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
   /* Enterprise help: sourced operating patterns in an accessible, user-controlled carousel. */
@@ -421,9 +468,6 @@
     .shell { grid-template-columns: 240px minmax(0,1fr); }
     main { padding-inline: 22px; }
     .builder-workbench { grid-template-columns: minmax(650px,1fr) 330px; }
-    .text-scale-toggle { min-width: 38px; padding-inline: 9px; }
-    .text-scale-toggle>span:last-child { display: none; }
-    .language-picker select { width: 96px; }
   }
 
   /* --- Icon system (inlined Lucide, see icons.tsx) --- */
