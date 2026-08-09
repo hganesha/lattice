@@ -42,6 +42,7 @@ import { IndustryWorkspaceIcon } from './IndustryWorkspaceIcon'
 import { AccountControl } from './AccountControl'
 import { IntroDialog } from './IntroDialog'
 import { EmptyState } from './SurfaceState'
+import { titleCase } from './formatters'
 import { API_URL, apiAuthHeaders, apiFetch } from './api'
 import { buildPath, navigate, navigateToPath, surfaceOwnsDraft, surfaceShowsSummary, useRoute, workspaceSurfaces, type SurfaceId } from './router'
 import { useMessages, type MessageKey } from './i18n/messages'
@@ -210,6 +211,19 @@ export function App() {
   // cannot change — but keep it visible if an edit is still unsaved, so
   // navigating away never hides pending work.
   const showDraftControls = (workspaceMode || hasActiveWorkspaceContract) && (surfaceOwnsDraft(surface) || draftDirty || saveState !== 'IDLE')
+  // Autosave persists the draft on a debounce, so a Save button that is only ever
+  // enabled by the same condition autosave fires on is a disabled button almost
+  // all the time — and on these eight surfaces it also pushed the header action
+  // row onto five wrapped lines and squeezed the breadcrumb into an ellipsis.
+  // Render it when there is genuinely something to save or retry.
+  const showSaveDraftButton = showDraftControls && (draftDirty || saveState !== 'IDLE') && (workspaceMode ? Boolean(workspace) : hasActiveWorkspaceContract)
+  // The header names the contract exactly where a surface reads one. The
+  // workspace-only surfaces have no contract to name, and saying so would be a
+  // lie about which record the screen is showing — they fall back to the
+  // workspace, which is what they actually operate on.
+  const headerContext = !workspaceSurfaces.includes(surface) && hasActiveWorkspaceContract
+    ? contract.name
+    : workspace?.name ?? titleCase(contract.domain)
   const contractRequired = !workspaceSurfaces.includes(surface) && !route.detailId
   const contractMissing = contractRequired && !hasActiveWorkspaceContract
   const summaryCards = buildSummaryCards({ t, workspaceMode, workspace, workspaceContracts, contract, hasActiveWorkspaceContract, draftDirty, runtimeStatus })
@@ -531,10 +545,18 @@ export function App() {
 
       <main>
         <header>
-          <div><div className="eyebrow">{t('contextStudio')} / {workspace?.name ?? contract.domain}</div><h1>{activeNavigation ? t(activeNavigation.label) : t(surface === 'activity' ? 'navActivity' : 'navSharedOntology')}</h1></div>
+          <div className="header-identity">
+            {/* Names the record this surface reads, which on the contract-scoped
+              * surfaces was stated nowhere. One segment, not a workspace/contract
+              * trail: the header has ~230px next to its controls, and two segments
+              * competing for it clipped both. The sidebar switcher already names
+              * the workspace, so the contract is the segment that earns the line. */}
+            <div className="eyebrow header-context" title={headerContext}>{headerContext}</div>
+            <h1>{activeNavigation ? t(activeNavigation.label) : t(surface === 'activity' ? 'navActivity' : 'navSharedOntology')}</h1>
+          </div>
           <div className="header-actions">
             {showDraftControls && <span className={`draft-state ${saveState === 'SAVING' ? 'saving' : draftDirty ? 'dirty' : ''}`} aria-live="polite">{saveState === 'FAILED' ? t('headerSaveFailed') : saveState === 'SAVING' ? t('headerSaving') : draftDirty ? t('headerAutosavePending') : t('draftSaved')}</span>}
-            {showDraftControls && (workspaceMode ? Boolean(workspace) : hasActiveWorkspaceContract) && <button className="release" onClick={() => void saveActiveDraft()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}
+            {showSaveDraftButton && <button className="release" onClick={() => void saveActiveDraft()} disabled={saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : saveState === 'FAILED' ? t('commonRetrySave') : t('commonSaveDraft')}</button>}
             <button className="ghost" onClick={() => setIntroOpen(true)}>{t('introOpen')}</button>
             <button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button>
             <AppearanceSettings />
