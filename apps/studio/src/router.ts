@@ -49,6 +49,42 @@ export const workspaceSurfaces: readonly SurfaceId[] = [
   'ontology', 'ontology-bindings', 'contracts', 'reviews', 'drift', 'identities', 'negative-decisions', 'case-sets', 'activity', 'integrations',
 ] as const
 
+/**
+ * Surfaces that own an editable draft — the only ones that call setSurfaceDirty.
+ *
+ * The header used to show the autosave state and the Save draft button on all
+ * 22 surfaces, gated on workspace state and never on which surface you were
+ * looking at. On Activity, Executions, Evidence, Releases and the other ten
+ * read-only views that meant a permanently disabled Save button and a
+ * "Draft saved" reassurance about a draft the screen cannot touch.
+ *
+ * Keep this in step with the setSurfaceDirty call sites in App.tsx.
+ */
+export const editableSurfaces: readonly SurfaceId[] = [
+  'ontology', 'ontology-bindings', 'contract-editor', 'bindings',
+  'compiler', 'runtime-approvals', 'policies', 'assurance',
+] as const
+
+export function surfaceOwnsDraft(surface: SurfaceId): boolean {
+  return editableSurfaces.includes(surface)
+}
+
+/**
+ * Surfaces the summary strip actually describes.
+ *
+ * The four cards report contract status, entity types, relationships and
+ * assurance — the shape of the ontology and its contract. They were rendered
+ * above all 22 surfaces, so Identities, Executions, Evidence and Drift each
+ * opened with a screenful of numbers about something else.
+ */
+export const summarySurfaces: readonly SurfaceId[] = [
+  'ontology', 'ontology-bindings', 'contracts', 'contract-editor', 'bindings',
+] as const
+
+export function surfaceShowsSummary(surface: SurfaceId): boolean {
+  return summarySurfaces.includes(surface)
+}
+
 export const defaultSurface: SurfaceId = 'ontology'
 
 export interface Route {

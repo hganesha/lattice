@@ -43,7 +43,7 @@ import { AccountControl } from './AccountControl'
 import { IntroDialog } from './IntroDialog'
 import { EmptyState } from './SurfaceState'
 import { API_URL, apiAuthHeaders, apiFetch } from './api'
-import { buildPath, navigate, navigateToPath, useRoute, workspaceSurfaces, type SurfaceId } from './router'
+import { buildPath, navigate, navigateToPath, surfaceOwnsDraft, surfaceShowsSummary, useRoute, workspaceSurfaces, type SurfaceId } from './router'
 import { useMessages, type MessageKey } from './i18n/messages'
 import { PanelCollapseButton, usePersistentCollapsed } from './PanelCollapseButton'
 
@@ -205,6 +205,11 @@ export function App() {
   }
   const activeNavigation = allNavigation.find((item) => item.surface === surface)
   const workspaceMode = surface === 'ontology' || surface === 'ontology-bindings'
+  // Draft state belongs to the surfaces that can edit one. Elsewhere it is a
+  // permanently disabled button and a reassurance about something the screen
+  // cannot change — but keep it visible if an edit is still unsaved, so
+  // navigating away never hides pending work.
+  const showDraftControls = (workspaceMode || hasActiveWorkspaceContract) && (surfaceOwnsDraft(surface) || draftDirty || saveState !== 'IDLE')
   const contractRequired = !workspaceSurfaces.includes(surface) && !route.detailId
   const contractMissing = contractRequired && !hasActiveWorkspaceContract
   const summaryCards = buildSummaryCards({ t, workspaceMode, workspace, workspaceContracts, contract, hasActiveWorkspaceContract, draftDirty, runtimeStatus })
@@ -528,8 +533,8 @@ export function App() {
         <header>
           <div><div className="eyebrow">{t('contextStudio')} / {workspace?.name ?? contract.domain}</div><h1>{activeNavigation ? t(activeNavigation.label) : t(surface === 'activity' ? 'navActivity' : 'navSharedOntology')}</h1></div>
           <div className="header-actions">
-            {(workspaceMode || hasActiveWorkspaceContract) && <span className={`draft-state ${saveState === 'SAVING' ? 'saving' : draftDirty ? 'dirty' : ''}`} aria-live="polite">{saveState === 'FAILED' ? t('headerSaveFailed') : saveState === 'SAVING' ? t('headerSaving') : draftDirty ? t('headerAutosavePending') : t('draftSaved')}</span>}
-            {(workspaceMode ? Boolean(workspace) : hasActiveWorkspaceContract) && <button className="release" onClick={() => void saveActiveDraft()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}
+            {showDraftControls && <span className={`draft-state ${saveState === 'SAVING' ? 'saving' : draftDirty ? 'dirty' : ''}`} aria-live="polite">{saveState === 'FAILED' ? t('headerSaveFailed') : saveState === 'SAVING' ? t('headerSaving') : draftDirty ? t('headerAutosavePending') : t('draftSaved')}</span>}
+            {showDraftControls && (workspaceMode ? Boolean(workspace) : hasActiveWorkspaceContract) && <button className="release" onClick={() => void saveActiveDraft()} disabled={!draftDirty || saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : t('commonSaveDraft')}</button>}
             <button className="ghost" onClick={() => setIntroOpen(true)}>{t('introOpen')}</button>
             <button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button>
             <AppearanceSettings />
@@ -538,9 +543,9 @@ export function App() {
           </div>
         </header>
 
-        <section className="summary-grid">
+        {surfaceShowsSummary(surface) && <section className="summary-grid">
           {summaryCards.map((card) => <SummaryCard {...card} key={card.label} />)}
-        </section>
+        </section>}
 
         <Suspense fallback={<StudioLoading label={activeNavigation ? t(activeNavigation.label) : t('navActivity')} />}>
           {contractMissing
