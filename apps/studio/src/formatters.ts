@@ -1,8 +1,50 @@
-import type { EvalDiffStatus, EvalGateId, RuntimeDecision, ImpactLevel, RiskTier } from '@lattice/contracts'
+import type { EvalCaseType, EvalDiffStatus, EvalGateId, RuntimeDecision, ImpactLevel, RiskTier } from '@lattice/contracts'
 
 /** Display helpers shared by the new surfaces so tone mapping is defined once. */
 
-export type Tone = 'green' | 'amber' | 'red' | 'blue' | 'lime' | 'violet' | 'muted'
+/**
+ * Status tones. A tone names what a value *means*, never the paint used to draw
+ * it, so a status can't be silently restyled by someone reaching for a colour.
+ *
+ * Reserved for values that carry valence or ordering — something is passing,
+ * needs attention, or has failed. Data whose values are merely *different* from
+ * one another belongs on `CategoryTone`: colouring a category green implies it
+ * is the good one.
+ */
+export type Tone = 'success' | 'warning' | 'danger' | 'info' | 'brand' | 'governance' | 'neutral'
+
+/**
+ * Categorical tones for mutually-exclusive kinds with no ordering — eval case
+ * types, domain groups, node classes.
+ *
+ * The eight are OKLCH-spaced with staggered lightness, chosen by search to
+ * maximise worst-case separation under simulated deuteranopia and protanopia.
+ * See docs/token-audit.md. Colour is never the only signal on these surfaces:
+ * every chip keeps its label and every canvas its legend.
+ */
+export type CategoryTone = 'cat-1' | 'cat-2' | 'cat-3' | 'cat-4' | 'cat-5' | 'cat-6' | 'cat-7' | 'cat-8'
+
+/** Anything that can tint a chip, dot or chart mark. */
+export type ChartTone = Tone | CategoryTone
+
+/**
+ * Eval case types are a categorical axis, not a status one. The previous
+ * mapping read HAPPY_PATH as "success" and ADVERSARIAL as "danger", which
+ * implied a verdict the case type does not carry — a happy-path case has not
+ * passed anything merely by existing.
+ */
+export function caseTypeTone(caseType: EvalCaseType): CategoryTone {
+  const order: Readonly<Record<EvalCaseType, CategoryTone>> = {
+    HAPPY_PATH: 'cat-1',
+    REGRESSION: 'cat-2',
+    AMBIGUITY: 'cat-3',
+    APPROVAL: 'cat-4',
+    ABSTENTION: 'cat-5',
+    ADVERSARIAL: 'cat-6',
+    CROSS_DOMAIN: 'cat-7',
+  }
+  return order[caseType]
+}
 
 export function titleCase(value: string): string {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toLocaleUpperCase())
@@ -14,34 +56,34 @@ export function sentenceCase(value: string): string {
 }
 
 export function decisionTone(decision: RuntimeDecision): Tone {
-  if (decision === 'RESOLVED') return 'green'
-  if (decision === 'CLARIFICATION_REQUIRED') return 'blue'
-  if (decision === 'APPROVAL_REQUIRED') return 'violet'
-  if (decision === 'DENIED' || decision === 'UNSUPPORTED') return 'red'
-  return 'amber'
+  if (decision === 'RESOLVED') return 'success'
+  if (decision === 'CLARIFICATION_REQUIRED') return 'info'
+  if (decision === 'APPROVAL_REQUIRED') return 'governance'
+  if (decision === 'DENIED' || decision === 'UNSUPPORTED') return 'danger'
+  return 'warning'
 }
 
 export function riskTone(riskTier: RiskTier): Tone {
-  if (riskTier === 'OPERATIONAL_ACTION') return 'red'
-  if (riskTier === 'PLANNING_DECISION') return 'amber'
-  if (riskTier === 'ANALYTICAL') return 'blue'
-  return 'muted'
+  if (riskTier === 'OPERATIONAL_ACTION') return 'danger'
+  if (riskTier === 'PLANNING_DECISION') return 'warning'
+  if (riskTier === 'ANALYTICAL') return 'info'
+  return 'neutral'
 }
 
 export function impactTone(impact: ImpactLevel): Tone {
-  if (impact === 'CRITICAL') return 'red'
-  if (impact === 'HIGH') return 'amber'
-  if (impact === 'MEDIUM') return 'blue'
-  return 'muted'
+  if (impact === 'CRITICAL') return 'danger'
+  if (impact === 'HIGH') return 'warning'
+  if (impact === 'MEDIUM') return 'info'
+  return 'neutral'
 }
 
 export function diffTone(status: EvalDiffStatus): Tone {
-  if (status === 'FIXED') return 'green'
-  if (status === 'REGRESSED') return 'red'
-  if (status === 'NEW') return 'blue'
-  if (status === 'UNCHANGED_FAIL') return 'amber'
-  if (status === 'REMOVED') return 'muted'
-  return 'muted'
+  if (status === 'FIXED') return 'success'
+  if (status === 'REGRESSED') return 'danger'
+  if (status === 'NEW') return 'info'
+  if (status === 'UNCHANGED_FAIL') return 'warning'
+  if (status === 'REMOVED') return 'neutral'
+  return 'neutral'
 }
 
 export const gateShortLabels: Readonly<Record<EvalGateId, string>> = {

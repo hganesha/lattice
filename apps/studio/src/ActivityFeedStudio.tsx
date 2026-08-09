@@ -38,10 +38,10 @@ export function ActivityFeedStudio({ workspaceId, contract, onNavigatePath }: Ac
     </SurfaceHero>
 
     <div className="surface-metrics">
-      <MetricTile label={t('activityMetricEvents')} value={String(all.length)} meta={t('activityMetricEventsMeta', { limit: ACTIVITY_LIMIT })} tone="blue" />
-      <MetricTile label={t('activityMetricAwaiting')} value={String(all.filter((event) => event.awaitingMe).length)} meta={t('activityMetricAwaitingMeta')} tone="amber" />
-      <MetricTile label={t('activityMetricCritical')} value={String(all.filter((event) => event.severity === 'CRITICAL').length)} meta={t('activityMetricCriticalMeta')} tone="red" />
-      <MetricTile label={t('activityMetricKinds')} value={String(kinds.length)} meta={t('activityMetricKindsMeta')} tone="lime" />
+      <MetricTile label={t('activityMetricEvents')} value={String(all.length)} meta={t('activityMetricEventsMeta', { limit: ACTIVITY_LIMIT })} tone="info" />
+      <MetricTile label={t('activityMetricAwaiting')} value={String(all.filter((event) => event.awaitingMe).length)} meta={t('activityMetricAwaitingMeta')} tone="warning" />
+      <MetricTile label={t('activityMetricCritical')} value={String(all.filter((event) => event.severity === 'CRITICAL').length)} meta={t('activityMetricCriticalMeta')} tone="danger" />
+      <MetricTile label={t('activityMetricKinds')} value={String(kinds.length)} meta={t('activityMetricKindsMeta')} tone="brand" />
     </div>
 
     {events.status === 'LOADING' && <LoadingState label={t('activityLoading')} />}
@@ -75,7 +75,7 @@ export function ActivityFeedStudio({ workspaceId, contract, onNavigatePath }: Ac
   function ActivityRow({ event, onOpen }: { event: ActivityEvent; onOpen: (path: string) => void }) {
     return <li className="activity-row">
       <button onClick={() => onOpen(event.route)} aria-label={t('activityOpen', { title: event.title })}>
-        <span className={`surface-chip ${event.severity ? impactTone(event.severity) : 'muted'}`}>{t(activityKindMessageKeys[event.kind])}</span>
+        <span className={`surface-chip ${event.severity ? impactTone(event.severity) : 'neutral'}`}>{t(activityKindMessageKeys[event.kind])}</span>
         <span className="activity-body"><b>{event.title}</b><small>{event.detail}</small></span>
         <span className="activity-meta">
           {event.actor && <em>{t('activityActor', { actor: event.actor })}</em>}

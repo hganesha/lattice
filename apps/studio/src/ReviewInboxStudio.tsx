@@ -162,10 +162,10 @@ export function ReviewInboxStudio({ workspaceId, contracts, activeContractId, de
     <SurfaceHero kicker={t('inboxKicker').toLocaleUpperCase()} title={t('inboxTitle')} description={t('inboxDescription')}><button className="ghost" onClick={() => onNavigate('contracts')}>{t('inboxContractLabel')}</button></SurfaceHero>
     {notice && <Toast message={notice} closeLabel={t('inboxClose')} onDismiss={() => setNotice('')} tone="success" />}
     <div className="surface-metrics">
-      <MetricTile label={t('inboxMetricAssigned')} value={formatNumber(assignedCount)} meta={t('inboxMetricAssignedMeta')} tone="blue" onClick={() => setView('ASSIGNED')} />
-      <MetricTile label={t('inboxMetricRole')} value={formatNumber(roleCount)} meta={t('inboxMetricRoleMeta')} tone="violet" onClick={() => setView('ROLE')} />
-      <MetricTile label={t('inboxMetricOverdue')} value={formatNumber(overdueCount)} meta={t('inboxMetricOverdueMeta')} tone="red" onClick={() => setView('SLA')} />
-      <MetricTile label={t('inboxMetricEscalated')} value={formatNumber(escalatedCount)} meta={t('inboxMetricEscalatedMeta')} tone="amber" onClick={() => setView('ALL')} />
+      <MetricTile label={t('inboxMetricAssigned')} value={formatNumber(assignedCount)} meta={t('inboxMetricAssignedMeta')} tone="info" onClick={() => setView('ASSIGNED')} />
+      <MetricTile label={t('inboxMetricRole')} value={formatNumber(roleCount)} meta={t('inboxMetricRoleMeta')} tone="governance" onClick={() => setView('ROLE')} />
+      <MetricTile label={t('inboxMetricOverdue')} value={formatNumber(overdueCount)} meta={t('inboxMetricOverdueMeta')} tone="danger" onClick={() => setView('SLA')} />
+      <MetricTile label={t('inboxMetricEscalated')} value={formatNumber(escalatedCount)} meta={t('inboxMetricEscalatedMeta')} tone="warning" onClick={() => setView('ALL')} />
     </div>
 
     <div className="gov-panel">
@@ -192,14 +192,14 @@ export function ReviewInboxStudio({ workspaceId, contracts, activeContractId, de
             <span>
               <b className="inbox-title">{review.targetLabel}</b>
               <span className="inbox-summary-meta">
-                <span className="surface-chip blue">{contractName(review.contractId)}</span>
+                <span className="surface-chip info">{contractName(review.contractId)}</span>
                 <span className={`surface-chip ${impactTone(review.impact)}`}>{t(severityMessageKeys[review.impact])}</span>
-                {plan && <span className="surface-chip violet">{t(plan.routing === 'PARALLEL' ? 'inboxRoutingParallel' : 'inboxRoutingSequential')}</span>}
-                {plan && <span className="surface-chip muted">{t('inboxQuorum', { approved: plan.assignments.filter((assignment) => assignment.status === 'APPROVED').length, quorum: plan.quorum })}</span>}
-                {minutes !== undefined && <span className={`surface-chip ${overdue ? 'red' : 'amber'}`}>{slaLabel(minutes)}</span>}
-                {plan?.escalatedAt && plan.escalateToRole && <span className="surface-chip red"><IconSiren /> {t('inboxEscalated', { role: plan.escalateToRole })}</span>}
-                {blocked && <span className="surface-chip muted">{t('inboxBlockedBy', { role: blocked })}</span>}
-                {review.decision && <span className="surface-chip green">{t('inboxDecidedBy', { decision: t(reviewDecisionMessageKeys[review.decision.decision]), name: review.decision.decidedBy })}</span>}
+                {plan && <span className="surface-chip governance">{t(plan.routing === 'PARALLEL' ? 'inboxRoutingParallel' : 'inboxRoutingSequential')}</span>}
+                {plan && <span className="surface-chip neutral">{t('inboxQuorum', { approved: plan.assignments.filter((assignment) => assignment.status === 'APPROVED').length, quorum: plan.quorum })}</span>}
+                {minutes !== undefined && <span className={`surface-chip ${overdue ? 'danger' : 'warning'}`}>{slaLabel(minutes)}</span>}
+                {plan?.escalatedAt && plan.escalateToRole && <span className="surface-chip danger"><IconSiren /> {t('inboxEscalated', { role: plan.escalateToRole })}</span>}
+                {blocked && <span className="surface-chip neutral">{t('inboxBlockedBy', { role: blocked })}</span>}
+                {review.decision && <span className="surface-chip success">{t('inboxDecidedBy', { decision: t(reviewDecisionMessageKeys[review.decision.decision]), name: review.decision.decidedBy })}</span>}
               </span>
             </span>
             <span className="inbox-summary-right"><time dateTime={review.submittedAt}>{formatDate(review.submittedAt, { dateStyle: 'short', timeStyle: 'short' })}</time><IconChevronDown className="inbox-chevron" /></span>
@@ -242,11 +242,11 @@ function RoutingPlanView({ plan, reviewId, delegating, delegateTo, delegateReaso
 
   return <div className="inbox-routing">
     <header>
-      <span className="surface-chip violet"><IconUsers /> {t(plan.routing === 'PARALLEL' ? 'inboxRoutingParallel' : 'inboxRoutingSequential')}</span>
+      <span className="surface-chip governance"><IconUsers /> {t(plan.routing === 'PARALLEL' ? 'inboxRoutingParallel' : 'inboxRoutingSequential')}</span>
       <span className="gov-meta">{t('inboxQuorum', { approved, quorum: plan.quorum })}</span>
       <span className="inbox-quorum-bar" aria-hidden="true">{Array.from({ length: Math.max(plan.quorum, 1) }, (_, index) => <i className={index < approved ? 'filled' : ''} key={index} />)}</span>
       <span className="gov-meta">{t('inboxSla', { hours: plan.slaHours, at: formatDate(plan.dueAt, { dateStyle: 'short', timeStyle: 'short' }) })}</span>
-      {plan.escalateToRole && <span className={`surface-chip ${plan.escalatedAt ? 'red' : 'muted'}`}><IconAlertTriangle /> {t(plan.escalatedAt ? 'inboxEscalated' : 'inboxEscalationSet', { role: plan.escalateToRole })}</span>}
+      {plan.escalateToRole && <span className={`surface-chip ${plan.escalatedAt ? 'danger' : 'neutral'}`}><IconAlertTriangle /> {t(plan.escalatedAt ? 'inboxEscalated' : 'inboxEscalationSet', { role: plan.escalateToRole })}</span>}
     </header>
     <h5 className="gov-kicker">{t('inboxAssignments')}</h5>
     {ordered.map((assignment) => {
@@ -254,10 +254,10 @@ function RoutingPlanView({ plan, reviewId, delegating, delegateTo, delegateReaso
       const delegate = principals.find((principal) => principal.id === assignment.delegatedToPrincipalId)
       return <div key={`${assignment.role}:${assignment.order}`}>
         <div className="inbox-assignment">
-          <span className="surface-chip muted">{t('inboxStep', { order: assignment.order })}</span>
+          <span className="surface-chip neutral">{t('inboxStep', { order: assignment.order })}</span>
           <span><b>{assignment.role}</b><small>{assignment.delegatedToPrincipalId ? t('inboxDelegatedTo', { name: delegate?.displayName ?? assignment.delegatedToPrincipalId }) : assignment.principalId ? assignment.principalId : t('inboxUnclaimed')}{assignment.decidedAt ? ` · ${formatDate(assignment.decidedAt, { dateStyle: 'short', timeStyle: 'short' })}` : ''}</small></span>
           <span className="gov-actions">
-            <span className={`surface-chip ${assignment.status === 'APPROVED' ? 'green' : assignment.status === 'REJECTED' ? 'red' : assignment.status === 'DELEGATED' ? 'blue' : 'muted'}`}>{t(assignmentStatusMessageKeys[assignment.status])}</span>
+            <span className={`surface-chip ${assignment.status === 'APPROVED' ? 'success' : assignment.status === 'REJECTED' ? 'danger' : assignment.status === 'DELEGATED' ? 'info' : 'neutral'}`}>{t(assignmentStatusMessageKeys[assignment.status])}</span>
             {assignment.status === 'PENDING' && <button type="button" className="gov-button" aria-expanded={delegating === key} onClick={() => onOpenDelegation(reviewId, assignment.role)}><IconUserCheck /> {t('inboxDelegate')}</button>}
           </span>
         </div>

@@ -70,10 +70,10 @@ export function AssuranceStudio({ contract, onChange, onDirtyChange }: Assurance
     {notice && <Toast message={notice} closeLabel={t('commonClose')} onDismiss={() => setNotice('')} />}
 
     <div className="assurance-overview">
-      <AssuranceMetric label={t('assuranceLatestScore')} value={activeRun ? `${activeRun.score}%` : '—'} meta={activeRun ? activeRun.status : t('assuranceNoRuns')} tone={activeRun?.status === 'FAIL' ? 'amber' : 'lime'} />
-      <AssuranceMetric label={t('assuranceQuestionsLinked')} value={`${linkedQuestions} / ${contract.competencyQuestions.length}`} meta={t('assuranceQuestionOperation')} tone={linkedQuestions === contract.competencyQuestions.length ? 'green' : 'amber'} />
-      <AssuranceMetric label={t('assuranceMappingTests')} value={String(contract.tests.filter((test) => test.type === 'MAPPING').length)} meta={t('assuranceSourceCoverage')} tone="blue" />
-      <AssuranceMetric label={t('assuranceRunArtifacts')} value={String(runs.length)} meta={t('assuranceImmutableDigest')} tone="green" />
+      <AssuranceMetric label={t('assuranceLatestScore')} value={activeRun ? `${activeRun.score}%` : '—'} meta={activeRun ? activeRun.status : t('assuranceNoRuns')} tone={activeRun?.status === 'FAIL' ? 'warning' : 'brand'} />
+      <AssuranceMetric label={t('assuranceQuestionsLinked')} value={`${linkedQuestions} / ${contract.competencyQuestions.length}`} meta={t('assuranceQuestionOperation')} tone={linkedQuestions === contract.competencyQuestions.length ? 'success' : 'warning'} />
+      <AssuranceMetric label={t('assuranceMappingTests')} value={String(contract.tests.filter((test) => test.type === 'MAPPING').length)} meta={t('assuranceSourceCoverage')} tone="info" />
+      <AssuranceMetric label={t('assuranceRunArtifacts')} value={String(runs.length)} meta={t('assuranceImmutableDigest')} tone="success" />
     </div>
 
     <section className="question-coverage panel">

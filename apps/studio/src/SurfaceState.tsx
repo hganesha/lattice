@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { Tone } from './formatters'
 import { IconLoader } from './icons'
 
 /**
@@ -65,11 +66,11 @@ interface MetricTileProps {
   label: string
   value: string
   meta: string
-  tone?: 'amber' | 'blue' | 'green' | 'lime' | 'violet' | 'red'
+  tone?: Tone
   onClick?: () => void
 }
 
-export function MetricTile({ label, value, meta, tone = 'blue', onClick }: MetricTileProps) {
+export function MetricTile({ label, value, meta, tone = 'info', onClick }: MetricTileProps) {
   const body = <><div><span>{label}</span><i className={`mini-dot ${tone}`} /></div><b>{value}</b><small>{meta}</small></>
   if (onClick) return <button className="surface-metric actionable" onClick={onClick} type="button">{body}</button>
   return <div className="surface-metric">{body}</div>

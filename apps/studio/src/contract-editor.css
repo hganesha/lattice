@@ -2,120 +2,120 @@
   .contract-editor-page { margin-top: 14px; }
   .contract-editor-hero > div:first-child { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 12px; }
   .contract-editor-hero > div:first-child .ghost { grid-row: 1 / 4; align-self: start; }
-  .contract-definition-status { min-width: 235px; display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  .contract-definition-status { min-width: 235px; display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-surface); }
   .contract-definition-status > span { display: grid; place-items: center; width: 29px; height: 29px; border-radius: 50%; font-weight: 700; }
   .contract-definition-status b, .contract-definition-status small { display: block; }
-  .contract-definition-status b { color: var(--text); font-size: var(--text-support); }
-  .contract-definition-status small { margin-top: 3px; color: var(--text-muted); font-size: var(--text-meta); }
-  .contract-definition-status.incomplete > span { color: var(--warning); background: var(--warning-soft); }
-  .contract-definition-status.ready > span { color: var(--success); background: var(--success-soft); }
+  .contract-definition-status b { color: var(--fg-default); font-size: var(--text-support); }
+  .contract-definition-status small { margin-top: 3px; color: var(--fg-muted); font-size: var(--text-meta); }
+  .contract-definition-status.incomplete > span { color: var(--status-warning-fg); background: var(--status-warning-bg); }
+  .contract-definition-status.ready > span { color: var(--status-success-fg); background: var(--status-success-bg); }
   .contract-editor-layout { display: grid; grid-template-columns: minmax(0, 1fr) 285px; align-items: start; gap: 11px; margin-top: 11px; }
   .contract-editor-layout > main { display: flex; min-width: 0; flex-direction: column; gap: 11px; }
-  .contract-editor-section, .contract-editor-readiness { border: 1px solid var(--border); border-radius: 9px; background: var(--surface-raised); }
-  .contract-editor-section > header { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 15px; border-bottom: 1px solid var(--border); }
-  .contract-editor-section > header h3 { margin-top: 5px; color: var(--text); font: 600 12px Manrope; }
-  .contract-editor-section > header > code { max-width: 45%; overflow: hidden; color: var(--text-muted); font: var(--text-meta) DM Mono; text-overflow: ellipsis; }
+  .contract-editor-section, .contract-editor-readiness { border: 1px solid var(--border-default); border-radius: 9px; background: var(--bg-raised); }
+  .contract-editor-section > header { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 15px; border-bottom: 1px solid var(--border-subtle); }
+  .contract-editor-section > header h3 { margin-top: 5px; color: var(--fg-default); font: 600 var(--text-meta) var(--font-display); }
+  .contract-editor-section > header > code { max-width: 45%; overflow: hidden; color: var(--fg-muted); font: var(--text-meta) var(--font-mono); text-overflow: ellipsis; }
   .contract-editor-header-actions { display: flex; align-items: center; gap: 7px; }
-  .contract-question-import-notice { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding: 9px 13px; border-bottom: 1px solid color-mix(in srgb, var(--success) 38%, var(--border)); color: var(--text-secondary); background: var(--success-soft); font-size: var(--text-meta); }
-  .contract-question-import-notice > span { color: var(--success); font-weight: 700; }
-  .contract-question-import-notice button { border: 0; background: transparent; color: var(--text-muted); cursor: pointer; }
+  .contract-question-import-notice { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding: 9px 13px; border-bottom: 1px solid color-mix(in oklab, var(--status-success-fg) 38%, var(--border-subtle)); color: var(--fg-secondary); background: var(--status-success-bg); font-size: var(--text-meta); }
+  .contract-question-import-notice > span { color: var(--status-success-fg); font-weight: 700; }
+  .contract-question-import-notice button { border: 0; background: transparent; color: var(--fg-muted); cursor: pointer; }
   .contract-editor-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 15px; }
-  .contract-editor-fields label { display: block; min-width: 0; color: var(--text-secondary); font: var(--text-meta) DM Mono; letter-spacing: .5px; }
+  .contract-editor-fields label { display: block; min-width: 0; color: var(--fg-secondary); font: var(--text-meta) var(--font-mono); letter-spacing: .5px; }
   .contract-editor-fields label.wide { grid-column: 1 / -1; }
-  .contract-editor-fields input, .contract-editor-fields textarea, .contract-editor-fields select { display: block; width: 100%; margin-top: 6px; padding: 9px 10px; border: 1px solid var(--border-strong); border-radius: 7px; outline: 0; background: var(--surface); color: var(--text); font: var(--text-support) Inter; }
-  .contract-editor-fields input[readonly] { color: var(--text-muted); background: var(--surface-soft); cursor: not-allowed; }
+  .contract-editor-fields input, .contract-editor-fields textarea, .contract-editor-fields select { display: block; width: 100%; margin-top: 6px; padding: 9px 10px; border: 1px solid var(--border-control); border-radius: 7px; outline: 0; background: var(--bg-surface); color: var(--fg-default); font: var(--text-support) var(--font-sans); }
+  .contract-editor-fields input[readonly] { color: var(--fg-muted); background: var(--bg-hover); cursor: not-allowed; }
   .contract-editor-fields textarea { min-height: 72px; resize: vertical; line-height: 1.45; }
-  .contract-editor-fields input:focus, .contract-editor-fields textarea:focus, .contract-editor-fields select:focus { border-color: var(--focus); box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus) 16%, transparent); }
-  .contract-editor-fields label > small { display: block; margin-top: 5px; color: var(--text-muted); font: var(--text-meta)/1.45 Inter; letter-spacing: 0; }
+  .contract-editor-fields input:focus, .contract-editor-fields textarea:focus, .contract-editor-fields select:focus { border-color: var(--focus-ring); box-shadow: 0 0 0 2px color-mix(in oklab, var(--focus-ring) 16%, transparent); }
+  .contract-editor-fields label > small { display: block; margin-top: 5px; color: var(--fg-muted); font: var(--text-meta)/1.45 var(--font-sans); letter-spacing: 0; }
   .contract-editor-identity-fields { max-width: 900px; }
   .contract-definition-list { display: flex; flex-direction: column; gap: 10px; padding: 11px; }
-  .contract-question-card, .contract-operation-card { overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
-  .contract-definition-card-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 39px; padding: 7px 12px; border-bottom: 1px solid var(--border); background: var(--surface-soft); }
-  .contract-definition-card-heading span { color: var(--accent-strong); font: var(--text-meta) DM Mono; letter-spacing: .7px; }
-  .contract-definition-card-heading code { overflow: hidden; color: var(--text-muted); font: var(--text-meta) DM Mono; text-overflow: ellipsis; white-space: nowrap; }
-  .contract-definition-card-heading button { border: 0; background: transparent; color: var(--danger); font: var(--text-meta) DM Mono; cursor: pointer; }
+  .contract-question-card, .contract-operation-card { overflow: hidden; border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-surface); }
+  .contract-definition-card-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 39px; padding: 7px 12px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-hover); }
+  .contract-definition-card-heading span { color: var(--interactive-text); font: var(--text-meta) var(--font-mono); letter-spacing: .7px; }
+  .contract-definition-card-heading code { overflow: hidden; color: var(--fg-muted); font: var(--text-meta) var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+  .contract-definition-card-heading button { border: 0; background: transparent; color: var(--status-danger-fg); font: var(--text-meta) var(--font-mono); cursor: pointer; }
   .contract-operation-scope { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 15px 15px; }
-  .contract-operation-scope fieldset { min-width: 0; padding: 11px; border: 1px solid var(--border); border-radius: 7px; }
-  .contract-operation-scope legend { padding: 0 5px; color: var(--text-secondary); font: var(--text-meta) DM Mono; letter-spacing: .5px; }
+  .contract-operation-scope fieldset { min-width: 0; padding: 11px; border: 1px solid var(--border-default); border-radius: 7px; }
+  .contract-operation-scope legend { padding: 0 5px; color: var(--fg-secondary); font: var(--text-meta) var(--font-mono); letter-spacing: .5px; }
   .contract-operation-scope fieldset > div { max-height: 190px; overflow: auto; }
-  .contract-operation-scope label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; padding: 6px; border-radius: 5px; color: var(--text-secondary); cursor: pointer; }
-  .contract-operation-scope label:hover { background: var(--surface-soft); }
-  .contract-operation-scope input { accent-color: var(--accent); }
+  .contract-operation-scope label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; padding: 6px; border-radius: 5px; color: var(--fg-secondary); cursor: pointer; }
+  .contract-operation-scope label:hover { background: var(--bg-hover); }
+  .contract-operation-scope input { accent-color: var(--interactive-fill); }
   .contract-operation-scope label span { font-size: var(--text-meta); }
-  .contract-operation-scope label code { grid-column: 2; color: var(--text-muted); font: var(--text-meta) DM Mono; }
-  .contract-operation-scope p { padding: 8px; color: var(--text-muted); font-size: var(--text-meta); }
-  .contract-definition-empty { min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-align: center; }
-  .contract-definition-empty > span { color: var(--accent-strong); font-size: 23px; }
+  .contract-operation-scope label code { grid-column: 2; color: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
+  .contract-operation-scope p { padding: 8px; color: var(--fg-muted); font-size: var(--text-meta); }
+  .contract-definition-empty { min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--fg-muted); text-align: center; }
+  .contract-definition-empty > span { color: var(--interactive-text); font-size: 23px; }
   .contract-definition-empty p { margin: 7px 0 12px; font-size: var(--text-support); }
   .contract-editor-readiness { position: sticky; top: 14px; padding: 16px; }
-  .contract-editor-readiness h3 { margin-top: 7px; color: var(--text); font: 600 13px Manrope; }
-  .contract-editor-readiness > p { margin-top: 6px; color: var(--text-muted); font-size: var(--text-meta); line-height: 1.5; }
+  .contract-editor-readiness h3 { margin-top: 7px; color: var(--fg-default); font: 600 var(--text-support) var(--font-display); }
+  .contract-editor-readiness > p { margin-top: 6px; color: var(--fg-muted); font-size: var(--text-meta); line-height: 1.5; }
   .contract-editor-readiness ul { display: flex; flex-direction: column; gap: 7px; margin: 14px 0; padding: 0; list-style: none; }
-  .contract-editor-readiness li { display: grid; grid-template-columns: 21px 1fr; align-items: center; gap: 8px; padding: 8px; border: 1px solid color-mix(in srgb, var(--warning) 38%, var(--border)); border-radius: 6px; color: var(--text-secondary); background: var(--warning-soft); font-size: var(--text-meta); line-height: 1.4; }
-  .contract-editor-readiness li > span { display: grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; color: var(--warning); background: var(--surface); font-weight: 700; }
-  .contract-editor-readiness li.ready { border-color: color-mix(in srgb, var(--success) 38%, var(--border)); background: var(--success-soft); }
-  .contract-editor-readiness li.ready > span { color: var(--success); }
-  .contract-editor-readiness > div { padding: 11px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-soft); }
-  .contract-editor-readiness > div b { color: var(--text); font-size: var(--text-support); }
-  .contract-editor-readiness > div p { margin-top: 5px; color: var(--text-muted); font-size: var(--text-meta); line-height: 1.45; }
+  .contract-editor-readiness li { display: grid; grid-template-columns: 21px 1fr; align-items: center; gap: 8px; padding: 8px; border: 1px solid color-mix(in oklab, var(--status-warning-fg) 38%, var(--border-default)); border-radius: 6px; color: var(--fg-secondary); background: var(--status-warning-bg); font-size: var(--text-meta); line-height: 1.4; }
+  .contract-editor-readiness li > span { display: grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; color: var(--status-warning-fg); background: var(--bg-surface); font-weight: 700; }
+  .contract-editor-readiness li.ready { border-color: color-mix(in oklab, var(--status-success-fg) 38%, var(--border-default)); background: var(--status-success-bg); }
+  .contract-editor-readiness li.ready > span { color: var(--status-success-fg); }
+  .contract-editor-readiness > div { padding: 11px; border: 1px solid var(--border-default); border-radius: 7px; background: var(--bg-hover); }
+  .contract-editor-readiness > div b { color: var(--fg-default); font-size: var(--text-support); }
+  .contract-editor-readiness > div p { margin-top: 5px; color: var(--fg-muted); font-size: var(--text-meta); line-height: 1.45; }
 
   .question-import-backdrop { z-index: 80; padding: 24px; }
-  .question-import-dialog { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(1050px, calc(100vw - 48px)); max-height: calc(100vh - 48px); overflow: hidden; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--shadow-raised); }
-  .question-import-dialog > header { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 20px; padding: 18px 21px; border-bottom: 1px solid var(--border); }
-  .question-import-dialog > header h1 { margin-top: 6px; color: var(--text); font: 600 17px Manrope; }
-  .question-import-dialog > header p { max-width: 720px; margin-top: 6px; color: var(--text-secondary); font-size: var(--text-support); line-height: 1.5; }
-  .question-import-dialog > header > button { width: 31px; height: 31px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text-secondary); cursor: pointer; }
+  .question-import-dialog { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(1050px, calc(100vw - 48px)); max-height: calc(100vh - 48px); overflow: hidden; border: 1px solid var(--border-default); border-radius: 12px; background: var(--bg-raised); box-shadow: var(--shadow-raised); }
+  .question-import-dialog > header { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 20px; padding: 18px 21px; border-bottom: 1px solid var(--border-subtle); }
+  .question-import-dialog > header h1 { margin-top: 6px; color: var(--fg-default); font: 600 var(--text-subtitle) var(--font-display); }
+  .question-import-dialog > header p { max-width: 720px; margin-top: 6px; color: var(--fg-secondary); font-size: var(--text-support); line-height: 1.5; }
+  .question-import-dialog > header > button { width: 31px; height: 31px; border: 1px solid var(--border-default); border-radius: 7px; background: var(--bg-surface); color: var(--fg-secondary); cursor: pointer; }
   .question-import-source { overflow: auto; padding: 24px; }
-  .question-import-drop { min-height: 210px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed var(--border-strong); border-radius: 10px; background: var(--surface-soft); cursor: pointer; }
-  .question-import-drop:hover { border-color: var(--accent-strong); background: var(--accent-soft); }
+  .question-import-drop { min-height: 210px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed var(--border-default); border-radius: 10px; background: var(--bg-hover); cursor: pointer; }
+  .question-import-drop:hover { border-color: var(--interactive-fill); background: var(--interactive-bg); }
   .question-import-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-  .question-import-drop > span { color: var(--accent-strong); font-size: 29px; }
-  .question-import-drop b { margin-top: 8px; color: var(--text); font-size: var(--text-body); }
-  .question-import-drop small { margin-top: 7px; color: var(--text-muted); font: var(--text-meta) DM Mono; }
+  .question-import-drop > span { color: var(--interactive-text); font-size: 29px; }
+  .question-import-drop b { margin-top: 8px; color: var(--fg-default); font-size: var(--text-body); }
+  .question-import-drop small { margin-top: 7px; color: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
   .question-import-guidance { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 12px; }
-  .question-import-guidance article { padding: 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
-  .question-import-guidance b { color: var(--text); font-size: var(--text-support); }
-  .question-import-guidance p { margin-top: 6px; color: var(--text-muted); font-size: var(--text-meta); line-height: 1.5; }
+  .question-import-guidance article { padding: 13px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-surface); }
+  .question-import-guidance b { color: var(--fg-default); font-size: var(--text-support); }
+  .question-import-guidance p { margin-top: 6px; color: var(--fg-muted); font-size: var(--text-meta); line-height: 1.5; }
   .question-import-source .wizard-error { margin-top: 12px; }
   .question-import-review { overflow: auto; padding: 17px 20px 24px; }
-  .question-import-summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); }
-  .question-import-summary h2 { margin-top: 4px; color: var(--text); font: 600 var(--text-body) Manrope; }
+  .question-import-summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 14px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-hover); }
+  .question-import-summary h2 { margin-top: 4px; color: var(--fg-default); font: 600 var(--text-body) var(--font-display); }
   .question-import-summary dl { display: flex; gap: 9px; }
-  .question-import-summary dl > div { min-width: 100px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
-  .question-import-summary dt { color: var(--text-muted); font: var(--text-meta) DM Mono; text-transform: uppercase; }
-  .question-import-summary dd { margin-top: 3px; color: var(--text); font: 600 var(--text-body) Manrope; }
+  .question-import-summary dl > div { min-width: 100px; padding: 7px 10px; border: 1px solid var(--border-default); border-radius: 6px; background: var(--bg-surface); }
+  .question-import-summary dt { color: var(--fg-muted); font: var(--text-meta) var(--font-mono); text-transform: uppercase; }
+  .question-import-summary dd { margin-top: 3px; color: var(--fg-default); font: 600 var(--text-body) var(--font-display); }
   .question-import-warnings { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
-  .question-import-warnings p { padding: 6px 8px; border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border)); border-radius: 5px; color: var(--text-secondary); background: var(--warning-soft); font-size: var(--text-meta); }
+  .question-import-warnings p { padding: 6px 8px; border: 1px solid color-mix(in oklab, var(--status-warning-fg) 35%, var(--border-default)); border-radius: 5px; color: var(--fg-secondary); background: var(--status-warning-bg); font-size: var(--text-meta); }
   .question-import-operations, .question-import-questions { margin-top: 17px; }
   .question-import-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 8px; }
-  .question-import-section-heading h2 { margin-top: 5px; color: var(--text); font: 600 12px Manrope; }
-  .question-import-section-heading > p { max-width: 430px; color: var(--text-muted); font-size: var(--text-meta); text-align: right; }
-  .question-import-operation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: 7px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); opacity: .68; }
-  .question-import-operation.selected { border-color: color-mix(in srgb, var(--accent) 48%, var(--border)); opacity: 1; }
-  .question-import-operation > input { accent-color: var(--accent); }
+  .question-import-section-heading h2 { margin-top: 5px; color: var(--fg-default); font: 600 var(--text-meta) var(--font-display); }
+  .question-import-section-heading > p { max-width: 430px; color: var(--fg-muted); font-size: var(--text-meta); text-align: right; }
+  .question-import-operation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; margin-top: 7px; padding: 10px 12px; border: 1px solid var(--border-default); border-radius: 7px; background: var(--bg-surface); opacity: .68; }
+  .question-import-operation.selected { border-color: color-mix(in oklab, var(--interactive-fill) 48%, var(--border-default)); opacity: 1; }
+  .question-import-operation > input { accent-color: var(--interactive-fill); }
   .question-import-operation span b, .question-import-operation span code, .question-import-operation span small { display: block; }
-  .question-import-operation span b { color: var(--text); font-size: var(--text-support); }
-  .question-import-operation span code { margin-top: 3px; color: var(--text-muted); font: var(--text-meta) DM Mono; }
-  .question-import-operation span small { margin-top: 4px; color: var(--accent-strong); font-size: var(--text-meta); }
-  .question-import-operation > em { color: var(--text-muted); font: normal var(--text-meta) DM Mono; }
-  .question-import-operation > ul { grid-column: 2 / -1; margin: 0; padding-left: 14px; color: var(--warning); font-size: var(--text-meta); }
-  .question-import-question { margin-top: 9px; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); opacity: .68; }
-  .question-import-question.selected { border-color: color-mix(in srgb, var(--accent) 48%, var(--border)); opacity: 1; }
-  .question-import-question-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--surface-soft); }
-  .question-import-question-heading label { display: flex; align-items: center; gap: 7px; color: var(--accent-strong); font: var(--text-meta) DM Mono; }
-  .question-import-question-heading input { accent-color: var(--accent); }
-  .question-import-question-heading code { color: var(--text-muted); font: var(--text-meta) DM Mono; }
+  .question-import-operation span b { color: var(--fg-default); font-size: var(--text-support); }
+  .question-import-operation span code { margin-top: 3px; color: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
+  .question-import-operation span small { margin-top: 4px; color: var(--interactive-text); font-size: var(--text-meta); }
+  .question-import-operation > em { color: var(--fg-muted); font: normal var(--text-meta) var(--font-mono); }
+  .question-import-operation > ul { grid-column: 2 / -1; margin: 0; padding-left: 14px; color: var(--status-warning-fg); font-size: var(--text-meta); }
+  .question-import-question { margin-top: 9px; overflow: hidden; border: 1px solid var(--border-default); border-radius: 8px; background: var(--bg-surface); opacity: .68; }
+  .question-import-question.selected { border-color: color-mix(in oklab, var(--interactive-fill) 48%, var(--border-default)); opacity: 1; }
+  .question-import-question-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-hover); }
+  .question-import-question-heading label { display: flex; align-items: center; gap: 7px; color: var(--interactive-text); font: var(--text-meta) var(--font-mono); }
+  .question-import-question-heading input { accent-color: var(--interactive-fill); }
+  .question-import-question-heading code { color: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
   .question-import-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 11px 12px; }
-  .question-import-fields label { min-width: 0; color: var(--text-secondary); font: var(--text-meta) DM Mono; }
+  .question-import-fields label { min-width: 0; color: var(--fg-secondary); font: var(--text-meta) var(--font-mono); }
   .question-import-fields label.wide { grid-column: 1 / -1; }
-  .question-import-fields input, .question-import-fields textarea, .question-import-fields select { display: block; width: 100%; margin-top: 5px; padding: 8px 9px; border: 1px solid var(--border-strong); border-radius: 6px; outline: none; background: var(--surface-raised); color: var(--text); font: var(--text-support) Inter; }
+  .question-import-fields input, .question-import-fields textarea, .question-import-fields select { display: block; width: 100%; margin-top: 5px; padding: 8px 9px; border: 1px solid var(--border-control); border-radius: 6px; outline: none; background: var(--bg-raised); color: var(--fg-default); font: var(--text-support) var(--font-sans); }
   .question-import-fields textarea { min-height: 52px; resize: vertical; line-height: 1.4; }
-  .question-import-fields input:focus, .question-import-fields textarea:focus, .question-import-fields select:focus { border-color: var(--focus); }
+  .question-import-fields input:focus, .question-import-fields textarea:focus, .question-import-fields select:focus { border-color: var(--focus-ring); }
   .question-import-item-issues { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0 12px 11px; list-style: none; }
-  .question-import-item-issues li { padding: 5px 7px; border-radius: 4px; color: var(--warning); background: var(--warning-soft); font-size: var(--text-meta); }
-  .question-import-dialog > footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--surface-soft); }
+  .question-import-item-issues li { padding: 5px 7px; border-radius: 4px; color: var(--status-warning-fg); background: var(--status-warning-bg); font-size: var(--text-meta); }
+  .question-import-dialog > footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 12px 20px; border-top: 1px solid var(--border-subtle); background: var(--bg-hover); }
   .question-import-dialog > footer > div { display: flex; align-items: center; gap: 9px; }
-  .question-import-dialog > footer span { color: var(--text-muted); font-size: var(--text-meta); }
+  .question-import-dialog > footer span { color: var(--fg-muted); font-size: var(--text-meta); }
 
   @media (max-width: 1100px) {
     .contract-editor-layout { grid-template-columns: 1fr; }

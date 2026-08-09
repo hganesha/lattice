@@ -3,7 +3,7 @@ import type { CaseSet, CaseSetSummary, ContextContract, CreateCaseSetRequest, De
 import { apiFetch } from './api'
 import { useResource } from './useResource'
 import { EmptyState, ErrorState, LoadingState, MetricTile, Pagination, SurfaceHero } from './SurfaceState'
-import { riskTone, shortDigest, type Tone } from './formatters'
+import { caseTypeTone, riskTone, shortDigest, type Tone } from './formatters'
 import { Donut, type DonutSegment } from './charts'
 import { caseTypeKey, caseTypeOrder, decisionKey, expectedOutcomeOrder, failureCategoryKey, failureCategoryOrder, outcomeKey, riskTierKey, riskTierOrder, runtimeDecisionOrder, useEvaluationMessages } from './i18n/messages.evaluation'
 import { routes, type SurfaceId } from './router'
@@ -30,8 +30,7 @@ interface CaseSetStudioProps {
 type ScopeFilter = 'CONTRACT' | 'WORKSPACE' | 'GLOBAL'
 
 const casePageSize = 8
-const caseTypeTones: Readonly<Record<EvalCaseType, Tone>> = { HAPPY_PATH: 'green', REGRESSION: 'amber', AMBIGUITY: 'blue', APPROVAL: 'violet', ABSTENTION: 'muted', ADVERSARIAL: 'red', CROSS_DOMAIN: 'lime' }
-const outcomeTones: Readonly<Record<EvalExpectedOutcome, Tone>> = { PLAN: 'green', CLARIFICATION: 'blue', APPROVAL: 'violet', ABSTENTION: 'amber' }
+const outcomeTones: Readonly<Record<EvalExpectedOutcome, Tone>> = { PLAN: 'success', CLARIFICATION: 'info', APPROVAL: 'governance', ABSTENTION: 'warning' }
 
 function splitList(value: string): string[] {
   return value.split(',').map((entry) => entry.trim()).filter(Boolean)
@@ -101,13 +100,13 @@ export function CaseSetStudio({ contract, workspaceId, detailId, onNavigate, onN
   }
 
   const typeCounts = useMemo(() => caseTypeOrder.map((type) => ({ type, count: cases.filter((entry) => entry.caseType === type).length })), [cases])
-  const segments: DonutSegment[] = typeCounts.filter((entry) => entry.count > 0).map((entry) => ({ label: t(caseTypeKey(entry.type)), value: entry.count, tone: caseTypeTones[entry.type] }))
+  const segments: DonutSegment[] = typeCounts.filter((entry) => entry.count > 0).map((entry) => ({ label: t(caseTypeKey(entry.type)), value: entry.count, tone: caseTypeTone(entry.type) }))
   const reviewers = new Set(cases.map((entry) => entry.reviewedBy).filter(Boolean))
   const typesPresent = typeCounts.filter((entry) => entry.count > 0).length
 
   return <section className="case-set-page">
     <SurfaceHero kicker={t('caseSetKicker').toLocaleUpperCase()} title={t('caseSetTitle')} description={t('caseSetDescription')}><button className="release" onClick={() => setCreatingSet(true)}><IconPlus /> {t('caseSetNew')}</button></SurfaceHero>
-    <div className="surface-metrics"><MetricTile label={t('caseSetMetricSets').toLocaleUpperCase()} value={formatNumber(summaries.length)} meta={t('caseSetMetricSetsMeta')} tone="blue" /><MetricTile label={t('caseSetMetricCases').toLocaleUpperCase()} value={formatNumber(cases.length)} meta={t('caseSetMetricCasesMeta')} tone="green" /><MetricTile label={t('caseSetMetricTypes').toLocaleUpperCase()} value={`${typesPresent}/${caseTypeOrder.length}`} meta={t('caseSetMetricTypesMeta')} tone="violet" /><MetricTile label={t('caseSetMetricReviewers').toLocaleUpperCase()} value={formatNumber(reviewers.size)} meta={t('caseSetMetricReviewersMeta')} tone="lime" /></div>
+    <div className="surface-metrics"><MetricTile label={t('caseSetMetricSets').toLocaleUpperCase()} value={formatNumber(summaries.length)} meta={t('caseSetMetricSetsMeta')} tone="info" /><MetricTile label={t('caseSetMetricCases').toLocaleUpperCase()} value={formatNumber(cases.length)} meta={t('caseSetMetricCasesMeta')} tone="success" /><MetricTile label={t('caseSetMetricTypes').toLocaleUpperCase()} value={`${typesPresent}/${caseTypeOrder.length}`} meta={t('caseSetMetricTypesMeta')} tone="governance" /><MetricTile label={t('caseSetMetricReviewers').toLocaleUpperCase()} value={formatNumber(reviewers.size)} meta={t('caseSetMetricReviewersMeta')} tone="brand" /></div>
 
     {notice && <p className="eval-notice" role="status">{notice}</p>}
 
@@ -121,10 +120,10 @@ export function CaseSetStudio({ contract, workspaceId, detailId, onNavigate, onN
         {list.status === 'ERROR' && <ErrorState title={t('caseSetLoadFailed')} detail={list.error} retryLabel={t('commonRetry')} onRetry={list.reload} />}
         {list.status === 'READY' && summaries.length === 0 && <EmptyState title={t('caseSetEmptyTitle')} description={t('caseSetEmptyDescription')} icon={<IconInbox />} actionLabel={t('caseSetNew')} onAction={() => setCreatingSet(true)} />}
         {summaries.length > 0 && <ul className="case-set-rows">{summaries.map((summary) => <li key={summary.id}><button type="button" className={`case-set-row ${selectedId === summary.id ? 'selected' : ''}`} aria-current={selectedId === summary.id ? 'true' : undefined} onClick={() => select(summary.id)}>
-          <span className="case-set-row-head"><b>{summary.name}</b><span className="surface-chip blue">v{summary.version}</span></span>
+          <span className="case-set-row-head"><b>{summary.name}</b><span className="surface-chip info">v{summary.version}</span></span>
           <p>{summary.description}</p>
           <span className="case-set-row-meta"><span>{t('caseSetCaseCount', { count: summary.caseCount })}</span><span>{shortDigest(summary.digest)}</span><span>{formatDate(summary.updatedAt, { dateStyle: 'short' })}</span></span>
-          <span className="eval-chip-row">{caseTypeOrder.filter((type) => (summary.caseTypeCounts[type] ?? 0) > 0).map((type) => <span className={`surface-chip ${caseTypeTones[type]}`} key={type}>{t(caseTypeKey(type))} {summary.caseTypeCounts[type] ?? 0}</span>)}</span>
+          <span className="eval-chip-row">{caseTypeOrder.filter((type) => (summary.caseTypeCounts[type] ?? 0) > 0).map((type) => <span className={`surface-chip ${caseTypeTone(type)}`} key={type}>{t(caseTypeKey(type))} {summary.caseTypeCounts[type] ?? 0}</span>)}</span>
         </button></li>)}</ul>}
       </main>
 
@@ -153,7 +152,7 @@ export function CaseSetStudio({ contract, workspaceId, detailId, onNavigate, onN
             <h3>{t('caseSetTypeDistribution')}</h3>
             <div className="case-set-distribution">
               <Donut segments={segments} label={t('caseSetTypeDistribution')} center={<><b>{formatNumber(cases.length)}</b><small>{t('caseSetMetricCases')}</small></>} />
-              <ul className="case-set-legend">{typeCounts.filter((entry) => entry.count > 0).map((entry) => <li key={entry.type}><i className={`mini-dot ${caseTypeTones[entry.type]}`} /><span>{t(caseTypeKey(entry.type))}</span><b>{entry.count}</b></li>)}</ul>
+              <ul className="case-set-legend">{typeCounts.filter((entry) => entry.count > 0).map((entry) => <li key={entry.type}><i className={`mini-dot ${caseTypeTone(entry.type)}`} /><span>{t(caseTypeKey(entry.type))}</span><b>{entry.count}</b></li>)}</ul>
             </div>
           </div>}
 
@@ -169,7 +168,7 @@ export function CaseSetStudio({ contract, workspaceId, detailId, onNavigate, onN
           {pagedCases.length > 0 && <ul className="case-rows">{pagedCases.map((entry) => <li key={entry.id}>
             <button type="button" className="case-row" aria-expanded={expandedCaseId === entry.id} onClick={() => setExpandedCaseId((current) => current === entry.id ? '' : entry.id)}>
               <span className={`eval-expand-glyph ${expandedCaseId === entry.id ? 'open' : ''}`} aria-hidden="true"><IconChevronDown /></span>
-              <span className="case-row-main"><b>{entry.question}</b><span className="eval-chip-row"><span className={`surface-chip ${caseTypeTones[entry.caseType]}`}>{t(caseTypeKey(entry.caseType))}</span><span className={`surface-chip ${outcomeTones[entry.expected.outcome]}`}>{t(outcomeKey(entry.expected.outcome))}</span><span className={`surface-chip ${riskTone(entry.riskTier)}`}>{t(riskTierKey(entry.riskTier))}</span>{entry.tags.map((entryTag) => <span className="surface-chip muted" key={entryTag}>{entryTag}</span>)}</span></span>
+              <span className="case-row-main"><b>{entry.question}</b><span className="eval-chip-row"><span className={`surface-chip ${caseTypeTone(entry.caseType)}`}>{t(caseTypeKey(entry.caseType))}</span><span className={`surface-chip ${outcomeTones[entry.expected.outcome]}`}>{t(outcomeKey(entry.expected.outcome))}</span><span className={`surface-chip ${riskTone(entry.riskTier)}`}>{t(riskTierKey(entry.riskTier))}</span>{entry.tags.map((entryTag) => <span className="surface-chip neutral" key={entryTag}>{entryTag}</span>)}</span></span>
               <span className="case-row-side"><code className="eval-code">{entry.id}</code></span>
             </button>
             {expandedCaseId === entry.id && <CaseDetail caseValue={entry} purposes={purposes.data ?? []} onEdit={() => setEditing({ mode: 'EDIT', value: entry })} onOpenContract={() => onNavigatePath(routes.surface(workspaceId, entry.contractId, 'contracts'))} />}
@@ -205,7 +204,7 @@ function CaseDetail({ caseValue, purposes, onEdit, onOpenContract }: { caseValue
         <div><dt>{t('caseFieldCaseType')}</dt><dd>{t(caseTypeKey(caseValue.caseType))}</dd></div>
         <div><dt>{t('caseFieldRiskTier')}</dt><dd><span className={`surface-chip ${riskTone(caseValue.riskTier)}`}>{t(riskTierKey(caseValue.riskTier))}</span></dd></div>
         <div><dt>{t('caseFieldFailureMode')}</dt><dd>{caseValue.failureMode ? t(failureCategoryKey(caseValue.failureMode)) : t('commonNone')}</dd></div>
-        <div><dt>{t('caseFieldTags')}</dt><dd>{caseValue.tags.length === 0 ? t('caseSetNoTags') : <span className="eval-chip-row">{caseValue.tags.map((entryTag) => <span className="surface-chip muted" key={entryTag}>{entryTag}</span>)}</span>}</dd></div>
+        <div><dt>{t('caseFieldTags')}</dt><dd>{caseValue.tags.length === 0 ? t('caseSetNoTags') : <span className="eval-chip-row">{caseValue.tags.map((entryTag) => <span className="surface-chip neutral" key={entryTag}>{entryTag}</span>)}</span>}</dd></div>
       </dl>
     </section>
 

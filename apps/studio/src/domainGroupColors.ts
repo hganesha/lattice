@@ -17,16 +17,23 @@ export interface DomainGroupColor {
 }
 
 /**
- * Hues far enough apart to stay distinguishable, at a lightness that holds contrast in both
- * themes. Deliberately excludes the accent green, which already means "selected".
+ * The shared categorical ramp, not a local palette.
+ *
+ * This was twelve HSL hues at a single lightness (`hsl(H 62% 42%)`). Equal-lightness wheels always
+ * collapse under colour-vision deficiency, because hue is then the only channel carrying the
+ * distinction: measured worst-case pairwise separation was 6 (of ~440 possible) under simulated
+ * deuteranopia. The eight `--cat-*` tokens stagger lightness as well as hue and measure 69 light /
+ * 92 dark — an order of magnitude better, at the cost of repeating after eight groups rather than
+ * twelve. Eight separable colours beat twelve that several viewers cannot tell apart, and the
+ * labels and legend still carry the meaning regardless. See docs/token-audit.md.
  */
-const DOMAIN_GROUP_HUES = [210, 32, 268, 340, 174, 96, 14, 240, 128, 58, 300, 190] as const
+const DOMAIN_GROUP_TONES = ['cat-1', 'cat-2', 'cat-3', 'cat-4', 'cat-5', 'cat-6', 'cat-7', 'cat-8'] as const
 
-function colorForHue(hue: number): DomainGroupColor {
+function colorForTone(tone: string): DomainGroupColor {
   return {
-    accent: `hsl(${hue} 62% 42%)`,
-    // Alpha rather than a solid tint, so one value reads on a light or a dark surface.
-    soft: `hsl(${hue} 62% 48% / 0.16)`,
+    accent: `var(--${tone})`,
+    // A mix rather than a solid tint, so one value reads on a light or a dark surface.
+    soft: `color-mix(in oklab, var(--${tone}) 16%, transparent)`,
   }
 }
 
@@ -45,7 +52,7 @@ export function domainGroupPalette(groupLabels: readonly string[]): Map<string, 
   for (const label of groupLabels) {
     const key = normalize(label)
     if (palette.has(key)) continue
-    palette.set(key, colorForHue(DOMAIN_GROUP_HUES[assigned % DOMAIN_GROUP_HUES.length] ?? DOMAIN_GROUP_HUES[0]))
+    palette.set(key, colorForTone(DOMAIN_GROUP_TONES[assigned % DOMAIN_GROUP_TONES.length] ?? DOMAIN_GROUP_TONES[0]))
     assigned += 1
   }
   return palette
@@ -53,7 +60,7 @@ export function domainGroupPalette(groupLabels: readonly string[]): Map<string, 
 
 /** Falls back to a neutral rather than inventing a colour for a group the palette never saw. */
 export function colorFrom(palette: Map<string, DomainGroupColor>, group: string): DomainGroupColor {
-  return palette.get(normalize(group)) ?? { accent: 'var(--border-strong)', soft: 'var(--surface-soft)' }
+  return palette.get(normalize(group)) ?? { accent: 'var(--border-default)', soft: 'var(--bg-hover)' }
 }
 
 function normalize(group: string): string {

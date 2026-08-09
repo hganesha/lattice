@@ -69,7 +69,7 @@ export function EvalDiffPanel({ runId, runName, baselineRunId, baselineOptions, 
 
     {diff.status === 'READY' && diff.data && <>
       <div className={`eval-diff-verdict ${diff.data.verdict === 'PASS' ? 'pass' : 'fail'}`} role="status" aria-live="polite">
-        <span className={`surface-chip ${diff.data.verdict === 'PASS' ? 'green' : 'red'}`}>{diff.data.verdict === 'PASS' ? <IconCheck /> : <IconX />} {t('evalDiffVerdict')}: {diff.data.verdict === 'PASS' ? t('evalDiffVerdictPass') : t('evalDiffVerdictFail')}</span>
+        <span className={`surface-chip ${diff.data.verdict === 'PASS' ? 'success' : 'danger'}`}>{diff.data.verdict === 'PASS' ? <IconCheck /> : <IconX />} {t('evalDiffVerdict')}: {diff.data.verdict === 'PASS' ? t('evalDiffVerdictPass') : t('evalDiffVerdictFail')}</span>
         <b>{t('evalDiffAgainst', { run: runName, baseline: baselineName })}</b>
         <span className="eval-note muted">{t('evalDiffGeneratedAt')} {formatDate(diff.data.generatedAt, { dateStyle: 'medium', timeStyle: 'short' })}</span>
       </div>
@@ -91,18 +91,18 @@ export function EvalDiffPanel({ runId, runName, baselineRunId, baselineOptions, 
         <h3>{t('evalDiffGateDelta')}</h3>
         {evalGateDefinitions.every((gate) => (diff.data?.gateDelta[gate.id] ?? 0) === 0)
           ? <p className="eval-note muted">{t('evalDiffGateDeltaNone')}</p>
-          : <ul className="eval-gate-list">{evalGateDefinitions.filter((gate) => (diff.data?.gateDelta[gate.id] ?? 0) !== 0).map((gate) => { const delta = diff.data?.gateDelta[gate.id] ?? 0; return <li className={`eval-gate ${delta > 0 ? 'fail' : 'pass'}`} key={gate.id}><span className="eval-gate-glyph" aria-hidden="true">{delta > 0 ? <IconX /> : <IconCheck />}</span><span><b>{t(gateKey(gate.id))}</b><small>{gate.description}</small></span><span className={`surface-chip ${delta > 0 ? 'red' : 'green'}`}>{delta > 0 ? `+${delta}` : delta}</span></li> })}</ul>}
+          : <ul className="eval-gate-list">{evalGateDefinitions.filter((gate) => (diff.data?.gateDelta[gate.id] ?? 0) !== 0).map((gate) => { const delta = diff.data?.gateDelta[gate.id] ?? 0; return <li className={`eval-gate ${delta > 0 ? 'fail' : 'pass'}`} key={gate.id}><span className="eval-gate-glyph" aria-hidden="true">{delta > 0 ? <IconX /> : <IconCheck />}</span><span><b>{t(gateKey(gate.id))}</b><small>{gate.description}</small></span><span className={`surface-chip ${delta > 0 ? 'danger' : 'success'}`}>{delta > 0 ? `+${delta}` : delta}</span></li> })}</ul>}
       </div>
 
       {visible.length === 0 && <EmptyState title={t('evalDiffEmptyTitle')} description={t('evalDiffEmptyDescription')} icon={<IconFileSearch />} actionLabel={t('commonClearFilters')} onAction={() => setStatus('')} />}
 
       {regressions.length > 0 && <>
-        <p className="eval-diff-group-title"><i className="mini-dot red" /> {t('evalDiffGroupRegressed')} · {regressions.length}</p>
+        <p className="eval-diff-group-title"><i className="mini-dot danger" /> {t('evalDiffGroupRegressed')} · {regressions.length}</p>
         <div className="eval-scroll"><DiffTable entries={regressions} /></div>
       </>}
 
       {others.length > 0 && <>
-        <p className="eval-diff-group-title"><i className="mini-dot muted" /> {t('evalDiffGroupOther')} · {others.length}</p>
+        <p className="eval-diff-group-title"><i className="mini-dot neutral" /> {t('evalDiffGroupOther')} · {others.length}</p>
         <div className="eval-scroll"><DiffTable entries={pagedOthers} /></div>
         {others.length > entryPageSize && <Pagination page={page} pageSize={entryPageSize} total={others.length} onPage={setPage} labels={{ previous: t('commonPrevious'), next: t('commonNext'), range: (from, to, total) => t('commonRange', { from, to, total }) }} />}
       </>}
@@ -128,7 +128,7 @@ function DiffSide({ side }: { side: EvalDiffEntry['baseline'] }) {
   if (!side) return <span className="eval-note muted">{t('evalDiffAbsent')}</span>
   const score = side.gatesPassed ? side.weightedScore : undefined
   return <div className="eval-diff-cell">
-    <span className={`surface-chip ${side.status === 'PASS' ? 'green' : side.status === 'GATE_FAIL' ? 'red' : 'amber'}`}>{side.status === 'PASS' ? t('evalRunCaseStatusPass') : side.status === 'GATE_FAIL' ? t('evalRunCaseStatusGateFail') : t('evalRunCaseStatusFail')}</span>
+    <span className={`surface-chip ${side.status === 'PASS' ? 'success' : side.status === 'GATE_FAIL' ? 'danger' : 'warning'}`}>{side.status === 'PASS' ? t('evalRunCaseStatusPass') : side.status === 'GATE_FAIL' ? t('evalRunCaseStatusGateFail') : t('evalRunCaseStatusFail')}</span>
     <small>{t(decisionKey(side.decision))} · {score === undefined ? t('evalRunGateFailed') : t('evalRunScoreValue', { score })}</small>
   </div>
 }

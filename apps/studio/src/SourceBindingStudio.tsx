@@ -131,10 +131,10 @@ export function SourceBindingStudio({ contract, scope = 'CONTRACT', workspaceId,
     {!canCreateBinding && <div className="binding-prerequisite"><span>◇</span><div><b>{t('bindingPrerequisite')}</b><p>{t('bindingPrerequisiteDescription')}</p></div><button className="ghost" onClick={onOpenOntology}>{t('bindingAddPropertiesAction')} →</button></div>}
 
     <div className="binding-stats">
-      <BindingStat label={t('bindingStatBindings').toLocaleUpperCase()} value={String(contract.bindings.length)} meta={t('bindingStatAdapters')} tone="lime" />
-      <BindingStat label={t('bindingStatMappedFields').toLocaleUpperCase()} value={String(stats.mappedFields)} meta={t('bindingStatSourceTarget')} tone="blue" />
-      <BindingStat label={t('bindingStatHealth').toLocaleUpperCase()} value={`${stats.valid} / ${contract.bindings.length}`} meta={t('bindingStatValid')} tone="green" />
-      <BindingStat label={t('bindingStatEnvironments').toLocaleUpperCase()} value={String(stats.environments)} meta={t('bindingStatBoundaries')} tone="amber" />
+      <BindingStat label={t('bindingStatBindings').toLocaleUpperCase()} value={String(contract.bindings.length)} meta={t('bindingStatAdapters')} tone="brand" />
+      <BindingStat label={t('bindingStatMappedFields').toLocaleUpperCase()} value={String(stats.mappedFields)} meta={t('bindingStatSourceTarget')} tone="info" />
+      <BindingStat label={t('bindingStatHealth').toLocaleUpperCase()} value={`${stats.valid} / ${contract.bindings.length}`} meta={t('bindingStatValid')} tone="success" />
+      <BindingStat label={t('bindingStatEnvironments').toLocaleUpperCase()} value={String(stats.environments)} meta={t('bindingStatBoundaries')} tone="warning" />
     </div>
 
     <div className="binding-layout">
