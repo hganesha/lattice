@@ -31,10 +31,10 @@ const scopeOptions: readonly NegativeDecision['applicability']['scope'][] = ['CO
 const statusOptions: readonly NegativeDecision['status'][] = ['ACTIVE', 'DUE_FOR_REVIEW', 'SUPERSEDED', 'WITHDRAWN']
 
 function statusTone(status: NegativeDecision['status']): string {
-  if (status === 'ACTIVE') return 'red'
-  if (status === 'DUE_FOR_REVIEW') return 'amber'
-  if (status === 'SUPERSEDED') return 'blue'
-  return 'muted'
+  if (status === 'ACTIVE') return 'danger'
+  if (status === 'DUE_FOR_REVIEW') return 'warning'
+  if (status === 'SUPERSEDED') return 'info'
+  return 'neutral'
 }
 
 export function NegativeDecisionStudio({ workspaceId, contract, detailId, onNavigate, onNavigatePath }: NegativeDecisionStudioProps) {
@@ -110,10 +110,10 @@ export function NegativeDecisionStudio({ workspaceId, contract, detailId, onNavi
     <SurfaceHero kicker={t('negativeKicker').toLocaleUpperCase()} title={t('negativeTitle')} description={t('negativeDescription')}><button className="ghost" onClick={() => onNavigate('reviews')}>{t('negativeOriginReview')}</button></SurfaceHero>
     {notice && <Toast message={notice} closeLabel={t('negativeClose')} onDismiss={() => setNotice('')} tone="success" />}
     <div className="surface-metrics">
-      <MetricTile label={t('negativeMetricActive')} value={formatNumber(activeCount)} meta={t('negativeMetricActiveMeta')} tone="red" onClick={() => setStatus('ACTIVE')} />
-      <MetricTile label={t('negativeMetricDue')} value={formatNumber(dueCount)} meta={t('negativeMetricDueMeta')} tone="amber" onClick={() => setStatus('DUE_FOR_REVIEW')} />
-      <MetricTile label={t('negativeMetricExceptions')} value={formatNumber(exceptionCount)} meta={t('negativeMetricExceptionsMeta')} tone="blue" />
-      <MetricTile label={t('negativeMetricWithdrawn')} value={formatNumber(withdrawnCount)} meta={t('negativeMetricWithdrawnMeta')} tone="lime" onClick={() => setStatus('WITHDRAWN')} />
+      <MetricTile label={t('negativeMetricActive')} value={formatNumber(activeCount)} meta={t('negativeMetricActiveMeta')} tone="danger" onClick={() => setStatus('ACTIVE')} />
+      <MetricTile label={t('negativeMetricDue')} value={formatNumber(dueCount)} meta={t('negativeMetricDueMeta')} tone="warning" onClick={() => setStatus('DUE_FOR_REVIEW')} />
+      <MetricTile label={t('negativeMetricExceptions')} value={formatNumber(exceptionCount)} meta={t('negativeMetricExceptionsMeta')} tone="info" />
+      <MetricTile label={t('negativeMetricWithdrawn')} value={formatNumber(withdrawnCount)} meta={t('negativeMetricWithdrawnMeta')} tone="brand" onClick={() => setStatus('WITHDRAWN')} />
     </div>
 
     <div className="negative-layout">
@@ -136,9 +136,9 @@ export function NegativeDecisionStudio({ workspaceId, contract, detailId, onNavi
             <p>{entry.rationale}</p>
             <footer>
               <span className={`surface-chip ${statusTone(entry.status)}`}>{t(negativeStatusMessageKeys[entry.status])}</span>
-              <span className="surface-chip muted">{t(negativeScopeMessageKeys[entry.applicability.scope])}</span>
-              {entry.prohibited.sourceSystem && <span className="surface-chip blue">{entry.prohibited.sourceSystem}</span>}
-              <span className={`surface-chip ${entry.status === 'DUE_FOR_REVIEW' ? 'amber' : 'muted'}`}>{t('negativeReviewBy')} {formatDate(entry.reviewBy, { dateStyle: 'medium' })}</span>
+              <span className="surface-chip neutral">{t(negativeScopeMessageKeys[entry.applicability.scope])}</span>
+              {entry.prohibited.sourceSystem && <span className="surface-chip info">{entry.prohibited.sourceSystem}</span>}
+              <span className={`surface-chip ${entry.status === 'DUE_FOR_REVIEW' ? 'warning' : 'neutral'}`}>{t('negativeReviewBy')} {formatDate(entry.reviewBy, { dateStyle: 'medium' })}</span>
             </footer>
           </span>
           <time dateTime={entry.decidedAt} className="gov-meta">{formatDate(entry.decidedAt, { dateStyle: 'short' })}</time>
@@ -175,7 +175,7 @@ export function NegativeDecisionStudio({ workspaceId, contract, detailId, onNavi
             <h5>{t('negativeExceptions')}</h5>
             {detail.data.exceptions.length === 0 ? <p>{t('negativeNoExceptions')}</p> : detail.data.exceptions.map((exception) => { const expired = Date.parse(exception.expiresAt) < Date.now(); return <article key={exception.id}>
               <p>{exception.description}</p>
-              <footer><span className={`surface-chip ${expired ? 'muted' : 'amber'}`}>{t(expired ? 'negativeExceptionExpired' : 'negativeExceptionExpires', { at: formatDate(exception.expiresAt, { dateStyle: 'medium' }) })}</span><span className="gov-meta">{t('negativeExceptionApproved', { name: exception.approvedBy })}</span></footer>
+              <footer><span className={`surface-chip ${expired ? 'neutral' : 'warning'}`}>{t(expired ? 'negativeExceptionExpired' : 'negativeExceptionExpires', { at: formatDate(exception.expiresAt, { dateStyle: 'medium' }) })}</span><span className="gov-meta">{t('negativeExceptionApproved', { name: exception.approvedBy })}</span></footer>
             </article> })}
           </div>
 

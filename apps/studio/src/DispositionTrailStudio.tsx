@@ -114,7 +114,7 @@ export function DispositionTrailStudio({ contract, workspaceId, detailId, onNavi
 
   return <section className="disposition-page">
     <SurfaceHero kicker={t('dispositionKicker').toLocaleUpperCase()} title={t('dispositionTitle')} description={t('dispositionDescription')}><button className="ghost" onClick={() => onNavigate('compiler')}>{t('dispositionEmptyAction')}</button></SurfaceHero>
-    <div className="surface-metrics"><MetricTile label={t('dispositionMetricTotal').toLocaleUpperCase()} value={formatNumber(total)} meta={t('dispositionMetricTotalMeta')} tone="blue" /><MetricTile label={t('dispositionMetricAuthorizing').toLocaleUpperCase()} value={formatNumber(authorizingCount)} meta={t('dispositionMetricAuthorizingMeta')} tone="green" /><MetricTile label={t('dispositionMetricDryRun').toLocaleUpperCase()} value={formatNumber(dryRunCount)} meta={t('dispositionMetricDryRunMeta')} tone="amber" /><MetricTile label={t('dispositionMetricApproval').toLocaleUpperCase()} value={formatNumber(approvalCount)} meta={t('dispositionMetricApprovalMeta')} tone="violet" /></div>
+    <div className="surface-metrics"><MetricTile label={t('dispositionMetricTotal').toLocaleUpperCase()} value={formatNumber(total)} meta={t('dispositionMetricTotalMeta')} tone="info" /><MetricTile label={t('dispositionMetricAuthorizing').toLocaleUpperCase()} value={formatNumber(authorizingCount)} meta={t('dispositionMetricAuthorizingMeta')} tone="success" /><MetricTile label={t('dispositionMetricDryRun').toLocaleUpperCase()} value={formatNumber(dryRunCount)} meta={t('dispositionMetricDryRunMeta')} tone="warning" /><MetricTile label={t('dispositionMetricApproval').toLocaleUpperCase()} value={formatNumber(approvalCount)} meta={t('dispositionMetricApprovalMeta')} tone="governance" /></div>
 
     <div className="disposition-layout">
       <main className="disposition-list-panel panel">
@@ -139,7 +139,7 @@ export function DispositionTrailStudio({ contract, workspaceId, detailId, onNavi
         {records.length > 0 && <ul className="disposition-rows">{records.map((record) => <li key={record.id}><button type="button" className={`disposition-row ${selectedId === record.id ? 'selected' : ''}`} aria-current={selectedId === record.id ? 'true' : undefined} onClick={() => select(record.id)}>
           <span className={`disposition-rail ${decisionTone(record.decision)}`} aria-hidden="true" />
           <span className="disposition-row-main">
-            <span className="disposition-row-head"><code>{record.id}</code><span className={`disposition-chip ${decisionTone(record.decision)}`}>{t(decisionMessageKeys[record.decision])}</span>{!record.authorizing && <span className="disposition-chip amber">{t(dispositionModeMessageKeys[record.mode])}</span>}</span>
+            <span className="disposition-row-head"><code>{record.id}</code><span className={`disposition-chip ${decisionTone(record.decision)}`}>{t(decisionMessageKeys[record.decision])}</span>{!record.authorizing && <span className="disposition-chip warning">{t(dispositionModeMessageKeys[record.mode])}</span>}</span>
             <span className="disposition-row-question">{record.question}</span>
             <span className="disposition-row-meta"><em>{record.purposeLabel}</em><span className={`disposition-chip ${riskTone(record.riskTier)}`}>{t(riskTierMessageKeys[record.riskTier])}</span><span>{record.principalId}</span></span>
           </span>

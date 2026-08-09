@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from 'react'
-import type { Tone } from './formatters'
+import type { ChartTone } from './formatters'
 import './evaluation.css'
 
 /**
@@ -19,7 +19,7 @@ export interface SeriesPoint {
 export interface DonutSegment {
   label: string
   value: number
-  tone: Tone
+  tone: ChartTone
 }
 
 export interface ScatterPoint {
@@ -29,7 +29,7 @@ export interface ScatterPoint {
   label?: string
 }
 
-function toneClass(tone: Tone): string {
+function toneClass(tone: ChartTone): string {
   return `chart-tone-${tone}`
 }
 
@@ -42,14 +42,14 @@ function clamp(value: number, low: number, high: number): number {
 interface SparklineProps {
   data: number[]
   label: string
-  tone?: Tone
+  tone?: ChartTone
   width?: number
   height?: number
   fill?: boolean
   strokeWidth?: number
 }
 
-export function Sparkline({ data, label, tone = 'blue', width = 116, height = 34, fill = true, strokeWidth = 1.6 }: SparklineProps) {
+export function Sparkline({ data, label, tone = 'info', width = 116, height = 34, fill = true, strokeWidth = 1.6 }: SparklineProps) {
   const gradientId = `spark-${useId().replaceAll(':', '')}`
   if (data.length < 2) return null
   const minimum = Math.min(...data)
@@ -74,12 +74,12 @@ export function Sparkline({ data, label, tone = 'blue', width = 116, height = 34
 interface AreaTrendProps {
   points: SeriesPoint[]
   label: string
-  tone?: Tone
+  tone?: ChartTone
   height?: number
   formatValue?: (value: number) => string
 }
 
-export function AreaTrend({ points, label, tone = 'blue', height = 180, formatValue = (value) => value.toFixed(1) }: AreaTrendProps) {
+export function AreaTrend({ points, label, tone = 'info', height = 180, formatValue = (value) => value.toFixed(1) }: AreaTrendProps) {
   const gradientId = `area-${useId().replaceAll(':', '')}`
   const [active, setActive] = useState<number>()
   if (points.length < 2) return null
@@ -152,11 +152,11 @@ export function Donut({ segments, label, size = 138, thickness = 16, center }: D
 interface HistogramProps {
   bins: SeriesPoint[]
   label: string
-  tone?: Tone
+  tone?: ChartTone
   height?: number
 }
 
-export function Histogram({ bins, label, tone = 'blue', height = 92 }: HistogramProps) {
+export function Histogram({ bins, label, tone = 'info', height = 92 }: HistogramProps) {
   if (bins.length === 0) return null
   const maximum = Math.max(...bins.map((bin) => bin.value)) || 1
   const width = 320

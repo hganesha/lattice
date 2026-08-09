@@ -36,10 +36,10 @@ function severityClass(severity: ImpactLevel): string {
 }
 
 function healthTone(health: SourceHealthRecord['health']): string {
-  if (health === 'HEALTHY') return 'green'
-  if (health === 'DEGRADED') return 'amber'
-  if (health === 'BROKEN') return 'red'
-  return 'muted'
+  if (health === 'HEALTHY') return 'success'
+  if (health === 'DEGRADED') return 'warning'
+  if (health === 'BROKEN') return 'danger'
+  return 'neutral'
 }
 
 export function DriftStudio({ workspaceId, contract, detailId, onNavigate, onNavigatePath }: DriftStudioProps) {
@@ -162,13 +162,13 @@ export function DriftStudio({ workspaceId, contract, detailId, onNavigate, onNav
           const result = replays[event.id] ?? event.counterfactual
           return <button type="button" className={`drift-card ${severityClass(event.severity)}`} key={event.id} ref={(node) => { cardRefs.current[index] = node }} aria-current={selectedId === event.id ? 'true' : undefined} onClick={() => select(event.id)}>
             <header>
-              <span className="surface-chip violet">{t(driftKindMessageKeys[event.kind])}</span>
+              <span className="surface-chip governance">{t(driftKindMessageKeys[event.kind])}</span>
               <span className={`surface-chip ${impactTone(event.severity)}`}>{t(severityMessageKeys[event.severity])}</span>
-              <span className="surface-chip muted">{t(driftStatusMessageKeys[event.status])}</span>
+              <span className="surface-chip neutral">{t(driftStatusMessageKeys[event.status])}</span>
             </header>
             <p className={`drift-headline ${result ? '' : 'pending'}`}>{result ? result.summary : t('driftCounterfactualPending')}</p>
             <p className="drift-subject">{event.subject.label} · <span className="gov-code">{event.subject.id}</span></p>
-            <span className="drift-delta"><code className="before">{event.before}</code>→<code className="after">{event.after}</code><span className="surface-chip muted">{t('driftVersions', { from: event.fromVersion, to: event.toVersion })}</span></span>
+            <span className="drift-delta"><code className="before">{event.before}</code>→<code className="after">{event.after}</code><span className="surface-chip neutral">{t('driftVersions', { from: event.fromVersion, to: event.toVersion })}</span></span>
             <footer><span className="gov-meta">{t('driftDetected', { at: formatDate(event.detectedAt, { dateStyle: 'short', timeStyle: 'short' }) })}</span></footer>
           </button>
         })}</div>}
@@ -195,7 +195,7 @@ export function DriftStudio({ workspaceId, contract, detailId, onNavigate, onNav
                 <div>
                   <p>{change.question}</p>
                   <footer>
-                    <span className="surface-chip amber">{t('driftChangeDecision', { before: t(runtimeDecisionMessageKeys[change.before]), after: t(runtimeDecisionMessageKeys[change.after]) })}</span>
+                    <span className="surface-chip warning">{t('driftChangeDecision', { before: t(runtimeDecisionMessageKeys[change.before]), after: t(runtimeDecisionMessageKeys[change.after]) })}</span>
                     <span className={`surface-chip ${riskTone(change.riskTier)}`}>{t(riskTierMessageKeys[change.riskTier])}</span>
                     <span className="gov-meta">{formatDate(change.createdAt, { dateStyle: 'short', timeStyle: 'short' })}</span>
                   </footer>

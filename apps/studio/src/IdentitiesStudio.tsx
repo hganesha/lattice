@@ -115,7 +115,7 @@ export function IdentitiesStudio({ workspaceId, detailId, onNavigate, onNavigate
 
     {notice && <Toast message={notice} closeLabel={t('commonClose')} onDismiss={() => setNotice('')} tone={noticeTone} durationMs={6000} />}
 
-    <div className="surface-metrics"><MetricTile label={t('identityMetricPrincipals').toLocaleUpperCase()} value={formatNumber(principals.length)} meta={t('identityMetricPrincipalsMeta', { humans, agents, services })} tone="blue" /><MetricTile label={t('identityMetricAgents').toLocaleUpperCase()} value={formatNumber(tieredAgents)} meta={t('identityMetricAgentsMeta', { untiered: agents - tieredAgents })} tone="lime" /><MetricTile label={t('identityMetricActiveGrants').toLocaleUpperCase()} value={formatNumber(activeGrants)} meta={t('identityMetricActiveGrantsMeta', { inactive: grants.length - activeGrants })} tone="green" /><MetricTile label={t('identityMetricDepth').toLocaleUpperCase()} value={formatNumber(depth)} meta={t('identityMetricDepthMeta')} tone="violet" /></div>
+    <div className="surface-metrics"><MetricTile label={t('identityMetricPrincipals').toLocaleUpperCase()} value={formatNumber(principals.length)} meta={t('identityMetricPrincipalsMeta', { humans, agents, services })} tone="info" /><MetricTile label={t('identityMetricAgents').toLocaleUpperCase()} value={formatNumber(tieredAgents)} meta={t('identityMetricAgentsMeta', { untiered: agents - tieredAgents })} tone="brand" /><MetricTile label={t('identityMetricActiveGrants').toLocaleUpperCase()} value={formatNumber(activeGrants)} meta={t('identityMetricActiveGrantsMeta', { inactive: grants.length - activeGrants })} tone="success" /><MetricTile label={t('identityMetricDepth').toLocaleUpperCase()} value={formatNumber(depth)} meta={t('identityMetricDepthMeta')} tone="governance" /></div>
 
     <SessionPanel resource={session} />
 
@@ -174,7 +174,7 @@ function SessionPanel({ resource }: { resource: Resource<SessionResponse> }) {
   const { principal, chain } = resource.data
   const Glyph = kindGlyph(principal.kind)
   return <div className="panel identity-session">
-    <div className="identity-session-head"><span className="principal-glyph" aria-hidden="true"><Glyph /></span><div><span className="panel-kicker">{t('identitySessionKicker').toLocaleUpperCase()}</span><h2>{principal.displayName}</h2><p>{(principal.roles ?? []).join(' · ') || t('commonNone')}</p></div><span className={`identity-chip ${principal.status === 'ACTIVE' ? 'green' : 'muted'}`}>{principal.status}</span></div>
+    <div className="identity-session-head"><span className="principal-glyph" aria-hidden="true"><Glyph /></span><div><span className="panel-kicker">{t('identitySessionKicker').toLocaleUpperCase()}</span><h2>{principal.displayName}</h2><p>{(principal.roles ?? []).join(' · ') || t('commonNone')}</p></div><span className={`identity-chip ${principal.status === 'ACTIVE' ? 'success' : 'neutral'}`}>{principal.status}</span></div>
     <dl className="identity-facts">
       <div><dt>{t('identityAuthMethod')}</dt><dd><code>{principal.authentication.method}</code></dd></div>
       <div><dt>{t('identityAuthIssuer')}</dt><dd>{principal.authentication.issuer}</dd></div>
@@ -259,7 +259,7 @@ function PrincipalCard({ principal, tiers, selected, onSelect }: { principal: Pr
   const Glyph = kindGlyph(principal.kind)
   const tier = principal.autonomyTier ? tiers.find((definition) => definition.tier === principal.autonomyTier) : undefined
   return <article className={`principal-card ${selected ? 'selected' : ''} ${principal.status !== 'ACTIVE' ? 'inactive' : ''}`}>
-    <header><span className={`principal-glyph ${principal.kind.toLocaleLowerCase()}`} aria-hidden="true"><Glyph /></span><div><h3>{principal.displayName}</h3><code>{principal.id}</code></div><span className={`identity-chip ${principal.status === 'ACTIVE' ? 'green' : principal.status === 'SUSPENDED' ? 'amber' : 'muted'}`}>{principal.status}</span></header>
+    <header><span className={`principal-glyph ${principal.kind.toLocaleLowerCase()}`} aria-hidden="true"><Glyph /></span><div><h3>{principal.displayName}</h3><code>{principal.id}</code></div><span className={`identity-chip ${principal.status === 'ACTIVE' ? 'success' : principal.status === 'SUSPENDED' ? 'warning' : 'neutral'}`}>{principal.status}</span></header>
     <dl className="identity-facts">
       <div><dt>{t('identityRoles')}</dt><dd>{principal.roles.length > 0 ? principal.roles.join(', ') : t('commonNone')}</dd></div>
       <div><dt>{t('identityWorkspaces')}</dt><dd>{principal.workspaceIds.length > 0 ? principal.workspaceIds.join(', ') : t('commonNone')}</dd></div>
@@ -271,7 +271,7 @@ function PrincipalCard({ principal, tiers, selected, onSelect }: { principal: Pr
     </dl>
     {principal.kind === 'AGENT' && <div className={`autonomy-block ${tier ? '' : 'unset'}`}>
       <span className="identity-subhead">{t('identityAutonomy')}</span>
-      {tier ? <><div className="autonomy-head"><span className="identity-chip lime">{tier.tier}</span><b>{tier.label}</b></div><p>{tier.description}</p><dl className="identity-facts tight"><div><dt>{t('identityAutonomyMaxRisk')}</dt><dd><span className={`identity-chip ${riskTone(tier.maximumRiskTier)}`}>{tier.maximumRiskTier}</span></dd></div><div><dt>{t('identityAutonomyApprovalRequired')}</dt><dd>{tier.humanApprovalRequired ? t('identityAutonomyApprovalRequired') : t('identityAutonomyApprovalNotRequired')}</dd></div></dl></> : <p className="identity-hint warn">{t('identityAutonomyUnset')}</p>}
+      {tier ? <><div className="autonomy-head"><span className="identity-chip brand">{tier.tier}</span><b>{tier.label}</b></div><p>{tier.description}</p><dl className="identity-facts tight"><div><dt>{t('identityAutonomyMaxRisk')}</dt><dd><span className={`identity-chip ${riskTone(tier.maximumRiskTier)}`}>{tier.maximumRiskTier}</span></dd></div><div><dt>{t('identityAutonomyApprovalRequired')}</dt><dd>{tier.humanApprovalRequired ? t('identityAutonomyApprovalRequired') : t('identityAutonomyApprovalNotRequired')}</dd></div></dl></> : <p className="identity-hint warn">{t('identityAutonomyUnset')}</p>}
     </div>}
     <footer><button className="ghost" onClick={onSelect} aria-pressed={selected}><IconNetwork /> {selected ? t('identityGraphClear') : t('identityOpenGrants')}</button></footer>
   </article>
@@ -314,7 +314,7 @@ function GrantCard({ grant, principals, expanded, onToggleRevoke, onRevoked, onF
   }
 
   return <article className={`grant-card ${active ? '' : 'inactive'}`}>
-    <header><div className="grant-chain"><b>{t('identityGrantChain', { from: from?.displayName ?? grant.fromPrincipalId, to: to?.displayName ?? grant.toPrincipalId })}</b><code>{grant.id}</code></div><span className={`identity-chip ${active ? 'green' : grant.status === 'REVOKED' ? 'red' : 'muted'}`}>{grant.status}</span></header>
+    <header><div className="grant-chain"><b>{t('identityGrantChain', { from: from?.displayName ?? grant.fromPrincipalId, to: to?.displayName ?? grant.toPrincipalId })}</b><code>{grant.id}</code></div><span className={`identity-chip ${active ? 'success' : grant.status === 'REVOKED' ? 'danger' : 'neutral'}`}>{grant.status}</span></header>
     {!active && <p className="identity-hint warn">{t('identityGrantInactive')}</p>}
     <dl className="identity-facts">
       <div><dt>{t('identityGrantScope')}</dt><dd>{grant.scope.length > 0 ? <span className="chip-row">{grant.scope.map((entry) => <code className="scope-chip" key={entry}>{entry}</code>)}</span> : t('commonNone')}</dd></div>

@@ -638,7 +638,7 @@ interface SummaryCardModel {
   label: string
   value: string
   meta: string
-  tone: 'amber' | 'blue' | 'green' | 'lime'
+  tone: 'warning' | 'info' | 'success' | 'brand'
   onClick?: () => void
 }
 
@@ -660,7 +660,7 @@ function buildSummaryCards({ t, workspaceMode, workspace, workspaceContracts, co
       label: t('summaryOntologyStatus'),
       value: workspace?.ontology.releaseStatus === 'PUBLISHED' && !draftDirty ? t('statusPublished') : t('statusDraft'),
       meta: `v${workspace?.ontology.version ?? '0.0.0'} · ${t('workspaceOntologyFoundation')}`,
-      tone: draftDirty || workspace?.ontology.releaseStatus === 'UNPUBLISHED' ? 'amber' : 'green',
+      tone: draftDirty || workspace?.ontology.releaseStatus === 'UNPUBLISHED' ? 'warning' : 'success',
       onClick: go('ontology'),
     },
     {
@@ -669,21 +669,21 @@ function buildSummaryCards({ t, workspaceMode, workspace, workspaceContracts, co
       meta: workspace?.ontologyGeneration
         ? t('workspaceGeneratedMeta', { forms: workspace.ontologyGeneration.sourceFormCount, mapped: workspace.ontologyGeneration.mappedPercent })
         : t('workspaceSharedAcrossContracts', { count: workspace?.contractIds.length ?? 0 }),
-      tone: 'lime',
+      tone: 'brand',
       onClick: go('ontology'),
     },
     {
       label: t('summaryRelationships'),
       value: String(workspace?.ontology.relationshipTypes.length ?? 0),
       meta: t('typedDirectional'),
-      tone: 'blue',
+      tone: 'info',
       onClick: go('ontology'),
     },
     {
       label: t('summaryContracts'),
       value: String(workspaceContracts.length),
       meta: t('workspaceDecisionContracts'),
-      tone: 'blue',
+      tone: 'info',
       onClick: go('contracts'),
     },
   ]
@@ -696,28 +696,28 @@ function buildSummaryCards({ t, workspaceMode, workspace, workspaceContracts, co
       label: t('summaryContractStatus'),
       value: noContract ? t('statusNoContract') : runtimeStatus === 'SUSPENDED' ? t('statusSuspended') : contractDraft ? t('statusDraft') : t('statusPublished'),
       meta: noContract ? t('contractsCreateFirst') : `${contract.version} · ${runtimeStatus === 'SUSPENDED' ? t('runtimePaused') : draftDirty ? t('unpublishedChanges') : t('registrySynchronized')}`,
-      tone: noContract || runtimeStatus === 'SUSPENDED' || contractDraft ? 'amber' : 'green',
+      tone: noContract || runtimeStatus === 'SUSPENDED' || contractDraft ? 'warning' : 'success',
       onClick: go('releases'),
     },
     {
       label: t('summaryEntityTypes'),
       value: String(noContract ? 0 : contract.entityTypes.length),
       meta: t('contractsScope'),
-      tone: 'lime',
+      tone: 'brand',
       onClick: go('ontology'),
     },
     {
       label: t('summaryRelationships'),
       value: String(noContract ? 0 : contract.relationshipTypes.length),
       meta: t('typedDirectional'),
-      tone: 'blue',
+      tone: 'info',
       onClick: go('ontology'),
     },
     {
       label: t('summaryAssurance'),
       value: noContract ? '0 / 0' : `${contract.tests.filter((test) => test.status === 'PASS').length} / ${contract.tests.length}`,
       meta: noTests ? t('noTestsConfigured') : t('structuralGatesPassing'),
-      tone: noTests ? 'amber' : 'green',
+      tone: noTests ? 'warning' : 'success',
       onClick: go('assurance'),
     },
   ]

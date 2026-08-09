@@ -46,10 +46,10 @@ export function EmergencyAuthStudio({ workspaceId, contract, detailId, onNavigat
     <div className="emergency-warning" role="note"><span aria-hidden="true"><IconAlertTriangle /></span><div><b>{t('emergencyWarningTitle')}</b><p>{t('emergencyWarningBody', { contract: contract.name })}</p></div></div>
 
     <div className="surface-metrics">
-      <MetricTile label={t('emergencyMetricActive')} value={String(all.filter((grant) => grant.status === 'ACTIVE').length)} meta={t('emergencyMetricActiveMeta')} tone="red" />
-      <MetricTile label={t('emergencyMetricPending')} value={String(all.filter((grant) => grant.status === 'PENDING').length)} meta={t('emergencyMetricPendingMeta')} tone="amber" />
-      <MetricTile label={t('emergencyMetricRetrospective')} value={String(retrospectiveQueue.length)} meta={t('emergencyMetricRetrospectiveMeta')} tone="violet" />
-      <MetricTile label={t('emergencyMetricReviewed')} value={String(reviewed.length)} meta={t('emergencyMetricReviewedMeta', { justified: reviewed.filter((grant) => grant.retrospective?.verdict === 'JUSTIFIED').length, gaps: reviewed.filter((grant) => grant.retrospective?.verdict === 'PROCESS_GAP').length })} tone="green" />
+      <MetricTile label={t('emergencyMetricActive')} value={String(all.filter((grant) => grant.status === 'ACTIVE').length)} meta={t('emergencyMetricActiveMeta')} tone="danger" />
+      <MetricTile label={t('emergencyMetricPending')} value={String(all.filter((grant) => grant.status === 'PENDING').length)} meta={t('emergencyMetricPendingMeta')} tone="warning" />
+      <MetricTile label={t('emergencyMetricRetrospective')} value={String(retrospectiveQueue.length)} meta={t('emergencyMetricRetrospectiveMeta')} tone="governance" />
+      <MetricTile label={t('emergencyMetricReviewed')} value={String(reviewed.length)} meta={t('emergencyMetricReviewedMeta', { justified: reviewed.filter((grant) => grant.retrospective?.verdict === 'JUSTIFIED').length, gaps: reviewed.filter((grant) => grant.retrospective?.verdict === 'PROCESS_GAP').length })} tone="success" />
     </div>
 
     {notice && <p className="emergency-notice" role="status">{notice}</p>}
@@ -72,7 +72,7 @@ export function EmergencyAuthStudio({ workspaceId, contract, detailId, onNavigat
         {all.length === 0
           ? <EmptyState title={t('emergencyEmptyTitle')} description={t('emergencyEmptyDescription')} icon={<IconSiren />} />
           : <ul className="emergency-list">{visible.map((grant) => <li key={grant.id}><button className={selected?.id === grant.id ? 'selected' : ''} aria-expanded={selected?.id === grant.id} onClick={() => setSelectedId(selected?.id === grant.id ? '' : grant.id)}>
-            <span className={`surface-chip ${grant.status === 'ACTIVE' ? 'red' : grant.status === 'PENDING' ? 'amber' : 'muted'}`}>{t(emergencyStatusMessageKeys[grant.status])}</span>
+            <span className={`surface-chip ${grant.status === 'ACTIVE' ? 'danger' : grant.status === 'PENDING' ? 'warning' : 'neutral'}`}>{t(emergencyStatusMessageKeys[grant.status])}</span>
             <span className="emergency-summary"><b>{grant.justification.slice(0, 96)}{grant.justification.length > 96 ? '…' : ''}</b><small>{t('emergencyBudgetValue', { consumed: grant.consumedActions, maximum: grant.maximumActions })} · {t('emergencyValidityRange', { from: formatDate(grant.validFrom, { dateStyle: 'short', timeStyle: 'short' }), until: formatDate(grant.validUntil, { dateStyle: 'short', timeStyle: 'short' }) })}</small></span>
             <time dateTime={grant.requestedAt}>{formatDate(grant.requestedAt, { dateStyle: 'medium', timeStyle: 'short' })}</time>
           </button>{selected?.id === grant.id && <GrantDetail grant={grant} />}</li>)}</ul>}
@@ -158,7 +158,7 @@ export function EmergencyAuthStudio({ workspaceId, contract, detailId, onNavigat
     }
 
     return <article className="emergency-retro-card">
-      <header><span className={`surface-chip ${grant.consumedActions === 0 ? 'muted' : 'red'}`}>{grant.consumedActions === 0 ? t('emergencyRetroUnused') : t('emergencyRetroUsed', { consumed: grant.consumedActions })}</span><time dateTime={grant.validUntil}>{formatDate(grant.validUntil, { dateStyle: 'medium', timeStyle: 'short' })}</time></header>
+      <header><span className={`surface-chip ${grant.consumedActions === 0 ? 'neutral' : 'danger'}`}>{grant.consumedActions === 0 ? t('emergencyRetroUnused') : t('emergencyRetroUsed', { consumed: grant.consumedActions })}</span><time dateTime={grant.validUntil}>{formatDate(grant.validUntil, { dateStyle: 'medium', timeStyle: 'short' })}</time></header>
       <blockquote>{grant.justification}</blockquote>
       <div className="emergency-retro-form">
         <label htmlFor={`verdict-${grant.id}`}>{t('emergencyRetroVerdict')}<select id={`verdict-${grant.id}`} value={verdict} onChange={(event) => setVerdict(event.target.value as typeof verdicts[number])}>{verdicts.map((item) => <option value={item} key={item}>{t(item === 'JUSTIFIED' ? 'verdictJustified' : item === 'UNJUSTIFIED' ? 'verdictUnjustified' : 'verdictProcessGap')}</option>)}</select></label>

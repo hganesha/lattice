@@ -131,7 +131,7 @@ export function NewEvalWizard({ contract, workspaceId, baselineOptions, onClose,
             <ul className="eval-option-list"><li><button type="button" className={`eval-option ${targetConfirmed ? 'selected' : ''}`} aria-pressed={targetConfirmed} onClick={() => setTargetConfirmed((current) => !current)}>
               <span className="eval-option-glyph" aria-hidden="true"><IconTarget /></span>
               <span className="eval-option-body"><b>{contract.name}</b><small>{contract.description}</small><small>v{contract.version} · {shortDigest(contract.digest)} · {t('evalWizardTargetRelease')}: {contract.releaseStatus}</small></span>
-              <span className={`surface-chip ${targetConfirmed ? 'lime' : 'muted'}`}>{targetConfirmed ? t('evalWizardTargetSelected') : t('evalWizardTargetSelect')}</span>
+              <span className={`surface-chip ${targetConfirmed ? 'brand' : 'neutral'}`}>{targetConfirmed ? t('evalWizardTargetSelected') : t('evalWizardTargetSelect')}</span>
             </button></li></ul>
           </>}
 
@@ -145,7 +145,7 @@ export function NewEvalWizard({ contract, workspaceId, baselineOptions, onClose,
             {summaries.length > 0 && <ul className="eval-option-list">{summaries.map((summary) => <li key={summary.id}><button type="button" className={`eval-option ${caseSetId === summary.id ? 'selected' : ''}`} aria-pressed={caseSetId === summary.id} onClick={() => setCaseSetId(summary.id)}>
               <span className="eval-option-glyph" aria-hidden="true"><IconFileText /></span>
               <span className="eval-option-body"><b>{summary.name}</b><small>{summary.description}</small><small>{t('evalWizardCaseSetVersion', { version: summary.version, count: summary.caseCount })} · {shortDigest(summary.digest)}</small></span>
-              <span className={`surface-chip ${caseSetId === summary.id ? 'lime' : 'muted'}`}>{formatNumber(summary.caseCount)}</span>
+              <span className={`surface-chip ${caseSetId === summary.id ? 'brand' : 'neutral'}`}>{formatNumber(summary.caseCount)}</span>
             </button></li>)}</ul>}
           </>}
 
@@ -156,7 +156,7 @@ export function NewEvalWizard({ contract, workspaceId, baselineOptions, onClose,
             {caseSetDetail.status === 'ERROR' && <ErrorState title={t('evalWizardCaseSetFailed')} detail={caseSetDetail.error} retryLabel={t('commonRetry')} onRetry={caseSetDetail.reload} />}
             {cases.length > 0 && <>
               <div className="eval-actions"><button className="ghost" onClick={() => setSelectedCaseIds(cases.map((entry) => entry.id))}>{t('evalWizardCasesSelectAll')}</button><button className="ghost" onClick={() => setSelectedCaseIds([])}>{t('evalWizardCasesClear')}</button><span className="eval-note muted">{t('evalWizardCasesSelected', { selected: selectedCount, total: cases.length })}</span></div>
-              <div className="eval-case-picker">{cases.map((entry) => <label className="eval-case-pick" key={entry.id}><input type="checkbox" checked={selectedCaseIds.includes(entry.id)} onChange={() => toggleCase(entry.id)} /><span>{entry.question}</span><span className="surface-chip muted">{t(caseTypeKey(entry.caseType))}</span></label>)}</div>
+              <div className="eval-case-picker">{cases.map((entry) => <label className="eval-case-pick" key={entry.id}><input type="checkbox" checked={selectedCaseIds.includes(entry.id)} onChange={() => toggleCase(entry.id)} /><span>{entry.question}</span><span className="surface-chip neutral">{t(caseTypeKey(entry.caseType))}</span></label>)}</div>
               {selectedCount === 0 && <p className="eval-note warn">{t('evalWizardCasesNoneSelected')}</p>}
             </>}
           </>}
@@ -165,8 +165,8 @@ export function NewEvalWizard({ contract, workspaceId, baselineOptions, onClose,
             <h3>{t('evalWizardModeTitle')}</h3>
             <p>{t('evalWizardModeDescription')}</p>
             <ul className="eval-option-list">
-              <li><button type="button" className={`eval-option ${mode === 'DRY_RUN' ? 'selected' : ''}`} aria-pressed={mode === 'DRY_RUN'} onClick={() => setMode('DRY_RUN')}><span className="eval-option-glyph" aria-hidden="true"><IconFlask /></span><span className="eval-option-body"><b>{t('modeDryRun')}</b><small>{t('evalWizardModeDryRunHint')}</small></span><span className={`surface-chip ${mode === 'DRY_RUN' ? 'lime' : 'muted'}`}>{mode === 'DRY_RUN' ? <IconCheck /> : null}</span></button></li>
-              <li><button type="button" className={`eval-option ${mode === 'AUTHORIZED' ? 'selected' : ''}`} aria-pressed={mode === 'AUTHORIZED'} onClick={() => setMode('AUTHORIZED')}><span className="eval-option-glyph" aria-hidden="true"><IconShieldCheck /></span><span className="eval-option-body"><b>{t('modeAuthorized')}</b><small>{t('evalWizardModeAuthorizedHint')}</small></span><span className={`surface-chip ${mode === 'AUTHORIZED' ? 'lime' : 'muted'}`}>{mode === 'AUTHORIZED' ? <IconCheck /> : null}</span></button></li>
+              <li><button type="button" className={`eval-option ${mode === 'DRY_RUN' ? 'selected' : ''}`} aria-pressed={mode === 'DRY_RUN'} onClick={() => setMode('DRY_RUN')}><span className="eval-option-glyph" aria-hidden="true"><IconFlask /></span><span className="eval-option-body"><b>{t('modeDryRun')}</b><small>{t('evalWizardModeDryRunHint')}</small></span><span className={`surface-chip ${mode === 'DRY_RUN' ? 'brand' : 'neutral'}`}>{mode === 'DRY_RUN' ? <IconCheck /> : null}</span></button></li>
+              <li><button type="button" className={`eval-option ${mode === 'AUTHORIZED' ? 'selected' : ''}`} aria-pressed={mode === 'AUTHORIZED'} onClick={() => setMode('AUTHORIZED')}><span className="eval-option-glyph" aria-hidden="true"><IconShieldCheck /></span><span className="eval-option-body"><b>{t('modeAuthorized')}</b><small>{t('evalWizardModeAuthorizedHint')}</small></span><span className={`surface-chip ${mode === 'AUTHORIZED' ? 'brand' : 'neutral'}`}>{mode === 'AUTHORIZED' ? <IconCheck /> : null}</span></button></li>
             </ul>
             <div className="eval-form-grid">
               <label className="eval-field"><span>{t('evalWizardEnvironment')}</span><input value={environment} onChange={(event) => setEnvironment(event.target.value)} /><small>{t('evalWizardEnvironmentHint')}</small></label>

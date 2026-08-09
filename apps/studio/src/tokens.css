@@ -1,81 +1,433 @@
 /* Design tokens — the only file permitted to carry raw colour values.
  *
- * Everything else in the studio references these. See sota-ux-plan.md §3.
+ * Replaces the hand-authored palette. The whole studio is migrated onto the
+ * semantic tier — the compatibility block that re-exported the old flat names
+ * has been removed now that nothing references it.
+ *
+ * Three tiers, and the tier boundary is the whole point:
+ *
+ *   1. PRIMITIVES  --neutral-1..12, --brand-1..12, ...  Generated, never used
+ *      directly in a component. 12-step ramps with fixed OKLCH lightness stops,
+ *      so light and dark are mirror-symmetric by construction rather than by
+ *      hand-matching hex values.
+ *
+ *   2. SEMANTICS   --bg-*, --fg-*, --border-*, --status-*  What components use.
+ *      Each one names a job. There is no general-purpose "--accent" here: the
+ *      old one was simultaneously brand, nav selection, focus, link, "approved"
+ *      and "validation pass", which is why none of those read as distinct.
+ *
+ *   3. COMPONENT   --control-*, --field-*, --overlay-*  Only where a component
+ *      family needs a value the semantic tier can't express.
+ *
+ * Ramp step meanings (borrowed from the Radix scale — a proven allocation):
+ *   1  app background            7  interactive border
+ *   2  subtle background         8  hovered border
+ *   3  component background      9  solid fill / control border (>=3:1)
+ *   4  component hover          10  solid fill hover
+ *   5  component active         11  low-contrast text (>=4.5:1 on 1 and 2)
+ *   6  subtle border            12  high-contrast text (>=13:1)
+ *
+ * Contrast is verified, not asserted — see docs/token-audit.md.
  */
 
 @layer tokens {
 
-  :root {
-    /* --- Type ramp -------------------------------------------------------
-     * Roles, not elements. A <p> of prose and a <code> digest are different
-     * roles and must be able to differ; that is what the old element-level
-     * blanket override made impossible.
-     *
-     * 12px is a hard floor for anything a user reads. `micro` exists only for
-     * badges, where the content is one or two words.
-     */
-    --text-micro: 11px;  /* badges only — never prose */
-    --text-meta: 12px;   /* labels, timestamps, identifiers (DM Mono) */
-    --text-support: 13px; /* supporting copy, table cells */
-    --text-body: 14px;
-    --text-subtitle: 16px;
-    --text-title: 20px;
-    --text-display: 30px;
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --neutral-1: #fcfdfd;
+    --neutral-2: #f7f7f8;
+    --neutral-3: #eff0f2;
+    --neutral-4: #e8e9eb;
+    --neutral-5: #e1e2e4;
+    --neutral-6: #d8d9dc;
+    --neutral-7: #ccced1;
+    --neutral-8: #b5b8bb;
+    --neutral-9: #8a8c90;
+    --neutral-10: #7b7e81;
+    --neutral-11: #67696c;
+    --neutral-12: #292a2c;
+    --brand-1: #fafff6;
+    --brand-2: #effde6;
+    --brand-3: #e3f9d4;
+    --brand-4: #d8f4c2;
+    --brand-5: #ceefb5;
+    --brand-6: #c3e7a7;
+    --brand-7: #b5dd95;
+    --brand-8: #99c970;
+    --brand-9: #699e32;
+    --brand-10: #5b8f1f;
+    --brand-11: #487904;
+    --brand-12: #1d3109;
+    --interactive-1: #fbfdff;
+    --interactive-2: #f3f8ff;
+    --interactive-3: #e8f1fe;
+    --interactive-4: #dbebff;
+    --interactive-5: #d0e4ff;
+    --interactive-6: #c2dcfe;
+    --interactive-7: #aed1fe;
+    --interactive-8: #86bbff;
+    --interactive-9: #468de5;
+    --interactive-10: #377ed4;
+    --interactive-11: #2569b8;
+    --interactive-12: #102b4b;
+    --success-1: #f9fffa;
+    --success-2: #ebfdee;
+    --success-3: #dbfae0;
+    --success-4: #cdf6d4;
+    --success-5: #c1f1c9;
+    --success-6: #b4e9be;
+    --success-7: #a3dfaf;
+    --success-8: #81cc91;
+    --success-9: #48a260;
+    --success-10: #389352;
+    --success-11: #257c40;
+    --success-12: #11321a;
+    --warning-1: #fefcfa;
+    --warning-2: #fef6eb;
+    --warning-3: #ffeed8;
+    --warning-4: #ffe5c2;
+    --warning-5: #fedcaf;
+    --warning-6: #fcd299;
+    --warning-7: #f4c584;
+    --warning-8: #e5ac59;
+    --warning-9: #bb7e05;
+    --warning-10: #a87103;
+    --warning-11: #8d5e02;
+    --warning-12: #3b2501;
+    --danger-1: #fefcfc;
+    --danger-2: #fef5f4;
+    --danger-3: #ffebe9;
+    --danger-4: #ffe1de;
+    --danger-5: #fed8d4;
+    --danger-6: #ffcbc6;
+    --danger-7: #febab4;
+    --danger-8: #ff968e;
+    --danger-9: #dc5e59;
+    --danger-10: #cc4f4b;
+    --danger-11: #b03b39;
+    --danger-12: #481917;
+    --governance-1: #fdfcfe;
+    --governance-2: #f8f6fe;
+    --governance-3: #f3edff;
+    --governance-4: #ece4fe;
+    --governance-5: #e7dcff;
+    --governance-6: #e0d0ff;
+    --governance-7: #d6c2ff;
+    --governance-8: #c4a6f9;
+    --governance-9: #9a76d4;
+    --governance-10: #8b68c4;
+    --governance-11: #7554a9;
+    --governance-12: #2f2245;
+    --cat-1: #049cbd;
+    --cat-2: #6f61be;
+    --cat-3: #9b4382;
+    --cat-4: #d4675b;
+    --cat-5: #814800;
+    --cat-6: #827f04;
+    --cat-7: #037439;
+    --cat-8: #059693;
+  }
 
-    --leading-tight: 1.3;
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --neutral-1: #111112;
+    --neutral-2: #18191a;
+    --neutral-3: #212325;
+    --neutral-4: #282a2d;
+    --neutral-5: #2f3134;
+    --neutral-6: #393b3f;
+    --neutral-7: #46494d;
+    --neutral-8: #5d6064;
+    --neutral-9: #898c91;
+    --neutral-10: #989ca0;
+    --neutral-11: #b4b7ba;
+    --neutral-12: #ebecee;
+    --brand-1: #0c1406;
+    --brand-2: #101e03;
+    --brand-3: #152900;
+    --brand-4: #1a3101;
+    --brand-5: #1f3900;
+    --brand-6: #274501;
+    --brand-7: #315500;
+    --brand-8: #426e03;
+    --brand-9: #63a017;
+    --brand-10: #73b033;
+    --brand-11: #99c773;
+    --brand-12: #e0f4d1;
+    --interactive-1: #09121d;
+    --interactive-2: #09192d;
+    --interactive-3: #032247;
+    --interactive-4: #002957;
+    --interactive-5: #003063;
+    --interactive-6: #003a76;
+    --interactive-7: #02478e;
+    --interactive-8: #115eb2;
+    --interactive-9: #468de5;
+    --interactive-10: #579df4;
+    --interactive-11: #87bafb;
+    --interactive-12: #e0eeff;
+    --success-1: #09140b;
+    --success-2: #091e0e;
+    --success-3: #012b0f;
+    --success-4: #013413;
+    --success-5: #013c18;
+    --success-6: #02481e;
+    --success-7: #015926;
+    --success-8: #017433;
+    --success-9: #40a35c;
+    --success-10: #53b36c;
+    --success-11: #87c994;
+    --success-12: #d9f5de;
+    --warning-1: #180f04;
+    --warning-2: #251500;
+    --warning-3: #311e00;
+    --warning-4: #3b2500;
+    --warning-5: #442b01;
+    --warning-6: #513501;
+    --warning-7: #634103;
+    --warning-8: #815602;
+    --warning-9: #bb7e05;
+    --warning-10: #cf8c03;
+    --warning-11: #dfac64;
+    --warning-12: #fee9cc;
+    --danger-1: #1c0c0b;
+    --danger-2: #2c0f0d;
+    --danger-3: #420c0c;
+    --danger-4: #53050a;
+    --danger-5: #62020b;
+    --danger-6: #720a12;
+    --danger-7: #87161b;
+    --danger-8: #a82c2d;
+    --danger-9: #dc5e59;
+    --danger-10: #ed6f68;
+    --danger-11: #f79991;
+    --danger-12: #ffe5e3;
+    --governance-1: #130e1b;
+    --governance-2: #1c142a;
+    --governance-3: #291742;
+    --governance-4: #331954;
+    --governance-5: #3b1d62;
+    --governance-6: #472572;
+    --governance-7: #563187;
+    --governance-8: #6e46a7;
+    --governance-9: #9b74d9;
+    --governance-10: #aa84e8;
+    --governance-11: #c1a7f1;
+    --governance-12: #efe8fe;
+    --cat-1: #57daff;
+    --cat-2: #958ae4;
+    --cat-3: #b9649f;
+    --cat-4: #d36d61;
+    --cat-5: #efa056;
+    --cat-6: #8e8b0f;
+    --cat-7: #82e09d;
+    --cat-8: #14cec9;
+  }
+
+  /* ===================================================================
+   * TIER 2 — SEMANTIC. Theme-independent: these map identically in both
+   * themes because the ramps are symmetric. That symmetry is the reason
+   * this block is written once instead of twice.
+   * =================================================================== */
+  :root {
+
+    /* --- Backgrounds -------------------------------------------------
+     * The fill deltas here are close to the current file's (~0.02 OKLCH L
+     * per step, which is right). What's missing today is the other two
+     * third of elevation: --border sat at 1.5:1, so a card edge dissolved and
+     * the fill step had nothing to terminate against. Fill, border and shadow
+     * have to move together or none of them read.
+     */
+    --bg-canvas: var(--neutral-1);
+    --bg-subtle: var(--neutral-2);
+    --bg-surface: var(--neutral-2);
+    --bg-raised: var(--neutral-3);
+    --bg-hover: var(--neutral-4);
+    --bg-active: var(--neutral-5);
+    --bg-sunken: var(--neutral-1);
+
+    /* --- Foregrounds -------------------------------------------------- */
+    --fg-default: var(--neutral-12);
+    --fg-secondary: var(--neutral-11);
+    --fg-muted: var(--neutral-11);      /* NOT neutral-10: 10 fails 4.5:1 */
+    --fg-on-solid: var(--neutral-1);
+    --fg-link: var(--interactive-11);
+
+    /* --- Borders: three tiers, because they have three different jobs --
+     * subtle   decorative rules and dividers — contrast rules don't apply
+     * default  card and panel edges
+     * control  input/checkbox/toggle outlines, where the border IS the
+     *          affordance and WCAG 1.4.11 does require 3:1. The single
+     *          --border / --border-strong pair today sits at 1.5:1 and 2.5:1,
+     *          so every text field in the studio is under-specified.
+     */
+    --border-subtle: var(--neutral-6);
+    --border-default: var(--neutral-7);
+    --border-hover: var(--neutral-8);
+    --border-control: var(--neutral-9);
+    --border-width: 1px;
+
+    /* --- Brand: identity only. Logo, wordmark, primary CTA. Nothing else.
+     * Deliberately not reachable as "the accent colour". */
+    --brand-fill: var(--brand-9);
+    --brand-fill-hover: var(--brand-10);
+    --brand-fg-on-fill: var(--neutral-12);  /* lime is light: dark text on it */
+    --brand-text: var(--brand-11);
+    --brand-bg: var(--brand-3);
+
+    /* --- Interactive: links, nav selection, focus, text selection.
+     * One hue for "the system will respond to this", replacing the three
+     * near-identical blues (--info #61a7ff, --selection #70aef7,
+     * --focus #70aef7) that currently mean subtly different things. */
+    --interactive-fill: var(--interactive-9);
+    --interactive-fill-hover: var(--interactive-10);
+    --interactive-text: var(--interactive-11);
+    --interactive-bg: var(--interactive-3);
+    --interactive-bg-hover: var(--interactive-4);
+    --interactive-border: var(--interactive-8);
+
+    --focus-ring: var(--interactive-9);
+    --focus-ring-width: 2px;
+    --focus-ring-offset: 2px;
+
+    /* --- Status. Each role gets the same four slots, so a badge, a banner
+     * and an inline message can be built once and re-skinned by swapping a
+     * single prefix. Today each surface picks its own combination out of
+     * --x / --x-strong / --x-soft, which is why no two banners match. */
+    --status-success-fg: var(--success-11);
+    --status-success-bg: var(--success-3);
+    --status-success-border: var(--success-7);
+    --status-success-solid: var(--success-9);
+
+    --status-warning-fg: var(--warning-11);
+    --status-warning-bg: var(--warning-3);
+    --status-warning-border: var(--warning-7);
+    --status-warning-solid: var(--warning-9);
+
+    --status-danger-fg: var(--danger-11);
+    --status-danger-bg: var(--danger-3);
+    --status-danger-border: var(--danger-7);
+    --status-danger-solid: var(--danger-9);
+
+    --status-info-fg: var(--interactive-11);
+    --status-info-bg: var(--interactive-3);
+    --status-info-border: var(--interactive-7);
+    --status-info-solid: var(--interactive-9);
+
+    /* Governance / provenance — the product's distinguishing axis, and the
+     * one thing in the current palette that was already right. */
+    --status-governance-fg: var(--governance-11);
+    --status-governance-bg: var(--governance-3);
+    --status-governance-border: var(--governance-7);
+    --status-governance-solid: var(--governance-9);
+
+    /* --- Graph semantics. Lattice is an ontology editor and ships zero
+     * tokens for the graph itself, so node and edge colour gets invented per
+     * surface. These eight are OKLCH-spaced with staggered lightness and were
+     * selected by search to maximise worst-case separation under simulated
+     * deuteranopia and protanopia (min pairwise distance 69 light / 92 dark,
+     * vs 6 / 21 for a naive equal-lightness wheel). */
+    --graph-canvas: var(--neutral-1);
+    --graph-grid: var(--neutral-4);
+    --graph-edge: var(--neutral-9);
+    --graph-edge-active: var(--interactive-9);
+    --graph-node-bg: var(--neutral-2);
+    --graph-node-border: var(--neutral-7);
+    --graph-node-selected: var(--interactive-9);
+
+    /* --- Elevation. Fill + border + shadow move together as one triple.
+     * Shadows are neutral-tinted, not pure black, so they don't grey out
+     * a coloured surface. */
+    --shadow-sm: 0 1px 2px color-mix(in oklab, var(--neutral-12) 8%, transparent);
+    --shadow-raised: 0 2px 4px color-mix(in oklab, var(--neutral-12) 6%, transparent),
+                     0 4px 12px color-mix(in oklab, var(--neutral-12) 8%, transparent);
+    --shadow-overlay: 0 8px 16px color-mix(in oklab, var(--neutral-12) 10%, transparent),
+                      0 24px 56px color-mix(in oklab, var(--neutral-12) 18%, transparent);
+    --shadow-focus: 0 0 0 var(--focus-ring-offset) var(--bg-canvas),
+                    0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width)) var(--focus-ring);
+
+    /* --- Type -----------------------------------------------------------
+     * The current ramp puts 11/12/13/14 within 3px of each other: four steps
+     * nobody can tell apart, so they generate decisions instead of hierarchy.
+     * This is a 1.2 modular scale from a 14px base — six steps, each visibly
+     * distinct, none below 12px for prose.
+     */
+    --text-meta: 12px;      /* identifiers, timestamps — mono */
+    --text-support: 13px;   /* table cells, secondary copy */
+    --text-body: 14px;      /* base */
+    --text-subtitle: 17px;
+    --text-title: 20px;
+    --text-headline: 24px;  /* the 22/23/25px cluster styles.css was hardcoding */
+    --text-display: 28px;
+    --text-hero: 34px;      /* score readouts — was hardcoded 32px/37px */
+    --text-micro: 11px;     /* badges only, never prose */
+
+    --leading-tight: 1.25;
     --leading-snug: 1.4;
-    --leading-body: 1.6;  /* raised from 1.45 — highest-yield readability win */
+    --leading-body: 1.6;
+    --tracking-tight: -0.01em;
+    --tracking-display: -0.025em;  /* large numerals and page titles only */
+    --tracking-wide: 0.06em;       /* uppercase eyebrows only */
+
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
 
     --font-sans: Inter, system-ui, sans-serif;
     --font-display: Manrope, Inter, system-ui, sans-serif;
+    /* Mono is for machine identifiers — IDs, versions, hashes, type names.
+     * Not for every label. Today it renders "INDUSTRY WORKSPACE", "BUILD" and
+     * "ONTOLOGY STATUS" identically to an actual URN, which spends the
+     * signal on chrome and leaves nothing for the data. */
     --font-mono: 'DM Mono', ui-monospace, monospace;
 
-    /* Prose measure. Beyond this, scan-back accuracy drops. */
     --measure: 68ch;
+    --measure-narrow: 58ch;  /* centred copy in empty/error states */
 
-    /* Legacy aliases retained while surfaces migrate to the role names. */
-    --ui-body-size: var(--text-body);
-    --ui-font-min: var(--text-meta);
-    --ui-meta-size: var(--text-meta);
-    --text-xs: var(--text-meta);
-    --text-sm: var(--text-support);
-    --text-base: var(--text-body);
-    --text-lg: var(--text-subtitle);
-    --text-xl: var(--text-title);
-    --text-2xl: 27px;
-
-    /* --- Spacing — 4px grid ---------------------------------------------
-     * Proximity is what makes a dense screen readable. The steps are meant to
-     * be used for different *relationships*, not picked by eye:
-     *   1 label→value · 2 within a group · 3 list rows · 4 grid cards
-     *   6 sections · 7 major regions
+    /* --- Space. The scale is immutable; density scales it. ---------------
+     * Today compact mode redefines --space-3..7 in place, so a component
+     * authored against --space-4 silently gets 16px or 12px depending on a
+     * setting it can't see. Here the step values are constant and --density
+     * multiplies them, which keeps ratios intact at every density.
      */
-    --space-1: 4px;
-    --space-2: 8px;
-    --space-3: 12px;
-    --space-4: 16px;
-    --space-5: 24px;
-    --space-6: 32px;
-    --space-7: 48px;
+    --density: 1;
+    --space-1: calc(4px * var(--density));
+    --space-2: calc(8px * var(--density));
+    --space-3: calc(12px * var(--density));
+    --space-4: calc(16px * var(--density));
+    --space-5: calc(24px * var(--density));
+    --space-6: calc(32px * var(--density));
+    --space-7: calc(48px * var(--density));
+    /* Fixed insets that must not scale — icon padding, badge padding, hairline
+     * gaps. Separating these is what lets density go to 0.75 without collapsing
+     * every control into an unclickable smudge. */
+    --inset-1: 4px;
+    --inset-2: 8px;
+    --inset-3: 12px;
 
-    /* Minimum height for anything clickable. */
-    --row-min: 44px;
+    --row-min: calc(44px * var(--density));
+    --tap-min: 44px;   /* never scales — pointer target floor */
 
-    --radius-sm: 5px;
+    --radius-sm: 4px;
     --radius-md: 8px;
     --radius-lg: 12px;
+    --radius-xl: 16px;
     --radius-pill: 999px;
 
-    /* Two shadows. No glows — selection is a border plus a soft fill, which
-     * reads more clearly and can actually pass a contrast check. */
-    --shadow-raised: 0 2px 8px color-mix(in srgb, #000 12%, transparent);
-    --shadow-overlay: 0 24px 64px color-mix(in srgb, #000 38%, transparent);
+    /* --- Motion. Enter and exit are not the same duration: exits should be
+     * faster than entrances, which the single --motion-base can't express. */
+    --motion-instant: 80ms;
+    --motion-fast: 130ms;
+    --motion-base: 190ms;
+    --motion-slow: 280ms;
+    --ease-out: cubic-bezier(.2, 0, .2, 1);
+    --ease-in: cubic-bezier(.4, 0, 1, 1);
+    --ease-spring: cubic-bezier(.34, 1.4, .64, 1);
 
-    --motion-fast: 120ms;
-    --motion-base: 160ms;
-    --ease: cubic-bezier(.2, 0, .2, 1);
+    --opacity-disabled: 0.45;
+    --opacity-ghost: 0.6;
 
-    /* Z-index scale — replaces the 80/100/200/260/300/500 magic ladder. */
     --z-base: 0;
     --z-dropdown: 100;
     --z-sticky: 200;
@@ -84,112 +436,17 @@
     --z-toast: 1200;
   }
 
-  /* Compact density: less space, never smaller text. Type sizes deliberately
-   * hold — shrinking type to fit more rows is what produced the 6px problem. */
-  :root[data-density="compact"] {
-    --space-3: 8px;
-    --space-4: 12px;
-    --space-5: 16px;
-    --space-6: 24px;
-    --space-7: 32px;
-    --row-min: 36px;
-  }
+  /* Density is one number now, not five redefinitions. */
+  :root[data-density="compact"]     { --density: 0.75; }
+  :root[data-density="comfortable"] { --density: 1.25; }
 
   :root[data-text-scale="large"] {
-    --text-meta: 13px;
-    --text-support: 14px;
-    --text-body: 15.5px;
-    --text-subtitle: 17px;
-    --text-title: 22px;
-    --text-display: 32px;
+    --text-meta: 13px; --text-support: 14px; --text-body: 15.5px;
+    --text-subtitle: 18px; --text-title: 22px; --text-headline: 26px; --text-display: 30px; --text-hero: 36px;
   }
 
-  :root[data-theme="dark"] {
-    color-scheme: dark;
-    --canvas: #0b0f12;
-    --sidebar: #0f1417;
-    --surface: #12181c;
-    --surface-raised: #182025;
-    --surface-soft: #1d272b;
-    --border: #344146;
-    --border-strong: #4b5b61;
-    --text: #f3f7f4;
-    --text-secondary: #aab6b1;
-    --text-muted: #86938e;
-
-    --accent: #8bd32f;
-    --accent-strong: #a3e04f;
-    --accent-soft: #223119;
-    --accent-contrast: #10170c;
-
-    --canvas-grid: #304039;
-
-    /* Semantic roles — decoupled from the brand lime so success ≠ brand ≠
-     * selection. One hue, one meaning. */
-    --success: #4ec06b;
-    --success-strong: #69d483;
-    --success-soft: #14251a;
-    --warning: #e2af64;
-    --warning-strong: #efc07a;
-    --warning-soft: #2a2113;
-    --danger: #ef8078;
-    --danger-strong: #f59a93;
-    --danger-soft: #2a1513;
-    --info: #61a7ff;
-    --info-soft: #14212f;
-    --selection: #70aef7;
-    --selection-soft: #16273a;
-    --governance: #b98fe4;
-    --governance-soft: #241d33;
-    --focus: #70aef7;
-  }
-
-  :root[data-theme="light"] {
-    color-scheme: light;
-    --canvas: #f3f6f4;
-    --sidebar: #ffffff;
-    --surface: #ffffff;
-    --surface-raised: #f7faf8;
-    --surface-soft: #edf3ef;
-    --border: #cbd6d0;
-    --border-strong: #96a79f;
-    --text: #15201b;
-    --text-secondary: #415149;
-    --text-muted: #64746c;
-
-    --accent: #579b13;
-    --accent-strong: #3f7809;
-    --accent-soft: #e4f1d9;
-    --accent-contrast: #ffffff;
-
-    --canvas-grid: #cbd8d1;
-
-    --success: #2f8f4c;
-    --success-strong: #1f7138;
-    --success-soft: #dcefe0;
-    --warning: #a9741f;
-    --warning-strong: #8a5d15;
-    --warning-soft: #f6ecd7;
-    --danger: #b93631;
-    --danger-strong: #9a2723;
-    --danger-soft: #f6dedb;
-    --info: #2f6fd0;
-    --info-soft: #dde9fb;
-    --selection: #176fc1;
-    --selection-soft: #dbe9fb;
-    --governance: #7b4fc0;
-    --governance-soft: #ece2f8;
-    --focus: #176fc1;
-  }
-
-  /* Aliases for the auth surface, which was authored against token names that
-   * never existed (--bg, --line, --panel, --muted) and so rendered with
-   * undefined custom properties. */
-  :root {
-    --bg: var(--canvas);
-    --line: var(--border);
-    --panel: var(--surface);
-    --muted: var(--text-muted);
+  @media (prefers-reduced-motion: reduce) {
+    :root { --motion-instant: 0ms; --motion-fast: 0ms; --motion-base: 0ms; --motion-slow: 0ms; }
   }
 
 }

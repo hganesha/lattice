@@ -1,4 +1,16 @@
-/* Shared surface primitives: hero, metrics, empty/loading/error, pagination, chips, tables. */
+/* Shared surface primitives: hero, metrics, empty/loading/error, pagination, chips, tables.
+ *
+ * MIGRATED off the tokens.css compatibility block — this file uses only the
+ * semantic tier (--bg-*, --fg-*, --border-*, --status-*, --interactive-*).
+ * It is the reference for migrating the remaining surfaces.
+ *
+ * Two rules the migration enforces:
+ *   · A border names its job, not its weight. `subtle` divides, `default`
+ *     encloses, `control` is the affordance of a form control and is the only
+ *     one held to 3:1.
+ *   · Nothing reaches for a brand colour to mean "active", "valid" or
+ *     "loading". Those are --interactive-* and --status-* respectively.
+ */
 
 @layer primitives {
   /* The one page header. Replaces 13 near-identical hero and toolbar classes
@@ -8,34 +20,34 @@
    * the surface belongs to, so a governance page reads as governance without
    * anyone re-authoring the layout. */
   .surface-hero {
-    --hero-tint: var(--accent);
+    --hero-tint: var(--brand-fill);
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: var(--space-5);
     padding: var(--space-5);
     margin-bottom: var(--space-4);
-    border: 1px solid var(--border);
+    border: var(--border-width) solid var(--border-default);
     border-radius: var(--radius-lg);
     background:
-      radial-gradient(circle at 6% 0, color-mix(in srgb, var(--hero-tint) 10%, transparent), transparent 28%),
-      var(--surface);
+      radial-gradient(circle at 6% 0, color-mix(in oklab, var(--hero-tint) 10%, transparent), transparent 28%),
+      var(--bg-surface);
   }
-  .surface-hero.tint-governance { --hero-tint: var(--governance); }
-  .surface-hero.tint-info { --hero-tint: var(--info); }
-  .surface-hero.tint-warning { --hero-tint: var(--warning); }
+  .surface-hero.tint-governance { --hero-tint: var(--status-governance-solid); }
+  .surface-hero.tint-info { --hero-tint: var(--status-info-solid); }
+  .surface-hero.tint-warning { --hero-tint: var(--status-warning-solid); }
   .surface-hero.tint-none { --hero-tint: transparent; }
 
   .surface-hero > div:first-child { min-width: 0; }
   .surface-hero h2 {
     margin: var(--space-2) 0 var(--space-1);
-    font: 600 var(--text-title) / var(--leading-tight) var(--font-display);
-    letter-spacing: -.2px;
+    font: var(--weight-semibold) var(--text-title) / var(--leading-tight) var(--font-display);
+    letter-spacing: var(--tracking-tight);
   }
   .surface-hero p {
     margin: 0;
     max-width: var(--measure);
-    color: var(--text-secondary);
+    color: var(--fg-secondary);
     font-size: var(--text-support);
     line-height: var(--leading-body);
   }
@@ -46,14 +58,14 @@
   }
 
   .surface-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
-  .surface-metric { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); text-align: left; }
+  .surface-metric { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-4); border: var(--border-width) solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-surface); text-align: left; }
   .surface-metric > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-  .surface-metric span { color: var(--text-muted); font: 500 var(--text-xs) 'DM Mono', monospace; letter-spacing: .8px; text-transform: uppercase; }
-  .surface-metric b { font: 600 var(--text-2xl) Manrope, sans-serif; letter-spacing: -.6px; }
-  .surface-metric small { color: var(--text-secondary); font-size: var(--text-xs); }
-  .surface-metric.actionable { cursor: pointer; transition: border-color var(--motion-base), background var(--motion-base); }
-  .surface-metric.actionable:hover { border-color: var(--border-strong); background: var(--surface-raised); }
-  .surface-metric.actionable:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .surface-metric span { color: var(--fg-muted); font: var(--weight-medium) var(--text-meta) var(--font-mono); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+  .surface-metric b { font: var(--weight-semibold) var(--text-display) var(--font-display); letter-spacing: var(--tracking-display); }
+  .surface-metric small { color: var(--fg-secondary); font-size: var(--text-meta); }
+  .surface-metric.actionable { cursor: pointer; transition: border-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out); }
+  .surface-metric.actionable:hover { border-color: var(--border-hover); background: var(--bg-hover); }
+  .surface-metric.actionable:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring); outline-offset: var(--focus-ring-offset); }
 
   /* The one card row. Replaces the chrome of 26 independently-tuned classes
    * whose paddings drifted across 9/11/12/13/15/16/17px and whose radii drifted
@@ -64,10 +76,10 @@
    * never legitimately different is the border, the fill, and the padding. */
   .surface-row {
     padding: var(--space-3) var(--space-4);
-    border: 1px solid var(--border);
+    border: var(--border-width) solid var(--border-default);
     border-radius: var(--radius-md);
-    background: var(--surface-raised);
-    color: var(--text);
+    background: var(--bg-raised);
+    color: var(--fg-default);
   }
 
   /* Six surfaces share an icon | content | trailing-meta grid. Two custom
@@ -85,20 +97,21 @@
   .surface-row.interactive {
     text-align: left;
     cursor: pointer;
-    transition: border-color var(--motion-base) var(--ease), background var(--motion-base) var(--ease);
+    transition: border-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out);
   }
   .surface-row.block { width: 100%; }
-  .surface-row.interactive:hover { border-color: var(--border-strong); background: var(--surface-soft); }
-  .surface-row.interactive:focus-visible { outline: 2px solid var(--selection); outline-offset: 2px; }
+  .surface-row.interactive:hover { border-color: var(--border-hover); background: var(--bg-hover); }
+  .surface-row.interactive:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring); outline-offset: var(--focus-ring-offset); }
 
   /* Selection is a border plus a soft fill — no glow. It reads more clearly and
-   * can actually pass a contrast check. */
-  .surface-row.selected { border-color: var(--selection); background: var(--selection-soft); }
+   * can actually pass a contrast check. The border takes the solid step, not
+   * the border step: against the soft fill, step 8 is too close to read. */
+  .surface-row.selected { border-color: var(--interactive-fill); background: var(--interactive-bg); }
 
   /* Rows inside an already-bordered panel: a divider, not a card. */
   .surface-row.flush {
     border: 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: var(--border-width) solid var(--border-subtle);
     border-radius: 0;
     background: transparent;
   }
@@ -107,41 +120,72 @@
   /* No adjacency margin: containers own their spacing via gap. A margin here
    * fights any wrapping flex container the rows sit in. */
 
+  /* Status dots. Names match the `Tone` union in formatters.ts — a dot is
+   * named for what it means, so a status can never be silently restyled by
+   * someone reaching for a colour. Categorical data uses .cat-N instead. */
   .mini-dot { width: 7px; height: 7px; border-radius: var(--radius-pill); flex-shrink: 0; }
-  .mini-dot.green { background: var(--success); }
-  .mini-dot.lime { background: var(--accent); }
-  .mini-dot.amber { background: var(--warning); }
-  .mini-dot.blue { background: var(--info); }
-  .mini-dot.red { background: var(--danger); }
-  .mini-dot.violet { background: var(--governance); }
-  .mini-dot.muted { background: var(--text-muted); }
+  .mini-dot.success { background: var(--status-success-solid); }
+  .mini-dot.brand { background: var(--brand-fill); }
+  .mini-dot.warning { background: var(--status-warning-solid); }
+  .mini-dot.info { background: var(--status-info-solid); }
+  .mini-dot.danger { background: var(--status-danger-solid); }
+  .mini-dot.governance { background: var(--status-governance-solid); }
+  .mini-dot.neutral { background: var(--fg-muted); }
 
-  .surface-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-6) var(--space-5); text-align: center; border: 1px dashed var(--border); border-radius: var(--radius-lg); background: var(--surface); min-height: 220px; }
-  .surface-state h3 { margin: 0; font: 600 var(--text-lg) Manrope, sans-serif; }
-  .surface-state p { margin: 0; max-width: 58ch; color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.55; }
-  .surface-state-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--surface-soft); color: var(--text-secondary); font-size: var(--text-lg); }
-  .surface-state.error .surface-state-icon { background: var(--danger-soft); color: var(--danger); }
-  .surface-state.loading .surface-state-icon { color: var(--accent); animation: surface-spin 1.1s linear infinite; }
+  /* Categorical tones — kinds with no ordering. Kept visually distinct from the
+   * status tones above so a category is never mistaken for a verdict. */
+  .mini-dot.cat-1 { background: var(--cat-1); }
+  .mini-dot.cat-2 { background: var(--cat-2); }
+  .mini-dot.cat-3 { background: var(--cat-3); }
+  .mini-dot.cat-4 { background: var(--cat-4); }
+  .mini-dot.cat-5 { background: var(--cat-5); }
+  .mini-dot.cat-6 { background: var(--cat-6); }
+  .mini-dot.cat-7 { background: var(--cat-7); }
+  .mini-dot.cat-8 { background: var(--cat-8); }
+
+  .surface-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-6) var(--space-5); text-align: center; border: var(--border-width) dashed var(--border-default); border-radius: var(--radius-lg); background: var(--bg-surface); min-height: 220px; }
+  .surface-state h3 { margin: 0; font: var(--weight-semibold) var(--text-subtitle) var(--font-display); }
+  .surface-state p { margin: 0; max-width: var(--measure-narrow); color: var(--fg-secondary); font-size: var(--text-support); line-height: var(--leading-body); }
+  .surface-state-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--bg-active); color: var(--fg-secondary); font-size: var(--text-subtitle); }
+  .surface-state.error .surface-state-icon { background: var(--status-danger-bg); color: var(--status-danger-fg); }
+  /* Loading is a system response, not a brand moment — this used --accent. */
+  .surface-state.loading .surface-state-icon { color: var(--interactive-text); animation: surface-spin 1.1s linear infinite; }
   .surface-state-actions { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
   @keyframes surface-spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .surface-state.loading .surface-state-icon { animation: none; } }
 
-  .surface-pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); color: var(--text-muted); font-size: var(--text-xs); }
+  .surface-pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-top: var(--border-width) solid var(--border-subtle); color: var(--fg-muted); font-size: var(--text-meta); }
   .surface-pagination div { display: flex; gap: var(--space-2); }
 
-  .surface-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); border: 1px solid var(--border); background: var(--surface-soft); color: var(--text-secondary); font: 500 var(--text-xs) 'DM Mono', monospace; letter-spacing: .4px; white-space: nowrap; }
-  .surface-chip.green { border-color: var(--success); background: var(--success-soft); color: var(--success); }
-  .surface-chip.amber { border-color: var(--warning); background: var(--warning-soft); color: var(--warning); }
-  .surface-chip.red { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
-  .surface-chip.blue { border-color: var(--info); background: var(--info-soft); color: var(--info); }
-  .surface-chip.violet { border-color: var(--governance); background: var(--governance-soft); color: var(--governance); }
-  .surface-chip.lime { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-  .surface-chip.muted { color: var(--text-muted); }
+  /* One status triple per variant: fg / bg / border. Every badge, banner and
+   * inline message in the studio should be assembled from these three, which
+   * is what stops two surfaces rendering the same status differently. */
+  .surface-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: 2px var(--space-2); border-radius: var(--radius-pill); border: var(--border-width) solid var(--border-default); background: var(--bg-hover); color: var(--fg-secondary); font: var(--weight-medium) var(--text-meta) var(--font-mono); letter-spacing: var(--tracking-wide); white-space: nowrap; }
+  .surface-chip.success { border-color: var(--status-success-border); background: var(--status-success-bg); color: var(--status-success-fg); }
+  .surface-chip.warning { border-color: var(--status-warning-border); background: var(--status-warning-bg); color: var(--status-warning-fg); }
+  .surface-chip.danger { border-color: var(--status-danger-border); background: var(--status-danger-bg); color: var(--status-danger-fg); }
+  .surface-chip.info { border-color: var(--status-info-border); background: var(--status-info-bg); color: var(--status-info-fg); }
+  .surface-chip.governance { border-color: var(--status-governance-border); background: var(--status-governance-bg); color: var(--status-governance-fg); }
+  .surface-chip.brand { border-color: var(--brand-8); background: var(--brand-bg); color: var(--brand-text); }
+  .surface-chip.neutral { color: var(--fg-muted); }
+  /* Categorical chips carry the hue on the border and text only — a filled
+   * categorical chip competes with the status chips sharing the same row. */
+  .surface-chip[class*="cat-"] { background: transparent; }
+  .surface-chip.cat-1 { border-color: var(--cat-1); color: var(--cat-1); }
+  .surface-chip.cat-2 { border-color: var(--cat-2); color: var(--cat-2); }
+  .surface-chip.cat-3 { border-color: var(--cat-3); color: var(--cat-3); }
+  .surface-chip.cat-4 { border-color: var(--cat-4); color: var(--cat-4); }
+  .surface-chip.cat-5 { border-color: var(--cat-5); color: var(--cat-5); }
+  .surface-chip.cat-6 { border-color: var(--cat-6); color: var(--cat-6); }
+  .surface-chip.cat-7 { border-color: var(--cat-7); color: var(--cat-7); }
+  .surface-chip.cat-8 { border-color: var(--cat-8); color: var(--cat-8); }
 
-  .surface-filters { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
-  .surface-filters label { display: flex; align-items: center; gap: var(--space-2); color: var(--text-muted); font: 500 var(--text-xs) 'DM Mono', monospace; letter-spacing: .6px; text-transform: uppercase; }
-  .surface-filters select, .surface-filters input { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-raised); color: var(--text); padding: var(--space-1) var(--space-2); font-size: var(--text-sm); }
-  .surface-filters select:focus-visible, .surface-filters input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .surface-filters { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: var(--border-width) solid var(--border-subtle); }
+  .surface-filters label { display: flex; align-items: center; gap: var(--space-2); color: var(--fg-muted); font: var(--weight-medium) var(--text-meta) var(--font-mono); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+  /* --border-control, not --border-default: on a form control the border is
+   * the affordance, so WCAG 1.4.11's 3:1 applies. It previously sat at 2.5:1. */
+  .surface-filters select, .surface-filters input { border: var(--border-width) solid var(--border-control); border-radius: var(--radius-sm); background: var(--bg-raised); color: var(--fg-default); padding: var(--space-1) var(--space-2); font-size: var(--text-support); }
+  .surface-filters select:focus-visible, .surface-filters input:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring); outline-offset: 1px; }
 
   .surface-scroll { overflow-x: auto; }
 }

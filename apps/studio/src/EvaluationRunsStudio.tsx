@@ -77,10 +77,10 @@ export function EvaluationRunsStudio({ contract, workspaceId, detailId, onNaviga
     </SurfaceHero>
 
     <div className="surface-metrics">
-      <MetricTile label={t('evalRunMetricRuns')} value={String(all.length)} meta={t('evalRunMetricRunsMeta')} tone="blue" />
-      <MetricTile label={t('evalRunMetricGates')} value={latest ? String(latest.summary.gateFailures) : '—'} meta={t('evalRunMetricGatesMeta')} tone={latest && latest.summary.gateFailures > 0 ? 'red' : 'green'} />
-      <MetricTile label={t('evalRunMetricCases')} value={latest ? `${latest.summary.passed} / ${latest.summary.total}` : '—'} meta={t('evalRunMetricCasesMeta')} tone="lime" />
-      <MetricTile label={t('evalRunMetricLatency')} value={latest ? durationLabel(latest.summary.p95LatencyMs) : '—'} meta={t('evalRunMetricLatencyMeta')} tone="violet" />
+      <MetricTile label={t('evalRunMetricRuns')} value={String(all.length)} meta={t('evalRunMetricRunsMeta')} tone="info" />
+      <MetricTile label={t('evalRunMetricGates')} value={latest ? String(latest.summary.gateFailures) : '—'} meta={t('evalRunMetricGatesMeta')} tone={latest && latest.summary.gateFailures > 0 ? 'danger' : 'success'} />
+      <MetricTile label={t('evalRunMetricCases')} value={latest ? `${latest.summary.passed} / ${latest.summary.total}` : '—'} meta={t('evalRunMetricCasesMeta')} tone="brand" />
+      <MetricTile label={t('evalRunMetricLatency')} value={latest ? durationLabel(latest.summary.p95LatencyMs) : '—'} meta={t('evalRunMetricLatencyMeta')} tone="governance" />
     </div>
 
     {notice && <p className="eval-notice" role="status">{notice}</p>}
@@ -99,8 +99,8 @@ export function EvaluationRunsStudio({ contract, workspaceId, detailId, onNaviga
       </div>
 
       {completed.length >= 2 && <div className="eval-section eval-failure-board">
-        <div><span className="eval-section-label">{t('evalRunTrendLabel')}</span><Sparkline data={completed.map((run) => run.summary.passed)} label={t('evalRunTrendLabel')} tone="green" width={220} height={44} /></div>
-        <div><span className="eval-section-label">{t('evalRunGateTrendLabel')}</span><Sparkline data={completed.map((run) => run.summary.gateFailures)} label={t('evalRunGateTrendLabel')} tone="red" width={220} height={44} /></div>
+        <div><span className="eval-section-label">{t('evalRunTrendLabel')}</span><Sparkline data={completed.map((run) => run.summary.passed)} label={t('evalRunTrendLabel')} tone="success" width={220} height={44} /></div>
+        <div><span className="eval-section-label">{t('evalRunGateTrendLabel')}</span><Sparkline data={completed.map((run) => run.summary.gateFailures)} label={t('evalRunGateTrendLabel')} tone="danger" width={220} height={44} /></div>
       </div>}
 
       {visible.length === 0
@@ -126,7 +126,7 @@ export function EvaluationRunsStudio({ contract, workspaceId, detailId, onNaviga
           </button>
         </td>
         <td className="numeric">{run.summary.passed} / {run.summary.total}</td>
-        <td><span className={`surface-chip ${gated ? 'red' : 'green'}`}>{gated ? t('evalRunGateFailedCount', { count: run.summary.gateFailures }) : t('evalRunGatesClear')}</span></td>
+        <td><span className={`surface-chip ${gated ? 'danger' : 'success'}`}>{gated ? t('evalRunGateFailedCount', { count: run.summary.gateFailures }) : t('evalRunGatesClear')}</span></td>
         {/* A gated run has no score at all — there is no number to print here. */}
         <td><span className={gated ? 'eval-score suppressed' : 'eval-score'}>{gated ? t('evalRunGateFailed') : run.summary.weightedScore === undefined ? t('evalRunNoScore') : t('evalRunScoreValue', { score: run.summary.weightedScore })}</span></td>
         <td className="numeric">{durationLabel(run.summary.medianLatencyMs)} / {durationLabel(run.summary.p95LatencyMs)}</td>
@@ -167,7 +167,7 @@ export function EvaluationRunsStudio({ contract, workspaceId, detailId, onNaviga
 
       <section>
         <h4>{t('evalRunFailureBoardTitle')}</h4>
-        {failureBins.length === 0 ? <p className="eval-note muted">{t('evalRunFailureBoardEmpty')}</p> : <Histogram bins={failureBins} label={t('evalRunFailureBoardLabel')} tone="red" />}
+        {failureBins.length === 0 ? <p className="eval-note muted">{t('evalRunFailureBoardEmpty')}</p> : <Histogram bins={failureBins} label={t('evalRunFailureBoardLabel')} tone="danger" />}
         <div className="eval-actions"><button className="release" onClick={() => onNavigate('evaluations', run.id)}>{t('evalRunOpen')} →</button></div>
       </section>
     </div>
@@ -230,10 +230,10 @@ export function EvaluationRunsStudio({ contract, workspaceId, detailId, onNaviga
       </section>
 
       <div className="surface-metrics">
-        <MetricTile label={t('evalRunMetricCases')} value={`${detail.summary.passed} / ${detail.summary.total}`} meta={t('evalRunCasesTitle')} tone="lime" />
-        <MetricTile label={t('evalRunMetricGates')} value={String(detail.summary.gateFailures)} meta={t('evalRunGatesMeta')} tone={gated ? 'red' : 'green'} />
-        <MetricTile label={t('evalRunColumnScore')} value={gated || detail.summary.weightedScore === undefined ? t('evalRunGateFailed') : t('evalRunScoreValue', { score: detail.summary.weightedScore })} meta={gated ? t('evalRunScoreSuppressed') : t('evalRunDimensionsMeta', { count: ungated.length })} tone={gated ? 'red' : 'green'} />
-        <MetricTile label={t('evalRunMetricLatency')} value={durationLabel(detail.summary.p95LatencyMs)} meta={t('evalRunColumnLatency')} tone="violet" />
+        <MetricTile label={t('evalRunMetricCases')} value={`${detail.summary.passed} / ${detail.summary.total}`} meta={t('evalRunCasesTitle')} tone="brand" />
+        <MetricTile label={t('evalRunMetricGates')} value={String(detail.summary.gateFailures)} meta={t('evalRunGatesMeta')} tone={gated ? 'danger' : 'success'} />
+        <MetricTile label={t('evalRunColumnScore')} value={gated || detail.summary.weightedScore === undefined ? t('evalRunGateFailed') : t('evalRunScoreValue', { score: detail.summary.weightedScore })} meta={gated ? t('evalRunScoreSuppressed') : t('evalRunDimensionsMeta', { count: ungated.length })} tone={gated ? 'danger' : 'success'} />
+        <MetricTile label={t('evalRunMetricLatency')} value={durationLabel(detail.summary.p95LatencyMs)} meta={t('evalRunColumnLatency')} tone="governance" />
       </div>
 
       <div className="eval-run-grid">
@@ -247,7 +247,7 @@ export function EvaluationRunsStudio({ contract, workspaceId, detailId, onNaviga
                 const mean = scores.length === 0 ? 0 : scores.reduce((sum, score) => sum + score, 0) / scores.length
                 return <div key={dimension}>
                   <div className="eval-dimension-head"><span>{t(dimensionKey(dimension))}</span><em>{t('evalRunDimensionWeight', { weight: evalDimensionWeights[dimension] })}</em><b>{Math.round(mean * 100)}%</b></div>
-                  <div className="eval-bar green"><i style={{ inlineSize: `${Math.round(mean * 100)}%` }} /></div>
+                  <div className="eval-bar success"><i style={{ inlineSize: `${Math.round(mean * 100)}%` }} /></div>
                 </div>
               })}</div>}
             {scatter.length > 1 && <div className="eval-section-label">{t('evalRunScatterTitle')}</div>}
@@ -324,7 +324,7 @@ export function EvaluationRunsStudio({ contract, workspaceId, detailId, onNaviga
 
     return <li>
       <button className={`eval-case-row ${result.status.toLocaleLowerCase().replaceAll('_', '-')}`} aria-expanded={expanded} aria-label={t('evalRunCaseExpandLabel')} onClick={onToggle}>
-        <span className={`surface-chip ${result.status === 'PASS' ? 'green' : result.status === 'GATE_FAIL' ? 'red' : 'amber'}`}>{result.status === 'PASS' ? t('evalRunCaseStatusPass') : result.status === 'GATE_FAIL' ? t('evalRunCaseStatusGateFail') : t('evalRunCaseStatusFail')}</span>
+        <span className={`surface-chip ${result.status === 'PASS' ? 'success' : result.status === 'GATE_FAIL' ? 'danger' : 'warning'}`}>{result.status === 'PASS' ? t('evalRunCaseStatusPass') : result.status === 'GATE_FAIL' ? t('evalRunCaseStatusGateFail') : t('evalRunCaseStatusFail')}</span>
         <span><b>{result.question}</b><small><code>{result.caseId}</code> · {t(caseTypeKey(result.caseType))} · {t(riskTierKey(result.riskTier))}</small></span>
         {/* Suppressed, not zeroed: weightedScore is undefined whenever a gate failed. */}
         <span className={result.gatesPassed ? 'eval-score' : 'eval-score suppressed'}>{result.gatesPassed ? (result.weightedScore === undefined ? t('evalRunNoScore') : t('evalRunScoreValue', { score: result.weightedScore })) : t('evalRunGateFailed')}</span>
@@ -350,7 +350,7 @@ export function EvaluationRunsStudio({ contract, workspaceId, detailId, onNaviga
           <div className="eval-section-label">{t('evalRunDimensionsTitle')}</div>
           <div className="eval-dimensions">{result.dimensions.map((dimension) => <div key={dimension.dimension}>
             <div className="eval-dimension-head"><span>{t(dimensionKey(dimension.dimension))}</span><em>{t('evalRunDimensionWeight', { weight: dimension.weight })}</em><b>{Math.round(dimension.score * 100)}%</b></div>
-            <div className="eval-bar green"><i style={{ inlineSize: `${Math.round(dimension.score * 100)}%` }} /></div>
+            <div className="eval-bar success"><i style={{ inlineSize: `${Math.round(dimension.score * 100)}%` }} /></div>
             <p className="eval-note muted">{dimension.rationale}</p>
           </div>)}</div>
         </div>}
@@ -358,8 +358,8 @@ export function EvaluationRunsStudio({ contract, workspaceId, detailId, onNaviga
         {result.failure && <div className={`eval-failure ${result.failure.severity.toLocaleLowerCase()}`}>
           <div className="eval-failure-head">
             <span aria-hidden="true"><IconAlertTriangle /></span><b>{t('evalRunFailureTitle')}</b>
-            <span className="surface-chip amber">{t('evalRunFailureCategory')}: {t(failureCategoryKey(result.failure.category))}</span>
-            <span className="surface-chip red">{t('evalRunFailureSeverity')}: {t(impactKey(result.failure.severity))}</span>
+            <span className="surface-chip warning">{t('evalRunFailureCategory')}: {t(failureCategoryKey(result.failure.category))}</span>
+            <span className="surface-chip danger">{t('evalRunFailureSeverity')}: {t(impactKey(result.failure.severity))}</span>
           </div>
           <p>{result.failure.summary}</p>
           <p><b>{t('evalRunFailureRemediation')}</b> {result.failure.remediation}</p>

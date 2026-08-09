@@ -24,9 +24,9 @@ interface ExecutionsStudioProps {
 const pageSize = 15
 
 function statusTone(status: ExecutionReceipt['status']): Tone {
-  if (status === 'SUCCESS') return 'green'
-  if (status === 'DENIED') return 'amber'
-  return 'red'
+  if (status === 'SUCCESS') return 'success'
+  if (status === 'DENIED') return 'warning'
+  return 'danger'
 }
 
 export function ExecutionsStudio({ contract, onNavigate, onNavigatePath }: ExecutionsStudioProps) {
@@ -50,7 +50,7 @@ export function ExecutionsStudio({ contract, onNavigate, onNavigatePath }: Execu
 
   return <section className="execution-page">
     <SurfaceHero kicker={t('executionKicker').toLocaleUpperCase()} title={t('executionTitle')} description={t('executionDescription')}><button className="ghost" onClick={() => onNavigate('dispositions')}>{t('compilerViewTrail')}</button></SurfaceHero>
-    <div className="surface-metrics"><MetricTile label={t('executionTitle').toLocaleUpperCase()} value={formatNumber(records.length)} meta={contract.name} tone="blue" /><MetricTile label={t('executionStatusSuccess').toLocaleUpperCase()} value={formatNumber(succeeded)} meta={t('executionCompleted')} tone="green" /><MetricTile label={t('executionStatusFailed').toLocaleUpperCase()} value={formatNumber(failed)} meta={t('executionBindingResults')} tone="red" /><MetricTile label={t('executionStatusDenied').toLocaleUpperCase()} value={formatNumber(denied)} meta={t('executionPermissions')} tone="amber" /></div>
+    <div className="surface-metrics"><MetricTile label={t('executionTitle').toLocaleUpperCase()} value={formatNumber(records.length)} meta={contract.name} tone="info" /><MetricTile label={t('executionStatusSuccess').toLocaleUpperCase()} value={formatNumber(succeeded)} meta={t('executionCompleted')} tone="success" /><MetricTile label={t('executionStatusFailed').toLocaleUpperCase()} value={formatNumber(failed)} meta={t('executionBindingResults')} tone="danger" /><MetricTile label={t('executionStatusDenied').toLocaleUpperCase()} value={formatNumber(denied)} meta={t('executionPermissions')} tone="warning" /></div>
 
     <main className="panel execution-panel">
       {receipts.status === 'LOADING' && <LoadingState label={t('executionLoading')} />}
@@ -63,7 +63,7 @@ export function ExecutionsStudio({ contract, onNavigate, onNavigatePath }: Execu
         return <li className={`execution-row ${expanded ? 'expanded' : ''}`} key={receipt.id}>
           <button type="button" className="execution-row-head" aria-expanded={expanded} onClick={() => setExpandedId(expanded ? '' : receipt.id)}>
             <span className={`execution-rail ${statusTone(receipt.status)}`} aria-hidden="true" />
-            <span className="execution-row-main"><span className="execution-row-title"><b>{receipt.operationId}</b><span className={`disposition-chip ${statusTone(receipt.status)}`}>{receipt.status === 'SUCCESS' ? t('executionStatusSuccess') : receipt.status === 'DENIED' ? t('executionStatusDenied') : t('executionStatusFailed')}</span>{missing.length > 0 && <span className="disposition-chip red">{t('executionMissingPermission')}</span>}</span><span className="execution-row-meta"><code>{receipt.planId}</code><span>{receipt.principalId}</span><span>{durationLabel(new Date(receipt.completedAt).getTime() - new Date(receipt.startedAt).getTime())}</span></span></span>
+            <span className="execution-row-main"><span className="execution-row-title"><b>{receipt.operationId}</b><span className={`disposition-chip ${statusTone(receipt.status)}`}>{receipt.status === 'SUCCESS' ? t('executionStatusSuccess') : receipt.status === 'DENIED' ? t('executionStatusDenied') : t('executionStatusFailed')}</span>{missing.length > 0 && <span className="disposition-chip danger">{t('executionMissingPermission')}</span>}</span><span className="execution-row-meta"><code>{receipt.planId}</code><span>{receipt.principalId}</span><span>{durationLabel(new Date(receipt.completedAt).getTime() - new Date(receipt.startedAt).getTime())}</span></span></span>
             <span className="execution-row-side"><time dateTime={receipt.completedAt}>{formatDate(receipt.completedAt, { dateStyle: 'short', timeStyle: 'short' })}</time><small>{expanded ? t('executionCollapse') : t('executionExpand')}</small></span>
             <span className={`execution-caret ${expanded ? 'open' : ''}`} aria-hidden="true"><IconChevronDown /></span>
           </button>
@@ -77,7 +77,7 @@ export function ExecutionsStudio({ contract, onNavigate, onNavigatePath }: Execu
               <div><dt>{t('executionArtifactDigest')}</dt><dd><code title={receipt.artifactDigest}>{shortDigest(receipt.artifactDigest)}</code></dd></div>
             </dl>
 
-            <section className="execution-section"><h4>{t('executionPermissions')}</h4><div className="permission-grid"><div><span className="permission-label">{t('executionRequired')}</span><div className="permission-items">{receipt.requiredPermissions.length === 0 ? <span className="pin-empty">{t('executionNoPermissions')}</span> : receipt.requiredPermissions.map((permission) => <span className={`disposition-chip ${receipt.grantedPermissions.includes(permission) ? 'green' : 'red'}`} key={permission}>{permission}</span>)}</div></div><div><span className="permission-label">{t('executionGranted')}</span><div className="permission-items">{receipt.grantedPermissions.length === 0 ? <span className="pin-empty">{t('executionNoPermissions')}</span> : receipt.grantedPermissions.map((permission) => <span className="disposition-chip muted" key={permission}>{permission}</span>)}</div></div></div>{missing.length > 0 && <p className="disposition-note warn">{t('executionMissingPermission')}: {missing.join(', ')}</p>}</section>
+            <section className="execution-section"><h4>{t('executionPermissions')}</h4><div className="permission-grid"><div><span className="permission-label">{t('executionRequired')}</span><div className="permission-items">{receipt.requiredPermissions.length === 0 ? <span className="pin-empty">{t('executionNoPermissions')}</span> : receipt.requiredPermissions.map((permission) => <span className={`disposition-chip ${receipt.grantedPermissions.includes(permission) ? 'success' : 'danger'}`} key={permission}>{permission}</span>)}</div></div><div><span className="permission-label">{t('executionGranted')}</span><div className="permission-items">{receipt.grantedPermissions.length === 0 ? <span className="pin-empty">{t('executionNoPermissions')}</span> : receipt.grantedPermissions.map((permission) => <span className="disposition-chip neutral" key={permission}>{permission}</span>)}</div></div></div>{missing.length > 0 && <p className="disposition-note warn">{t('executionMissingPermission')}: {missing.join(', ')}</p>}</section>
 
             <section className="execution-section"><h4>{t('executionBindingResults')}</h4>{receipt.bindingResults.length === 0 ? <p className="disposition-note">{t('executionNoBindingResults')}</p> : <ul className="binding-results">{receipt.bindingResults.map((result) => <BindingResultRow result={result} key={result.bindingId} />)}</ul>}</section>
 
@@ -97,6 +97,6 @@ function BindingResultRow({ result }: { result: BindingExecutionResult }) {
   return <li className={`binding-result ${result.status.toLocaleLowerCase()}`}>
     <span className="binding-result-glyph" aria-hidden="true">{result.status === 'SUCCESS' ? <IconPlug /> : <IconPlay />}</span>
     <span className="binding-result-main"><b>{result.sourceSystem}</b><span className="binding-result-meta"><code>{result.bindingId}</code><span>{t('executionAdapterMode', { mode: result.mode })}</span><span>{durationLabel(result.durationMs)}</span></span>{result.status === 'SUCCESS' ? <span className="binding-result-meta">{t('executionMappedValues', { count: result.rows.reduce((total, row) => total + row.values.length, 0) })}{result.truncated && <span>{t('executionTruncated')}</span>}<span>{t('executionIdentityMode', { mode: result.identityMode })}</span>{result.responseDigest && <code title={result.responseDigest}>{shortDigest(result.responseDigest)}</code>}</span> : <span className="binding-result-error">{result.error ?? t('commonUnknown')}</span>}</span>
-    <span className={`disposition-chip ${result.status === 'SUCCESS' ? 'green' : 'red'}`}>{result.status === 'SUCCESS' ? t('executionStatusSuccess') : t('executionStatusFailed')}</span>
+    <span className={`disposition-chip ${result.status === 'SUCCESS' ? 'success' : 'danger'}`}>{result.status === 'SUCCESS' ? t('executionStatusSuccess') : t('executionStatusFailed')}</span>
   </li>
 }
