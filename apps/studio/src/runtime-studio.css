@@ -1,95 +1,95 @@
 @layer surfaces {
-  .runtime-studio-page { margin-top: 14px; }
-  .runtime-workbench { grid-template-columns: minmax(620px, 1fr) 300px; }
-  .runtime-graph { height: 420px; background: var(--bg-canvas); }
-  .runtime-flow-node { width: 230px; padding: 14px 15px; border: 1px solid var(--border-default); border-left: 3px solid var(--interactive-fill); border-radius: 8px; background: var(--bg-raised); color: var(--fg-default); box-shadow: var(--shadow-raised); font: 600 var(--text-support)/1.65 var(--font-mono); text-align: left; white-space: pre-line; }
-  .runtime-flow-node.strong, .runtime-flow-node.moderate { border-left-color: var(--status-info-fg); }
-  .runtime-flow-node.selected { border-color: var(--interactive-fill); box-shadow: 0 0 0 1px var(--interactive-fill), 0 0 30px color-mix(in oklab, var(--interactive-fill) 22%, transparent); }
-  .runtime-flow-node .react-flow__handle { display: none; }
-  .runtime-flow-edge .react-flow__edge-path { stroke: var(--border-default); stroke-width: 1.4; }
-  .runtime-flow-edge .react-flow__edge-text { fill: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
-  .runtime-empty { height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: var(--bg-canvas); background-image: radial-gradient(var(--graph-grid) .6px, transparent .6px); background-size: 15px 15px; text-align: center; }
-  .runtime-empty > span { display: grid; place-items: center; width: 48px; height: 48px; border: 1px dashed var(--border-default); border-radius: 50%; color: var(--interactive-text); font-size: 20px; }
-  .runtime-empty h3 { margin-top: 12px; font: 600 var(--text-support) var(--font-display); color: var(--fg-default); }
-  .runtime-empty p { max-width: 430px; margin: 6px 0 14px; color: var(--fg-muted); font-size: var(--text-support); line-height: 1.5; }
-  .runtime-table { height: 420px; overflow: auto; background: var(--bg-canvas); }
-  .runtime-table-head, .runtime-table > button { display: grid; grid-template-columns: minmax(210px, 1.3fr) minmax(130px, .8fr) 90px 145px; align-items: center; gap: 12px; width: 100%; padding: 11px 15px; }
-  .runtime-table-head { position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
-  .runtime-table > button { border: 0; border-bottom: 1px solid var(--border-subtle); background: transparent; color: var(--fg-secondary); font-size: var(--text-meta); text-align: left; cursor: pointer; }
-  .runtime-table > button:hover, .runtime-table > button.selected { background: var(--bg-hover); }
-  .runtime-table > button.selected { box-shadow: inset 3px 0 var(--interactive-fill); }
-  .runtime-table b, .runtime-table code { display: block; }
-  .runtime-table b { color: var(--fg-default); font-size: var(--text-support); }
-  .runtime-table code { margin-top: 4px; color: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
-  .runtime-table time { color: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
-  .runtime-strength { color: var(--interactive-text); font: var(--text-meta) var(--font-mono); }
-  .runtime-inspector-empty { min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 25px; text-align: center; }
-  .runtime-inspector-empty > span { color: var(--fg-muted); font-size: 24px; }
-  .runtime-inspector-empty b { margin-top: 8px; font-size: var(--text-support); color: var(--fg-default); }
-  .runtime-inspector-empty p { margin-top: 5px; color: var(--fg-muted); font-size: var(--text-meta); line-height: 1.5; }
-  .runtime-readiness { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding: 18px 21px; border: 1px solid var(--border-default); border-radius: 9px; background: radial-gradient(circle at 4% 10%, color-mix(in oklab, var(--brand-fill) 12%, transparent), transparent 25%), var(--bg-raised); }
-  .runtime-readiness h2 { margin-top: 6px; font: 600 var(--text-support) var(--font-display); color: var(--fg-default); }
-  .runtime-readiness p { margin-top: 5px; color: var(--fg-muted); font-size: var(--text-meta); }
-  .runtime-readiness > div:last-child { display: flex; gap: 8px; }
-  .signed-pill { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
-  .signed-pill small { color: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
-  .signed-pill.simulated span { color: var(--status-warning-fg); }
-  .signed-pill.simulated small { max-width: 190px; text-align: right; line-height: 1.5; }
+  .runtime-studio-page { margin-top: 14px}
+  .runtime-workbench { grid-template-columns: minmax(620px, 1fr) 300px}
+  .runtime-graph { height: 420px}
+  .runtime-flow-node { padding: 14px 15px; border: 1px solid var(--border-default); border-left: 3px solid var(--interactive-fill); border-radius: 8px; box-shadow: var(--shadow-raised); font: 600 var(--text-support)/1.65 var(--font-mono); text-align: left; white-space: pre-line}
+  .runtime-flow-node.strong, .runtime-flow-node.moderate { border-left-color: var(--status-info-fg)}
+  .runtime-flow-node.selected { border-color: var(--interactive-fill); box-shadow: 0 0 0 1px var(--interactive-fill), 0 0 30px color-mix(in oklab, var(--interactive-fill) 22%, transparent)}
+  .runtime-flow-node .react-flow__handle { display: none}
+  .runtime-flow-edge .react-flow__edge-path { stroke: var(--border-default); stroke-width: 1.4}
+  .runtime-flow-edge .react-flow__edge-text { font: var(--text-meta) var(--font-mono)}
+  .runtime-empty { height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: var(--bg-canvas); background-image: radial-gradient(var(--graph-grid) .6px, transparent .6px); background-size: 15px 15px; text-align: center}
+  .runtime-empty > span { display: grid; place-items: center; width: 48px; height: 48px; border: 1px dashed var(--border-default); border-radius: 50%; color: var(--interactive-text); font-size: 20px}
+  .runtime-empty h3 { margin-top: 12px; font: 600 var(--text-support) var(--font-display); color: var(--fg-default)}
+  .runtime-empty p { max-width: 430px; margin: 6px 0 14px; color: var(--fg-muted); font-size: var(--text-support); line-height: 1.5}
+  .runtime-table { height: 420px; overflow: auto; background: var(--bg-canvas)}
+  .runtime-table-head, .runtime-table > button { display: grid; grid-template-columns: minmax(210px, 1.3fr) minmax(130px, .8fr) 90px 145px; align-items: center; gap: 12px; width: 100%; padding: 11px 15px}
+  .runtime-table-head { position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--fg-muted); font: var(--text-meta) var(--font-mono)}
+  .runtime-table > button { border: 0; border-bottom: 1px solid var(--border-subtle); background: transparent; color: var(--fg-secondary); font-size: var(--text-meta); text-align: left; cursor: pointer}
+  .runtime-table > button:hover, .runtime-table > button.selected { background: var(--bg-hover)}
+  .runtime-table > button.selected { box-shadow: inset 3px 0 var(--interactive-fill)}
+  .runtime-table b, .runtime-table code { display: block}
+  .runtime-table b { color: var(--fg-default); font-size: var(--text-support)}
+  .runtime-table code { margin-top: 4px; color: var(--fg-muted); font: var(--text-meta) var(--font-mono)}
+  .runtime-table time { color: var(--fg-muted); font: var(--text-meta) var(--font-mono)}
+  .runtime-strength { color: var(--interactive-text); font: var(--text-meta) var(--font-mono)}
+  .runtime-inspector-empty { min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 25px; text-align: center}
+  .runtime-inspector-empty > span { color: var(--fg-muted); font-size: 24px}
+  .runtime-inspector-empty b { margin-top: 8px; font-size: var(--text-support); color: var(--fg-default)}
+  .runtime-inspector-empty p { margin-top: 5px; color: var(--fg-muted); font-size: var(--text-meta); line-height: 1.5}
+  .runtime-readiness { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding: 18px 21px; border: 1px solid var(--border-default); border-radius: 9px; background: radial-gradient(circle at 4% 10%, color-mix(in oklab, var(--brand-fill) 12%, transparent), transparent 25%), var(--bg-raised)}
+  .runtime-readiness h2 { margin-top: 6px; font: 600 var(--text-support) var(--font-display); color: var(--fg-default)}
+  .runtime-readiness p { margin-top: 5px; color: var(--fg-muted); font-size: var(--text-meta)}
+  .runtime-readiness > div:last-child { display: flex; gap: 8px}
+  .signed-pill { display: flex; flex-direction: column; align-items: flex-end; gap: 3px}
+  .signed-pill small { color: var(--fg-muted); font: var(--text-meta) var(--font-mono)}
+  .signed-pill.simulated span { color: var(--status-warning-fg)}
+  .signed-pill.simulated small { max-width: 190px; text-align: right; line-height: 1.5}
 
   /* ---- E3 / E4 compiler bar: declared purpose, mode, pre-compile risk preview ---- */
-  .compiler-bar { flex-wrap: wrap; row-gap: var(--space-3); }
-  .compiler-bar .question-field { flex: 1 1 320px; }
-  .purpose-field { flex: 0 1 230px; min-width: 180px; }
-  .purpose-field label { display: block; margin-bottom: var(--space-1); color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: 1.1px; text-transform: uppercase; }
-  .purpose-field select { width: 100%; padding: var(--space-1) var(--space-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--bg-raised); color: var(--fg-default); font-size: var(--text-support); }
-  .purpose-field select:invalid, .purpose-field select[value=''] { color: var(--fg-muted); }
-  .purpose-field select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
-  .mode-field { display: inline-flex; align-self: flex-end; border: 1px solid var(--border-default); border-radius: var(--radius-sm); overflow: hidden; }
-  .mode-field button { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 0; border-right: 1px solid var(--border-subtle); background: var(--bg-raised); color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); white-space: nowrap; cursor: pointer; }
-  .mode-field button:last-child { border-right: 0; }
-  .mode-field button svg { width: 13px; height: 13px; }
-  .mode-field button:hover:not(:disabled) { background: var(--bg-hover); color: var(--fg-secondary); }
-  .mode-field button.selected { background: var(--interactive-bg); color: var(--focus-ring); box-shadow: inset 0 -2px var(--focus-ring); }
-  .mode-field button:disabled { opacity: .45; cursor: not-allowed; }
-  .kbd-hint { color: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
+  .compiler-bar { flex-wrap: wrap; row-gap: var(--space-3)}
+  .compiler-bar .question-field { flex: 1 1 320px}
+  .purpose-field { flex: 0 1 230px; min-width: 180px}
+  .purpose-field label { display: block; margin-bottom: var(--space-1); color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: 1.1px; text-transform: uppercase}
+  .purpose-field select { width: 100%; padding: var(--space-1) var(--space-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--bg-raised); color: var(--fg-default); font-size: var(--text-support)}
+  .purpose-field select:invalid, .purpose-field select[value=''] { color: var(--fg-muted)}
+  .purpose-field select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px}
+  .mode-field { display: inline-flex; align-self: flex-end; border: 1px solid var(--border-default); border-radius: var(--radius-sm); overflow: hidden}
+  .mode-field button { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-3); border: 0; border-right: 1px solid var(--border-subtle); background: var(--bg-raised); color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); white-space: nowrap; cursor: pointer}
+  .mode-field button:last-child { border-right: 0}
+  .mode-field button svg { width: 13px; height: 13px}
+  .mode-field button:hover:not(:disabled) { background: var(--bg-hover); color: var(--fg-secondary)}
+  .mode-field button.selected { background: var(--interactive-bg); color: var(--focus-ring); box-shadow: inset 0 -2px var(--focus-ring)}
+  .mode-field button:disabled { opacity: .45; cursor: not-allowed}
+  .kbd-hint { color: var(--fg-muted); font: var(--text-meta) var(--font-mono)}
 
-  .compiler-context { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); margin-top: var(--space-2); }
-  .compiler-declaration, .risk-preview { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-raised); }
-  .compiler-hint { display: flex; align-items: center; gap: var(--space-1); margin: 0; color: var(--fg-muted); font-size: var(--text-meta); line-height: 1.5; }
-  .compiler-hint svg { width: 13px; height: 13px; flex-shrink: 0; }
-  .compiler-hint.warn { color: var(--status-warning-fg); }
-  .purpose-facts, .risk-thresholds { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0; }
-  .purpose-facts > div, .risk-thresholds > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .purpose-facts dt, .risk-thresholds dt { color: var(--fg-muted); font: var(--text-meta) var(--font-mono); letter-spacing: .5px; }
-  .purpose-facts dd, .risk-thresholds dd { margin: 0; color: var(--fg-default); font-size: var(--text-meta); }
-  .risk-thresholds dd code { color: var(--fg-secondary); font: var(--text-meta) var(--font-mono); }
-  .risk-headline { display: flex; align-items: flex-start; gap: var(--space-2); }
-  .risk-headline p { margin: 0; color: var(--fg-secondary); font-size: var(--text-meta); line-height: 1.5; }
-  .risk-chip { display: inline-flex; align-items: center; padding: 2px var(--space-2); border: 1px solid var(--border-default); border-radius: var(--radius-pill); background: var(--bg-hover); color: var(--fg-secondary); font: 500 var(--text-meta) var(--font-mono); white-space: nowrap; }
-  .risk-chip.success { border-color: var(--status-success-fg); background: var(--status-success-bg); color: var(--status-success-fg); }
-  .risk-chip.warning { border-color: var(--status-warning-fg); background: var(--status-warning-bg); color: var(--status-warning-fg); }
-  .risk-chip.danger { border-color: var(--status-danger-fg); background: var(--status-danger-bg); color: var(--status-danger-fg); }
-  .risk-chip.info { border-color: var(--status-info-fg); background: var(--status-info-bg); color: var(--status-info-fg); }
-  .risk-chip.governance { border-color: var(--status-governance-fg); background: var(--status-governance-bg); color: var(--status-governance-fg); }
-  .risk-chip.brand { border-color: var(--brand-fill); background: var(--brand-bg); color: var(--brand-text); }
-  .risk-chip.neutral { color: var(--fg-muted); }
+  .compiler-context { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); margin-top: var(--space-2)}
+  .compiler-declaration, .risk-preview { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-raised)}
+  .compiler-hint { display: flex; align-items: center; gap: var(--space-1); margin: 0; color: var(--fg-muted); font-size: var(--text-meta); line-height: 1.5}
+  .compiler-hint svg { width: 13px; height: 13px; flex-shrink: 0}
+  .compiler-hint.warn { color: var(--status-warning-fg)}
+  .purpose-facts, .risk-thresholds { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0}
+  .purpose-facts > div, .risk-thresholds > div { display: flex; flex-direction: column; gap: 2px; min-width: 0}
+  .purpose-facts dt, .risk-thresholds dt { color: var(--fg-muted); font: var(--text-meta) var(--font-mono); letter-spacing: .5px}
+  .purpose-facts dd, .risk-thresholds dd { margin: 0; color: var(--fg-default); font-size: var(--text-meta)}
+  .risk-thresholds dd code { color: var(--fg-secondary); font: var(--text-meta) var(--font-mono)}
+  .risk-headline { display: flex; align-items: flex-start; gap: var(--space-2)}
+  .risk-headline p { margin: 0; color: var(--fg-secondary); font-size: var(--text-meta); line-height: 1.5}
+  .risk-chip { display: inline-flex; align-items: center; padding: 2px var(--space-2); border: 1px solid var(--border-default); border-radius: var(--radius-pill); background: var(--bg-hover); color: var(--fg-secondary); font: 500 var(--text-meta) var(--font-mono); white-space: nowrap}
+  .risk-chip.success { border-color: var(--status-success-fg); background: var(--status-success-bg); color: var(--status-success-fg)}
+  .risk-chip.warning { border-color: var(--status-warning-fg); background: var(--status-warning-bg); color: var(--status-warning-fg)}
+  .risk-chip.danger { border-color: var(--status-danger-fg); background: var(--status-danger-bg); color: var(--status-danger-fg)}
+  .risk-chip.info { border-color: var(--status-info-fg); background: var(--status-info-bg); color: var(--status-info-fg)}
+  .risk-chip.governance { border-color: var(--status-governance-fg); background: var(--status-governance-bg); color: var(--status-governance-fg)}
+  .risk-chip.brand { border-color: var(--brand-fill); background: var(--brand-bg); color: var(--brand-text)}
+  .risk-chip.neutral { color: var(--fg-muted)}
 
   /* A dry run is announced by a banner, never by a subtle chip. */
-  .compile-banner { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); margin-top: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--border-default); border-left: 4px solid var(--status-warning-fg); border-radius: var(--radius-md); background: color-mix(in oklab, var(--status-warning-bg) 70%, var(--bg-raised)); }
-  .compile-banner > span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--status-warning-bg); color: var(--status-warning-fg); }
-  .compile-banner b { display: block; color: var(--fg-default); font: 600 var(--text-support) var(--font-display); }
-  .compile-banner p { margin-top: var(--space-1); color: var(--fg-secondary); font-size: var(--text-meta); line-height: 1.55; }
-  .compile-banner.authorized { border-left-color: var(--status-success-fg); background: color-mix(in oklab, var(--status-success-bg) 60%, var(--bg-raised)); }
-  .compile-banner.authorized > span { background: var(--status-success-bg); color: var(--status-success-fg); }
-  .compile-banner-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
-  .compile-banner-actions button { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
-  .compile-banner-actions svg { width: 13px; height: 13px; }
+  .compile-banner { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); margin-top: var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--border-default); border-left: 4px solid var(--status-warning-fg); border-radius: var(--radius-md); background: color-mix(in oklab, var(--status-warning-bg) 70%, var(--bg-raised))}
+  .compile-banner > span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--status-warning-bg); color: var(--status-warning-fg)}
+  .compile-banner b { display: block; color: var(--fg-default); font: 600 var(--text-support) var(--font-display)}
+  .compile-banner p { margin-top: var(--space-1); color: var(--fg-secondary); font-size: var(--text-meta); line-height: 1.55}
+  .compile-banner.authorized { border-left-color: var(--status-success-fg); background: color-mix(in oklab, var(--status-success-bg) 60%, var(--bg-raised))}
+  .compile-banner.authorized > span { background: var(--status-success-bg); color: var(--status-success-fg)}
+  .compile-banner-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0}
+  .compile-banner-actions button { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap}
+  .compile-banner-actions svg { width: 13px; height: 13px}
 
   @media (max-width: 1250px) {
-    .runtime-workbench { grid-template-columns: minmax(570px, 1fr) 260px; }
-    .runtime-table-head, .runtime-table > button { grid-template-columns: minmax(170px, 1fr) 110px 75px 120px; }
-    .compiler-context { grid-template-columns: minmax(0, 1fr); }
-    .compile-banner { grid-template-columns: auto minmax(0, 1fr); }
-    .compile-banner-actions { grid-column: 2; }
+    .runtime-workbench { grid-template-columns: minmax(570px, 1fr) 260px}
+    .runtime-table-head, .runtime-table > button { grid-template-columns: minmax(170px, 1fr) 110px 75px 120px}
+    .compiler-context { grid-template-columns: minmax(0, 1fr)}
+    .compile-banner { grid-template-columns: auto minmax(0, 1fr)}
+    .compile-banner-actions { grid-column: 2}
   }
 }

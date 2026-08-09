@@ -16,6 +16,15 @@ const BUDGET = {
   hexLiterals: 0,
   important: 20,
   subTwelvePx: 0,
+  // A declaration in @layer surfaces that @layer overrides re-declares for the
+  // SAME selector can never take effect: layer order beats specificity, always.
+  // These are pure confusion — you edit the value and nothing moves.
+  //
+  // Exact selector matching is the whole test. A theme- or state-guarded rule
+  // like `:root[data-theme="light"] .x` is a different selector string, applies
+  // only sometimes, and must not count — treating it as a shadow deletes a
+  // declaration the other theme still needs.
+  shadowedByOverrides: 0,
 }
 
 /** tokens.css is the one place raw hex is legitimate — it defines the palette. */
@@ -49,10 +58,69 @@ for (const file of cssFiles) {
   }
 }
 
+/** Comma-split a selector list, ignoring commas nested inside :where()/:is(). */
+function splitSelectorList(selector) {
+  const parts = []
+  let depth = 0
+  let current = ''
+  for (const ch of selector) {
+    if (ch === '(') depth += 1
+    else if (ch === ')') depth -= 1
+    if (ch === ',' && depth === 0) { parts.push(current); current = '' }
+    else current += ch
+  }
+  parts.push(current)
+  return parts.map((p) => p.trim()).filter(Boolean)
+}
+
+/** Declarations that @layer overrides makes unreachable. */
+function shadowedDeclarations() {
+  const parse = (css) => {
+    const map = new Map()
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const head = m[1].trim().split('\n').pop().trim()
+      if (head.startsWith('@') || head === 'from' || head === 'to' || !head) continue
+      const props = new Set()
+      for (const decl of m[2].split(';')) {
+        const key = decl.split(':')[0]?.trim()
+        if (key && !key.startsWith('--') && decl.includes(':')) props.add(key)
+      }
+      for (const sel of splitSelectorList(head)) {
+        const key = sel.trim()
+        if (!key) continue
+        if (!map.has(key)) map.set(key, new Set())
+        for (const p of props) map.get(key).add(p)
+      }
+    }
+    return map
+  }
+  const read = (f) => readFileSync(join(srcDir, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const layerOf = (f) => read(f).match(/@layer\s+([a-z]+)\s*\{/)?.[1]
+  const overrideFiles = cssFiles.filter((f) => layerOf(f) === 'overrides')
+  const surfaceFiles = cssFiles.filter((f) => layerOf(f) === 'surfaces')
+  const overrides = new Map()
+  for (const f of overrideFiles) {
+    for (const [sel, props] of parse(read(f))) {
+      if (!overrides.has(sel)) overrides.set(sel, new Set())
+      for (const p of props) overrides.get(sel).add(p)
+    }
+  }
+  let count = 0
+  for (const f of surfaceFiles) {
+    for (const [sel, props] of parse(read(f))) {
+      const shadow = overrides.get(sel)
+      if (!shadow) continue
+      for (const p of props) if (shadow.has(p)) count += 1
+    }
+  }
+  return count
+}
+
 const rows = [
   ['Hex literals outside tokens.css', hexLiterals, BUDGET.hexLiterals],
   ['!important declarations', important, BUDGET.important],
   ['Font sizes below 12px', subTwelvePx, BUDGET.subTwelvePx],
+  ['Declarations shadowed by overrides', shadowedDeclarations(), BUDGET.shadowedByOverrides],
 ]
 
 console.log('\n  Lattice UX burn-down\n')
