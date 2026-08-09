@@ -33,6 +33,10 @@ import {
   IconSiren,
   IconSearch,
   IconChevronDown,
+  IconInfo,
+  IconHelpCircle,
+  IconShare,
+  IconCheck,
 } from './icons'
 import { SummaryCard } from './SummaryCard'
 import { AppearanceSettings } from './AppearanceSettings'
@@ -41,7 +45,7 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { IndustryWorkspaceIcon } from './IndustryWorkspaceIcon'
 import { AccountControl } from './AccountControl'
 import { IntroDialog } from './IntroDialog'
-import { EmptyState } from './SurfaceState'
+import { EmptyState, IconChiclet } from './SurfaceState'
 import { titleCase } from './formatters'
 import { API_URL, apiAuthHeaders, apiFetch } from './api'
 import { buildPath, navigate, navigateToPath, surfaceOwnsDraft, surfaceShowsSummary, useRoute, workspaceSurfaces, type SurfaceId } from './router'
@@ -557,10 +561,19 @@ export function App() {
           <div className="header-actions">
             {showDraftControls && <span className={`draft-state ${saveState === 'SAVING' ? 'saving' : draftDirty ? 'dirty' : ''}`} aria-live="polite">{saveState === 'FAILED' ? t('headerSaveFailed') : saveState === 'SAVING' ? t('headerSaving') : draftDirty ? t('headerAutosavePending') : t('draftSaved')}</span>}
             {showSaveDraftButton && <button className="release" onClick={() => void saveActiveDraft()} disabled={saveState === 'SAVING'}>{saveState === 'SAVING' ? t('commonSaving') : saveState === 'FAILED' ? t('commonRetrySave') : t('commonSaveDraft')}</button>}
-            <button className="ghost" onClick={() => setIntroOpen(true)}>{t('introOpen')}</button>
-            <button className="ghost" onClick={() => setWelcomeOpen(true)}>{t('welcomeHelp')}</button>
+            {/* Icon chiclets. Six labelled controls read as six competing
+              * decisions; none of them is one the page is asking you to make.
+              * The name moves to a tooltip and stays on the element as an
+              * aria-label, so it is deferred rather than dropped. Save draft
+              * keeps its words — it is the only one here with a consequence. */}
+            <IconChiclet icon={<IconInfo />} label={t('introOpen')} onClick={() => setIntroOpen(true)} />
+            <IconChiclet icon={<IconHelpCircle />} label={t('welcomeHelp')} onClick={() => setWelcomeOpen(true)} />
             <AppearanceSettings />
-            <button className="ghost" onClick={() => void shareView()} title={shareState === 'FAILED' ? t('linkClipboardDenied') : undefined}>{shareState === 'COPIED' ? t('linkCopied') : shareState === 'FAILED' ? t('linkReady') : t('shareView')}</button>
+            <IconChiclet
+              icon={shareState === 'COPIED' ? <IconCheck /> : <IconShare />}
+              label={shareState === 'COPIED' ? t('linkCopied') : shareState === 'FAILED' ? t('linkClipboardDenied') : t('shareView')}
+              onClick={() => void shareView()}
+            />
             <AccountControl />
           </div>
         </header>
