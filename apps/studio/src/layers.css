@@ -10,8 +10,32 @@
  *   primitives  the reusable design system (surface-kit).
  *   surfaces    per-surface styles.
  *   overrides   theme corrections that must win. Shrinking toward zero.
+ *   transient   momentary states that must beat everything, set from script.
  */
-@layer vendor, reset, tokens, primitives, surfaces, overrides;
+@layer vendor, reset, tokens, primitives, surfaces, overrides, transient;
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700&display=swap');
 @import '@xyflow/react/dist/style.css' layer(vendor);
+
+@layer transient {
+  /* Switching theme must not animate.
+   *
+   * Controls carry `transition: background-color …` so hover feels responsive.
+   * Flipping a theme changes every colour token at once, so those transitions
+   * all fire together and the UI spends a beat showing the old palette bleeding
+   * into the new one — a select still painted with the dark surface while the
+   * page around it is already light. Anything that re-renders mid-flight (the
+   * workspace switcher does, on every API health poll) restarts its transition
+   * and can stay visibly wrong far longer.
+   *
+   * Being the last layer, this beats every transition declaration regardless of
+   * specificity, which is what keeps it out of the !important budget. The
+   * attribute is set for a single frame around the switch.
+   */
+  :root[data-switching-theme] *,
+  :root[data-switching-theme] *::before,
+  :root[data-switching-theme] *::after {
+    transition: none;
+    animation-duration: 0s;
+  }
+}
