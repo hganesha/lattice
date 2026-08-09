@@ -20,8 +20,13 @@
   .workspace-switcher b { font-size: var(--text-body)}.workspace-switcher div span { font-size: var(--text-support)}.chevron { color: var(--fg-muted)}
   .contract-switcher{margin:-9px 0 14px;padding:0 4px}.contract-switcher>label{display:block;margin:0 6px 6px;font: 500 var(--text-meta) var(--font-mono);letter-spacing:1px}.contract-switcher>div{display:flex;gap:5px}.contract-switcher select{min-width:0;flex:1;height:32px;border: 1px solid var(--border-default);border-radius:6px;padding:0 8px;font-size: var(--text-support);outline:none}.contract-switcher button{width:32px;border: 1px solid var(--border-default);border-radius:6px;background: var(--bg-raised);color: var(--interactive-text);cursor:pointer}.contract-switcher>span{display:block;margin:5px 6px 0;font: var(--text-meta) var(--font-mono);text-transform:capitalize}
   /* min-height:0 is what lets nav actually scroll inside the flex column; the
-   * footer must never be pushed off the bottom by a long destination list. */
-  nav { display: flex; flex-direction: column; gap: 2px; min-height: 0; overflow-y: auto; scrollbar-gutter: stable}
+   * footer must never be pushed off the bottom by a long destination list.
+   *
+   * Scoped to the sidebar. Unscoped, this made every <nav> in the studio a
+   * scrolling column: .enterprise-carousel-dots carries a flex-direction:row
+   * that exists only to undo it, and a breadcrumb added to the page header
+   * stacked its segments vertically. */
+  .sidebar > nav { display: flex; flex-direction: column; gap: 2px; min-height: 0; overflow-y: auto; scrollbar-gutter: stable}
   .nav-label { font: 500 var(--text-support) var(--font-mono); letter-spacing: 1.25px; padding: 22px 10px 7px}
   .nav-item { border: 0; background: transparent; width: 100%; border-radius: 7px; display: flex; align-items: center; gap: 10px; padding: 0 10px; text-align: left; cursor: pointer}.nav-item.active { box-shadow: var(--shadow-raised)}.nav-icon { width: 17px; font-size: 14px; color: var(--fg-muted)}.nav-item.active .nav-icon { color: var(--interactive-text)}.nav-item em { margin-left: auto; min-width: 19px; border-radius: 9px; padding: 2px 5px; background: var(--bg-hover); color: var(--fg-secondary); font: normal var(--text-support) var(--font-mono); text-align: center}
   .sidebar-footer { margin-top: auto; border-top: 1px solid var(--border-subtle); padding: 15px 8px 2px; display: flex; align-items: center; gap: 9px}.sidebar-footer b,.sidebar-footer span { display:block }.sidebar-footer b { font-size: var(--text-body); font-weight: 500}.sidebar-footer div span { margin-top: 4px; font: var(--text-support) var(--font-mono)}.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--status-success-fg)}.status-dot.checking{background: var(--status-warning-fg)}.status-dot.offline{background: var(--status-danger-fg)}

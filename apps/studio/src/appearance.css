@@ -100,9 +100,17 @@
    * title block is allowed to shrink and the controls keep their own line. */
   header { margin-bottom: var(--space-5); gap: var(--space-4); }
   header > div:first-child { min-width: 0; }
-  .header-actions { flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+  /* The controls are fixed-size and must stay hittable, so they claim their
+   * content width first; the identity block takes what is left and ellipses.
+   * Letting both shrink split the row evenly and wrapped the controls onto
+   * three lines while the breadcrumb was still clipped. */
+  .header-identity { flex: 1 1 auto; min-width: 0; }
+  .header-actions { flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
   .header-actions > button { white-space: nowrap; }
   .eyebrow { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Long contract names still ellipse here; the title attribute carries the
+   * full name, and the surface hero below states it in full. */
+  .header-context { max-width: 100%; }
   /* Headings take their sizes from the ramp, so the large text-scale and the
    * compact density both flow through instead of being fought locally. */
   h1 { font: 600 var(--text-display) / var(--leading-tight) var(--font-display); letter-spacing: -.5px; }
