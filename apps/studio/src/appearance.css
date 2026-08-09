@@ -110,9 +110,9 @@
   h3 { font: 600 var(--text-subtitle) / var(--leading-snug) var(--font-display); }
 
   :where(.panel,.summary-grid) { color: var(--fg-default); background: var(--bg-surface); border-color: var(--border-default); }
-  /* Was 12 selectors; the eight page heroes now share .surface-hero. What is
-   * left are genuinely different things: two toolbars and two status strips. */
-  :where(.builder-toolbar,.compiler-bar,.runtime-readiness,.runtime-approval-hero) { color: var(--fg-default); background: var(--bg-raised); border-color: var(--border-default); }
+  /* Was 12 selectors; every page hero now shares .surface-hero. What is left
+   * are genuinely different things: two toolbars and a status strip. */
+  :where(.builder-toolbar,.compiler-bar,.runtime-readiness) { color: var(--fg-default); background: var(--bg-raised); border-color: var(--border-default); }
   .contracts-primary-actions { display: flex; align-items: center; gap: 8px; }
   .contract-canvas-selector { display: block; width: min(360px,30vw); color: var(--fg-muted); }
   .contract-canvas-selector>span { display: block; margin-bottom: 6px; font: 500 var(--text-meta) var(--font-mono); letter-spacing: 1px; }
