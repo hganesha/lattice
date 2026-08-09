@@ -24,6 +24,30 @@ function storedDensity(): Density {
   return localStorage.getItem(DENSITY_KEY) === 'COMPACT' ? 'COMPACT' : 'COMFORTABLE'
 }
 
+/**
+ * Apply an appearance change without animating it.
+ *
+ * Theme, text scale and density all change many tokens at once, and controls
+ * carry colour and size transitions so hover feels responsive. Without this the
+ * whole UI cross-fades between palettes and spends a beat half-converted. The
+ * `transient` layer suppresses transitions while the attribute is set; the
+ * forced reflow commits the new values inside that window, and the attribute
+ * comes off on the next frame so ordinary interaction still animates.
+ */
+function applyInstantly(change: () => void) {
+  const root = document.documentElement
+  root.dataset.switchingTheme = 'true'
+  change()
+  void root.offsetHeight
+  // requestAnimationFrame does not fire in a hidden or backgrounded tab. On its
+  // own it would leave the attribute set, and the app would come back to the
+  // foreground with every transition permanently suppressed. The timer is the
+  // guarantee; clearing twice is harmless.
+  const clear = () => { delete root.dataset.switchingTheme }
+  requestAnimationFrame(clear)
+  setTimeout(clear, 100)
+}
+
 export function AppearanceSettings() {
   const { locale, setLocale, localeLabels } = useLocale()
   const { t } = useMessages()
@@ -32,18 +56,20 @@ export function AppearanceSettings() {
   const [density, setDensity] = useState<Density>(storedDensity)
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme.toLocaleLowerCase()
-    document.documentElement.dataset.themePreference = theme.toLocaleLowerCase()
+    applyInstantly(() => {
+      document.documentElement.dataset.theme = theme.toLocaleLowerCase()
+      document.documentElement.dataset.themePreference = theme.toLocaleLowerCase()
+    })
     localStorage.setItem(THEME_KEY, theme)
   }, [theme])
 
   useEffect(() => {
-    document.documentElement.dataset.textScale = textScale.toLocaleLowerCase()
+    applyInstantly(() => { document.documentElement.dataset.textScale = textScale.toLocaleLowerCase() })
     localStorage.setItem(TEXT_SCALE_KEY, textScale)
   }, [textScale])
 
   useEffect(() => {
-    document.documentElement.dataset.density = density.toLocaleLowerCase()
+    applyInstantly(() => { document.documentElement.dataset.density = density.toLocaleLowerCase() })
     localStorage.setItem(DENSITY_KEY, density)
   }, [density])
 
