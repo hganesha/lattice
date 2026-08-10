@@ -142,7 +142,7 @@ export function DriftStudio({ workspaceId, contract, detailId, onNavigate, onNav
   }
 
   return <section className="drift-page">
-    <SurfaceHero kicker={t('driftKicker').toLocaleUpperCase()} title={t('driftTitle')} description={t('driftDescription')}><button className="release" onClick={() => void scan()} disabled={scanning || !workspaceId}><IconRadar /> {scanning ? t('driftScanning') : t('driftScan')}</button></SurfaceHero>
+    <SurfaceHero kicker={t('driftKicker')} title={t('driftTitle')} description={t('driftDescription')}><button className="release" onClick={() => void scan()} disabled={scanning || !workspaceId}><IconRadar /> {scanning ? t('driftScanning') : t('driftScan')}</button></SurfaceHero>
     {notice && <Toast message={notice} closeLabel={t('driftClose')} onDismiss={() => setNotice('')} />}
 
     <div className="drift-layout">

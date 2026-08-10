@@ -15,10 +15,10 @@ export function ContractsStudio({ contracts, activeContractId, onSelect, onEdit,
   const activeContract = contracts.find((contract) => contract.contractId === activeContractId)
   return <section className="contracts-studio-page">
     <div className="surface-hero">
-      <div><span className="panel-kicker">{t('contractsKicker').toLocaleUpperCase()}</span><h2>{t('contractsTitle')}</h2><p>{t('contractsDescription')}</p></div>
+      <div><span className="panel-kicker">{t('contractsKicker')}</span><h2>{t('contractsTitle')}</h2><p>{t('contractsDescription')}</p></div>
       <div className="surface-hero-actions">
         <label className="contract-canvas-selector" htmlFor="active-contract">
-          <span>{t('activeContract').toLocaleUpperCase()}</span>
+          <span>{t('activeContract')}</span>
           <select id="active-contract" aria-label={t('activeContract')} value={activeContract?.contractId ?? ''} disabled={contracts.length === 0} onChange={(event) => onSelect(event.target.value)}>
             {!activeContract && <option value="">{t('contractsNoWorkspaceContracts')}</option>}
             {contracts.map((contract) => <option value={contract.contractId} key={contract.contractId}>{contract.name}</option>)}

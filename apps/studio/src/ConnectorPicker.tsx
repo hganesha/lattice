@@ -49,15 +49,15 @@ export function ConnectorPicker({ onCancel, onSelect }: ConnectorPickerProps) {
   }, [])
 
   return <section className="connector-picker">
-    <header className="binding-editor-header"><div><button className="ghost" onClick={onCancel}>{t('connectorBackBindings')}</button><span className="panel-kicker">{t('connectorCatalog').toLocaleUpperCase()}</span><h2>{t('connectorChoosePlane')}</h2></div><span className="workspace-mode">{t('connectorWorkspaceMode').toLocaleUpperCase()}</span></header>
+    <header className="binding-editor-header"><div><button className="ghost" onClick={onCancel}>{t('connectorBackBindings')}</button><span className="panel-kicker">{t('connectorCatalog')}</span><h2>{t('connectorChoosePlane')}</h2></div><span className="workspace-mode">{t('connectorWorkspaceMode')}</span></header>
     <div className="connector-picker-body">
-      <div className="connector-picker-intro"><div><span className="panel-kicker">{t('connectorGovernedAdapters').toLocaleUpperCase()} · {(catalogState === 'LIVE' ? t('connectorApiSynchronized') : catalogState === 'FALLBACK' ? t('connectorLocalFallback') : t('connectorSynchronizing')).toLocaleUpperCase()}</span><h3>{t('connectorIntroTitle')}</h3><p>{t('connectorIntroDescription')}</p></div><div className="connector-count"><b>{connectors.length}</b><span>{t('connectorTypes').toLocaleUpperCase()}</span></div></div>
+      <div className="connector-picker-intro"><div><span className="panel-kicker">{t('connectorGovernedAdapters')} · {(catalogState === 'LIVE' ? t('connectorApiSynchronized') : catalogState === 'FALLBACK' ? t('connectorLocalFallback') : t('connectorSynchronizing'))}</span><h3>{t('connectorIntroTitle')}</h3><p>{t('connectorIntroDescription')}</p></div><div className="connector-count"><b>{connectors.length}</b><span>{t('connectorTypes')}</span></div></div>
       <div className="connector-grid">
         {connectors.map((connector) => { const icon = connectorIcons[connector.id]; return <button className={`surface-row interactive block connector-tile ${featured.has(connector.id) ? 'featured' : ''}`} onClick={() => onSelect(connector.id)} key={connector.id}>
           <div className="connector-tile-top"><span className={`connector-monogram${icon ? ' brand-icon' : ''}`}>{icon ? <img src={icon} alt="" aria-hidden="true" /> : monogram(connector.label)}</span><span className="connector-category">{connector.category.replace('_', ' ')}</span></div>
           <h3>{connector.label}</h3>
           <p>{connector.description}</p>
-          <div className="connector-tile-meta"><span>{connector.transport}</span><span>{connector.operationVerb}</span><span>{t('connectorReadOnly').toLocaleUpperCase()}</span></div>
+          <div className="connector-tile-meta"><span>{connector.transport}</span><span>{connector.operationVerb}</span><span>{t('connectorReadOnly')}</span></div>
           <strong>{t('connectorConfigure')}</strong>
         </button> })}
       </div>

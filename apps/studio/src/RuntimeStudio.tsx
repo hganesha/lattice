@@ -152,7 +152,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
       * on an unpublished draft, so the release state has to be readable before
       * the choice is made, not after the button refuses. */}
     <SurfaceHero
-      kicker={t('navCompiler').toLocaleUpperCase()}
+      kicker={t('navCompiler')}
       title={contract.name}
       facts={[releaseFact(t, contract), runtimeFact(t, runtimeStatus)]}
     />
@@ -180,7 +180,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
       </div>
 
       <div className="risk-preview" aria-live="polite">
-        <span className="panel-kicker">{d('compilerRiskKicker').toLocaleUpperCase()}</span>
+        <span className="panel-kicker">{d('compilerRiskKicker')}</span>
         {!purposeId && <p className="compiler-hint">{d('compilerPurposeRequired')}</p>}
         {purposeId && deriving && <p className="compiler-hint">{d('compilerRiskDeriving')}</p>}
         {purposeId && !deriving && derivationError && <p className="compiler-hint warn">{d('compilerRiskUnavailable', { detail: derivationError })}</p>}
@@ -216,7 +216,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
       <section className="map-panel panel">
         <div className="panel-header"><div><span className="panel-kicker">{t('runtimeObjectsKicker')}</span><h2>{t('runtimeMapTitle', { workflow: titleCase(contract.workflow) })}</h2></div><div className="view-controls"><button className={view === 'MAP' ? 'selected' : ''} onClick={() => setView('MAP')}>{t('runtimeMapView')}</button><button className={view === 'TABLE' ? 'selected' : ''} onClick={() => setView('TABLE')}>{t('runtimeTableView')}</button></div></div>
         <div className="legend"><span><i className="legend-dot exact"/>{t('runtimeExactEvidence')}</span><span><i className="legend-dot derived"/>{t('runtimeSupportedEvidence')}</span><span><i className="legend-line"/>{t('runtimeGovernedRelation')}</span></div>
-        {contract.entities.length === 0 ? <div className="runtime-empty"><span>⌁</span><h3>{t('runtimeEmptyTitle')}</h3><p>{t('runtimeEmptyDescription')}</p>{canLoadGridOutageExample(contract) && <button className="release" onClick={loadOperationalContext}>{t('runtimeLoadGridExample')}</button>}</div> : view === 'MAP' ? <RuntimeGraph contract={contract} selectedId={selectedId} onSelect={setSelectedId} /> : <div className="runtime-table"><div className="runtime-table-head"><span>{t('runtimeObject').toLocaleUpperCase()}</span><span>{t('runtimeType').toLocaleUpperCase()}</span><span>{t('runtimeEvidence').toLocaleUpperCase()}</span><span>{t('runtimeValidFrom').toLocaleUpperCase()}</span></div>{contract.entities.map((entity) => <button className={selectedId === entity.id ? 'selected' : ''} onClick={() => setSelectedId(entity.id)} key={entity.id}><span><b>{entity.label}</b><code>{entity.id}</code></span><span>{contract.entityTypes.find((type) => type.id === entity.typeId)?.label ?? entity.typeId}</span><span className="runtime-strength">{entity.evidenceStrength}</span><time>{formatDate(entity.validFrom, { dateStyle: 'medium', timeStyle: 'short' })}</time></button>)}</div>}
+        {contract.entities.length === 0 ? <div className="runtime-empty"><span>⌁</span><h3>{t('runtimeEmptyTitle')}</h3><p>{t('runtimeEmptyDescription')}</p>{canLoadGridOutageExample(contract) && <button className="release" onClick={loadOperationalContext}>{t('runtimeLoadGridExample')}</button>}</div> : view === 'MAP' ? <RuntimeGraph contract={contract} selectedId={selectedId} onSelect={setSelectedId} /> : <div className="runtime-table"><div className="runtime-table-head"><span>{t('runtimeObject')}</span><span>{t('runtimeType')}</span><span>{t('runtimeEvidence')}</span><span>{t('runtimeValidFrom')}</span></div>{contract.entities.map((entity) => <button className={selectedId === entity.id ? 'selected' : ''} onClick={() => setSelectedId(entity.id)} key={entity.id}><span><b>{entity.label}</b><code>{entity.id}</code></span><span>{contract.entityTypes.find((type) => type.id === entity.typeId)?.label ?? entity.typeId}</span><span className="runtime-strength">{entity.evidenceStrength}</span><time>{formatDate(entity.validFrom, { dateStyle: 'medium', timeStyle: 'short' })}</time></button>)}</div>}
         <div className="map-footer"><span>{t('runtimeObjectCount', { count: contract.entities.length })}</span><span>{t('runtimeRelationshipCount', { count: contract.relationships.length })}</span><span className="spacer"/><span>{runtimeStatus === 'SUSPENDED' ? t('runtimeSuspended') : contract.releaseStatus === 'PUBLISHED' ? t('runtimePublishedVersion', { version: contract.version }) : t('runtimeUnpublishedDraft')}</span></div>
       </section>
 
@@ -229,7 +229,7 @@ export function RuntimeStudio({ contract, runtimeStatus, onChange, onDirtyChange
       </aside>
     </div>
 
-    <section className="runtime-readiness"><div><span className="panel-kicker">{t('runtimeReadiness').toLocaleUpperCase()}</span><h2>{t('runtimeReadinessTitle')}</h2><p>{t('runtimeReadinessSummary', { operations: contract.operations.length, bindings: contract.bindings.length, policies: contract.policies.length })}</p></div><div><button className="ghost" onClick={onOpenAssurance}>{t('runtimeViewAssurance')}</button><button className="release" onClick={onManageRelease}>{contract.releaseStatus === 'PUBLISHED' ? `${t('manageRelease')} →` : t('runtimePublishContract')}</button></div></section>
+    <section className="runtime-readiness"><div><span className="panel-kicker">{t('runtimeReadiness')}</span><h2>{t('runtimeReadinessTitle')}</h2><p>{t('runtimeReadinessSummary', { operations: contract.operations.length, bindings: contract.bindings.length, policies: contract.policies.length })}</p></div><div><button className="ghost" onClick={onOpenAssurance}>{t('runtimeViewAssurance')}</button><button className="release" onClick={onManageRelease}>{contract.releaseStatus === 'PUBLISHED' ? `${t('manageRelease')} →` : t('runtimePublishContract')}</button></div></section>
   </section>
 }
 

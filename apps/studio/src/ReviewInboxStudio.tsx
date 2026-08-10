@@ -159,7 +159,7 @@ export function ReviewInboxStudio({ workspaceId, contracts, activeContractId, de
   const emptyDescription = view === 'ASSIGNED' ? t('inboxEmptyAssigned') : view === 'ROLE' ? t('inboxEmptyRole') : view === 'SLA' ? t('inboxEmptySla') : view === 'BLOCKED' ? t('inboxEmptyBlocked') : t('inboxEmptyAll')
 
   return <section className="inbox-page">
-    <SurfaceHero kicker={t('inboxKicker').toLocaleUpperCase()} title={t('inboxTitle')} description={t('inboxDescription')}><button className="ghost" onClick={() => onNavigate('contracts')}>{t('inboxContractLabel')}</button></SurfaceHero>
+    <SurfaceHero kicker={t('inboxKicker')} title={t('inboxTitle')} description={t('inboxDescription')}><button className="ghost" onClick={() => onNavigate('contracts')}>{t('inboxContractLabel')}</button></SurfaceHero>
     {notice && <Toast message={notice} closeLabel={t('inboxClose')} onDismiss={() => setNotice('')} tone="success" />}
     <div className="surface-metrics">
       <MetricTile label={t('inboxMetricAssigned')} value={formatNumber(assignedCount)} meta={t('inboxMetricAssignedMeta')} tone="info" onClick={() => setView('ASSIGNED')} />

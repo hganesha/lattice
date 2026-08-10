@@ -82,7 +82,7 @@
   .question-import-summary h2 { margin-top: 4px; color: var(--fg-default); font: 600 var(--text-body) var(--font-display); }
   .question-import-summary dl { display: flex; gap: 9px; }
   .question-import-summary dl > div { min-width: 100px; padding: 7px 10px; border: 1px solid var(--border-default); border-radius: 6px; background: var(--bg-surface); }
-  .question-import-summary dt { color: var(--fg-muted); font: var(--text-meta) var(--font-mono); text-transform: uppercase; }
+  .question-import-summary dt { color: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
   .question-import-summary dd { margin-top: 3px; color: var(--fg-default); font: 600 var(--text-body) var(--font-display); }
   .question-import-warnings { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
   .question-import-warnings p { padding: 6px 8px; border: 1px solid color-mix(in oklab, var(--status-warning-fg) 35%, var(--border-default)); border-radius: 5px; color: var(--fg-secondary); background: var(--status-warning-bg); font-size: var(--text-meta); }

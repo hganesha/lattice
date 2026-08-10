@@ -90,7 +90,6 @@ export function IntegrationsStudio() {
     <section className="panel integrations-connectors">
       <header>
         <div>
-          <span className="panel-kicker">{t('integrationsConnectorsKicker')}</span>
           <h2>{t('integrationsConnectorsTitle')}</h2>
         </div>
         <span className="integrations-telemetry">{t(telemetry.enabled ? 'integrationsTelemetryOn' : 'integrationsTelemetryOff')}</span>

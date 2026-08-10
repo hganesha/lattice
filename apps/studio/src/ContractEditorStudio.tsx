@@ -85,7 +85,6 @@ export function ContractEditorStudio({ contract, onChange, onDirtyChange, onBack
     <div className="surface-hero">
       <div>
         <button className="ghost" type="button" onClick={onBack}>← {t('navContracts')}</button>
-        <span className="panel-kicker">{t('contractEditorKicker').toLocaleUpperCase()}</span>
         <h2>{t('contractEditorTitle')}</h2>
         <p>{t('contractEditorDescription')}</p>
       </div>
@@ -98,7 +97,7 @@ export function ContractEditorStudio({ contract, onChange, onDirtyChange, onBack
     <div className="contract-editor-layout">
       <main>
         <section className="contract-editor-section">
-          <header><div><span className="panel-kicker">{t('contractEditorIdentity').toLocaleUpperCase()}</span><h3>{contract.name || t('contractEditorUntitled')}</h3></div><code>{contract.id}</code></header>
+          <header><div><span className="panel-kicker">{t('contractEditorIdentity')}</span><h3>{contract.name || t('contractEditorUntitled')}</h3></div><code>{contract.id}</code></header>
           <div className="contract-editor-fields contract-editor-identity-fields">
             <label>{t('wizardContractName')}<input value={contract.name} onChange={(event) => stage({ ...contract, name: event.target.value })} /></label>
             <label>{t('wizardDomain')}<input value={contract.domain} readOnly aria-readonly="true" /></label>
@@ -108,11 +107,11 @@ export function ContractEditorStudio({ contract, onChange, onDirtyChange, onBack
         </section>
 
         <section className="contract-editor-section">
-          <header><div><span className="panel-kicker">{t('contractEditorQuestions').toLocaleUpperCase()}</span><h3>{t('contractEditorQuestionCount', { count: contract.competencyQuestions.length })}</h3></div><div className="contract-editor-header-actions"><button className="ghost" type="button" onClick={() => setQuestionImportOpen(true)}>{t('contractEditorImportQuestions')}</button><button className="ghost" type="button" onClick={addQuestion}>{t('contractEditorAddQuestion')}</button></div></header>
+          <header><div><span className="panel-kicker">{t('contractEditorQuestions')}</span><h3>{t('contractEditorQuestionCount', { count: contract.competencyQuestions.length })}</h3></div><div className="contract-editor-header-actions"><button className="ghost" type="button" onClick={() => setQuestionImportOpen(true)}>{t('contractEditorImportQuestions')}</button><button className="ghost" type="button" onClick={addQuestion}>{t('contractEditorAddQuestion')}</button></div></header>
           {questionImportSummary && <div className="contract-question-import-notice" role="status"><span>✓</span>{questionImportSummary}<button type="button" aria-label={t('commonClose')} onClick={() => setQuestionImportSummary('')}>×</button></div>}
           <div className="contract-definition-list">
             {contract.competencyQuestions.map((question, index) => <article className="contract-question-card" key={question.id}>
-              <div className="contract-definition-card-heading"><span>{t('wizardQuestionNumber', { number: String(index + 1).padStart(2, '0') }).toLocaleUpperCase()}</span><code>{question.id}</code><button type="button" onClick={() => removeQuestion(question.id)}>{t('commonRemove')}</button></div>
+              <div className="contract-definition-card-heading"><span>{t('wizardQuestionNumber', { number: String(index + 1).padStart(2, '0') })}</span><code>{question.id}</code><button type="button" onClick={() => removeQuestion(question.id)}>{t('commonRemove')}</button></div>
               <div className="contract-editor-fields">
                 <label className="wide">{t('wizardDecisionQuestion')}<input value={question.question} onChange={(event) => updateQuestion(question.id, { question: event.target.value })} /></label>
                 <label className="wide">{t('wizardAnswerShape')}<textarea value={question.expectedAnswerShape} onChange={(event) => updateQuestion(question.id, { expectedAnswerShape: event.target.value })} /></label>
@@ -126,10 +125,10 @@ export function ContractEditorStudio({ contract, onChange, onDirtyChange, onBack
         </section>
 
         <section className="contract-editor-section">
-          <header><div><span className="panel-kicker">{t('contractEditorOperations').toLocaleUpperCase()}</span><h3>{t('contractEditorOperationCount', { count: contract.operations.length })}</h3></div><button className="ghost" type="button" onClick={addOperation}>{t('contractEditorAddOperation')}</button></header>
+          <header><div><span className="panel-kicker">{t('contractEditorOperations')}</span><h3>{t('contractEditorOperationCount', { count: contract.operations.length })}</h3></div><button className="ghost" type="button" onClick={addOperation}>{t('contractEditorAddOperation')}</button></header>
           <div className="contract-definition-list">
             {contract.operations.map((operation, index) => <article className="contract-operation-card" key={operation.id}>
-              <div className="contract-definition-card-heading"><span>{t('contractEditorOperationNumber', { number: String(index + 1).padStart(2, '0') }).toLocaleUpperCase()}</span><code>{operation.id}</code><button type="button" onClick={() => removeOperation(operation.id)}>{t('commonRemove')}</button></div>
+              <div className="contract-definition-card-heading"><span>{t('contractEditorOperationNumber', { number: String(index + 1).padStart(2, '0') })}</span><code>{operation.id}</code><button type="button" onClick={() => removeOperation(operation.id)}>{t('commonRemove')}</button></div>
               <div className="contract-editor-fields">
                 <label>{t('contractEditorOperationLabel')}<input value={operation.label} onChange={(event) => updateOperation(operation.id, { label: event.target.value })} /></label>
                 <label>{t('contractEditorRiskTier')}<select value={operation.riskTier} onChange={(event) => updateOperation(operation.id, { riskTier: event.target.value as RiskTier })}>{riskTiers.map((tier) => <option key={tier}>{tier}</option>)}</select></label>
@@ -149,7 +148,7 @@ export function ContractEditorStudio({ contract, onChange, onDirtyChange, onBack
       </main>
 
       <aside className="contract-editor-readiness">
-        <span className="panel-kicker">{t('contractEditorReadiness').toLocaleUpperCase()}</span>
+        <span className="panel-kicker">{t('contractEditorReadiness')}</span>
         <h3>{issues.length > 0 ? t('contractEditorNeedsAttention') : t('contractEditorReady')}</h3>
         <p>{t('contractEditorReadinessDescription')}</p>
         <ul>{issues.length > 0 ? issues.map((issue) => <li key={issue}><span>!</span>{issue}</li>) : <li className="ready"><span>✓</span>{t('contractEditorNoIssues')}</li>}</ul>

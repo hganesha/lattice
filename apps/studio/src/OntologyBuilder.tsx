@@ -356,7 +356,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
             </div>
           </div>
           <div className="relation-strip">
-            <div className="relation-strip-heading"><span>{t('ontologyRelationshipTypes').toLocaleUpperCase()}</span><button onClick={() => setDialog('relationship')}>{t('ontologyAdd')}</button></div>
+            <div className="relation-strip-heading"><span>{t('ontologyRelationshipTypes')}</span><button onClick={() => setDialog('relationship')}>{t('ontologyAdd')}</button></div>
             <div className="relation-list" tabIndex={0} aria-label={t('ontologyRelationshipTypes')}>
               {contract.relationshipTypes.map((relation) => <button
                 type="button"
@@ -374,7 +374,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
             </div>
           </div>
           {mode === 'contract' && <div className="release-history">
-            <div className="relation-strip-heading"><span>{t('ontologyReleaseHistory').toLocaleUpperCase()}</span><em>{t('ontologyImmutableVersions', { count: releases.length })}</em></div>
+            <div className="relation-strip-heading"><span>{t('ontologyReleaseHistory')}</span><em>{t('ontologyImmutableVersions', { count: releases.length })}</em></div>
             <div className="release-list">{releases.slice().reverse().slice(0, 4).map((release) => <div key={release.digest}><b>v{release.version}</b><span>{release.notes}</span><code>{release.digest.slice(0, 18)}…</code><time>{formatDate(release.publishedAt, { dateStyle: 'medium' })}</time></div>)}</div>
           </div>}
         </section>
@@ -388,19 +388,19 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
             <PanelCollapseButton collapsed={inspectorCollapsed} collapseLabel={t('collapseInspector')} expandLabel={t('expandInspector')} panelId="ontology-inspector" side="right" onToggle={toggleInspector} />
           </div>
           {!inspectorCollapsed && (selectedType && inspectorTab === 'DEFINITION' ? <div id="ontology-definition-panel" className="type-form" role="tabpanel" aria-labelledby="ontology-definition-tab">
-            <div className="entity-title"><span className="large-icon"><EntityIcon icon={selectedType.icon} /></span><div><span>{t('ontologyEntityType').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
+            <div className="entity-title"><span className="large-icon"><EntityIcon icon={selectedType.icon} /></span><div><span>{t('ontologyEntityType')}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
             <label>{t('ontologyDisplayName')}<input value={selectedType.label} onChange={(event) => updateSelected({ label: event.target.value })} /></label>
             <label>{t('ontologyDescription')}<textarea value={selectedType.description} onChange={(event) => updateSelected({ description: event.target.value })} /></label>
             <EntityIconPicker key={selectedType.id} value={selectedType.icon} onChange={(icon) => updateSelected({ icon })} label={t('ontologyIcon')} />
             <div className="form-split"><DomainGroupField key={selectedType.id} groups={domainGroups} label={t('ontologyDomainGroup')} value={selectedType.group} addGroupLabel={t('ontologyAddDomainGroup')} newGroupLabel={t('ontologyNewDomainGroup')} newGroupPlaceholder={t('ontologyNewDomainGroupPlaceholder')} onChange={(group) => updateSelected({ group })} /><label>{t('ontologyImpact')}<select value={selectedType.impact} onChange={(event) => updateSelected({ impact: event.target.value as EntityTypeDefinition['impact'] })}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label></div>
-            <div className="property-heading"><div><span>{t('ontologyProperties').toLocaleUpperCase()}</span><em>{selectedType.properties.length}</em></div><button onClick={() => setDialog('property')}>{t('ontologyAddProperty')}</button></div>
+            <div className="property-heading"><div><span>{t('ontologyProperties')}</span><em>{selectedType.properties.length}</em></div><button onClick={() => setDialog('property')}>{t('ontologyAddProperty')}</button></div>
             <div className="property-list">
               {selectedType.properties.length === 0 && <div className="empty-properties"><span>◇</span><b>{t('ontologyNoProperties')}</b><small>{t('ontologyNoPropertiesDescription')}</small></div>}
               {selectedType.properties.map((property) => <div className="surface-row property-row" key={property.id}><span className="property-symbol">{property.identifier ? '#' : '•'}</span><div><b>{property.name}</b><small>{property.dataType}{property.required ? ` · ${t('ontologyRequired')}` : ''}</small></div><code>{property.id.split('.').at(-1)}</code></div>)}
             </div>
           </div> : selectedType && inspectorTab === 'RELATIONSHIPS' ? <div id="ontology-relationships-panel" className="relationship-inspector" role="tabpanel" aria-labelledby="ontology-relationships-tab">
-            <div className="entity-title"><span className="large-icon">↔</span><div><span>{t('ontologyRelationshipTypes').toLocaleUpperCase()}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
-            <div className="relationship-inspector-heading"><span>{t('summaryRelationships').toLocaleUpperCase()}</span><em>{selectedRelationships.length}</em></div>
+            <div className="entity-title"><span className="large-icon">↔</span><div><span>{t('ontologyRelationshipTypes')}</span><h3>{selectedType.label}</h3><code>{selectedType.id}</code></div></div>
+            <div className="relationship-inspector-heading"><span>{t('summaryRelationships')}</span><em>{selectedRelationships.length}</em></div>
             <div className="relationship-inspector-list">
               {selectedRelationships.length === 0 && <div className="empty-properties"><span>↔</span><b>{t('ontologyNoRelationships')}</b><small>{t('ontologyNoRelationshipsDescription')}</small></div>}
               {selectedRelationships.map((relationship) => {
@@ -420,7 +420,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
       </div>
 
       <section className="validation-panel">
-        <div><span className={issues.length === 0 ? 'validation-pass' : 'validation-warn'}>{issues.length === 0 ? '✓' : '!'}</span><div><span>{t('ontologyContractValidation').toLocaleUpperCase()}</span><b>{issues.length === 0 ? t('ontologySchemaValid') : t('ontologyIssues', { count: issues.length })}</b></div></div>
+        <div><span className={issues.length === 0 ? 'validation-pass' : 'validation-warn'}>{issues.length === 0 ? '✓' : '!'}</span><div><span>{t('ontologyContractValidation')}</span><b>{issues.length === 0 ? t('ontologySchemaValid') : t('ontologyIssues', { count: issues.length })}</b></div></div>
         <div className="validation-checks"><span className={issues.some((issue) => issue.includes('entity type is required')) ? 'fail' : 'pass'}>{t('ontologyEntityModel')}</span><span className="pass">{t('ontologyUniqueIdentifiers')}</span><span className={issues.some((issue) => issue.includes('relationship')) ? 'fail' : 'pass'}>{t('ontologyValidEndpoints')}</span><span className={issues.some((issue) => issue.includes('description')) ? 'fail' : 'pass'}>{t('ontologyDocumentedTypes')}</span></div>
       </section>
 
@@ -452,7 +452,7 @@ function BuilderModal({ dialog, contract, domainGroups, selectedType, pendingCon
   const submit = dialog === 'entity' ? onEntity : dialog === 'relationship' ? onRelationship : dialog === 'publish' ? onPublish : onProperty
   return <div className="modal-backdrop builder-drawer-backdrop" role="presentation">
     <section className="builder-modal builder-drawer" role="complementary" aria-labelledby="builder-modal-title">
-      <div className="modal-header"><div><span className="panel-kicker">{t('ontologySchemaChange').toLocaleUpperCase()}</span><h2 id="builder-modal-title">{title}</h2></div><button aria-label={t('ontologyCloseDialog')} onClick={onClose}>×</button></div>
+      <div className="modal-header"><div><span className="panel-kicker">{t('ontologySchemaChange')}</span><h2 id="builder-modal-title">{title}</h2></div><button aria-label={t('ontologyCloseDialog')} onClick={onClose}>×</button></div>
       <form onSubmit={submit}>
         {dialog === 'entity' && <>
           <label>{t('ontologyDisplayName')}<input name="label" required autoFocus placeholder={t('ontologyExampleCareEpisode')} /></label>
@@ -477,7 +477,7 @@ function BuilderModal({ dialog, contract, domainGroups, selectedType, pendingCon
           <div className="publish-summary"><span className="validation-pass">✓</span><div><b>{t('ontologyStructuralPass')}</b><small>{t('ontologyPublishSummary', { types: contract.entityTypes.length, relationships: contract.relationshipTypes.length, tests: contract.tests.filter((test) => test.status === 'PASS').length })}</small></div></div>
           <label>{t('ontologyVersionIncrement')}<select name="bump" value={selectedBump} onChange={(event) => setSelectedBump(event.target.value as typeof selectedBump)}><option value="patch">{t('ontologyPatchOption')}</option><option value="minor">{t('ontologyMinorOption')}</option><option value="major">{t('ontologyMajorOption')}</option></select></label>
           <label>{t('ontologyReleaseNotes')}<textarea name="notes" required placeholder={t('ontologyReleaseNotesPlaceholder')} /></label>
-          <div className="next-version">{t('ontologyCurrent').toLocaleUpperCase()} <b>v{releases.at(-1)?.version ?? contract.version}</b><span>→</span>{t('ontologyNext').toLocaleUpperCase()} <b>{previewVersion(releases.at(-1)?.version ?? contract.version, selectedBump)}</b></div>
+          <div className="next-version">{t('ontologyCurrent')} <b>v{releases.at(-1)?.version ?? contract.version}</b><span>→</span>{t('ontologyNext')} <b>{previewVersion(releases.at(-1)?.version ?? contract.version, selectedBump)}</b></div>
         </>}
         <div className="modal-actions"><button type="button" className="ghost" onClick={onClose}>{t('commonCancel')}</button><button className="release" type="submit" disabled={saving}>{saving ? t('ontologyWorking') : dialog === 'entity' ? t('ontologyCreateType') : dialog === 'relationship' ? t('ontologyCreateRelationship') : dialog === 'publish' ? t('ontologyValidatePublish') : t('ontologyAddProperty')}</button></div>
       </form>

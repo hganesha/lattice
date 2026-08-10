@@ -183,7 +183,7 @@
   .runtime-node-content b { color: var(--fg-default); font: 600 var(--text-meta) var(--font-sans); }
   .runtime-node-content small { margin-top: 4px; color: var(--fg-muted); font: var(--text-meta) var(--font-mono); }
   .ontology-lane-node { pointer-events: none; padding: 0; border: 1px dashed var(--border-default); border-radius: 12px; color: var(--fg-secondary); background: color-mix(in oklab,var(--bg-surface) 72%,transparent); box-shadow: none; }
-  .ontology-lane-content { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 13px; border-bottom: 1px solid var(--border-subtle); font: 600 var(--text-meta) var(--font-mono); letter-spacing: .8px; text-transform: uppercase; }
+  .ontology-lane-content { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 13px; border-bottom: 1px solid var(--border-subtle); font: 600 var(--text-meta) var(--font-mono); letter-spacing: .8px; }
   .ontology-lane-content em { display: grid; place-items: center; min-width: 21px; height: 21px; padding-inline: 5px; border-radius: 999px; color: var(--fg-default); background: var(--bg-hover); font-style: normal; }
   .ontology-lane-node .react-flow__handle { display: none; }
   :root[data-text-scale="large"] .ontology-flow-node,:root[data-text-scale="large"] .runtime-flow-node { font-size: 13.5px; }
@@ -341,7 +341,7 @@
   .enterprise-use-case-driver { margin-top: 8px; color: var(--fg-secondary); line-height: 1.55; }
   .enterprise-use-case-body dl { display: grid; grid-template-columns: .85fr 1.3fr; gap: 12px; margin: 17px 0 15px; }
   .enterprise-use-case-body dl>div { min-width: 0; padding: 13px 14px; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-raised); }
-  .enterprise-use-case-body dt { margin-bottom: 7px; color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; text-transform: uppercase; }
+  .enterprise-use-case-body dt { margin-bottom: 7px; color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; }
   .enterprise-use-case-body dd { margin: 0; color: var(--fg-secondary); line-height: 1.55; }
   .enterprise-use-case-body a { display: inline-flex; align-items: center; min-height: 30px; color: var(--interactive-text); font-weight: 600; text-decoration: none; }
   .enterprise-use-case-body a:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -632,11 +632,4 @@
   /* Keyboard-shortcut hint on the compile button. */
   .compile-button .kbd-hint { display: inline-block; margin-left: 9px; padding: 1px 5px; border-radius: 4px; color: color-mix(in oklab,currentColor 62%,transparent); background: color-mix(in oklab,currentColor 12%,transparent); font: 500 var(--text-meta) var(--font-mono); }
 
-  /* Standardization: ALL-CAPS lives in CSS, not JS (.toLocaleUpperCase()). These are
-     dedicated uppercase micro-labels, so the transform is idempotent and safe even where
-     a JS call still remains during the migration. */
-  :where(.eyebrow,.panel-kicker,.nav-label,.summary-label,.preference-label,
-    .question-field label,.builder-intro>div>span,.validation-panel>div>div>span,
-    .approval-card-heading>div>span,.wizard-header>div>span,.wizard-fields label,
-    .wizard-rail-copy>span) { text-transform: uppercase; }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { Overlay } from './Overlay'
 import type { ContractRegistryEntry, ContractStarter, ImpactLevel, IndustryWorkspace } from '@lattice/contracts'
 import { API_URL, apiAuthHeaders } from './api'
 import { Brand } from './Brand'
@@ -95,21 +96,21 @@ export function NewContractWizard({ onClose, onCreated, workspace }: NewContract
     }
   }
 
-  return <div className="modal-backdrop wizard-backdrop" role="presentation">
+  return <Overlay variant="dialog" bare dismissOnBackdrop={false} onClose={onClose}>
     <section className="contract-wizard" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
       <aside className="wizard-rail">
         <Brand />
-        <div className="wizard-rail-copy"><span>{t('wizardNewContract').toLocaleUpperCase()}</span><h2>{t('wizardDecisionsTitle')}</h2><p>{t('wizardDecisionsDescription')}</p></div>
+        <div className="wizard-rail-copy"><span>{t('wizardNewContract')}</span><h2>{t('wizardDecisionsTitle')}</h2><p>{t('wizardDecisionsDescription')}</p></div>
         <ol>
           <WizardStep number={1} label={t('wizardStepBrief')} detail={t('wizardStepBriefDetail')} current={step} />
           <WizardStep number={2} label={t('wizardStepQuestions')} detail={t('wizardStepQuestionsDetail')} current={step} />
           <WizardStep number={3} label={t('wizardStepStarting')} detail={t('wizardStepStartingDetail')} current={step} />
         </ol>
-        <div className="wizard-principle"><span>{t('wizardPrinciple').toLocaleUpperCase()}</span><b>{t('wizardContractsBeforeGraphs')}</b></div>
+        <div className="wizard-principle"><span>{t('wizardPrinciple')}</span><b>{t('wizardContractsBeforeGraphs')}</b></div>
       </aside>
 
       <form className="wizard-main" onSubmit={(event) => void createContract(event)}>
-        <div className="wizard-header"><div><span>{t('wizardStepOf', { step, total: 3 }).toLocaleUpperCase()}</span><h1 id="wizard-title">{step === 1 ? t('wizardDefineContract') : step === 2 ? t('wizardAddQuestions') : t('wizardChooseStarting')}</h1><p>{step === 1 ? t('wizardDefineDescription') : step === 2 ? t('wizardQuestionsDescription') : t('wizardStartingDescription')}</p></div><button type="button" aria-label={t('wizardClose')} onClick={onClose}>×</button></div>
+        <div className="wizard-header"><div><span>{t('wizardStepOf', { step, total: 3 })}</span><h1 id="wizard-title">{step === 1 ? t('wizardDefineContract') : step === 2 ? t('wizardAddQuestions') : t('wizardChooseStarting')}</h1><p>{step === 1 ? t('wizardDefineDescription') : step === 2 ? t('wizardQuestionsDescription') : t('wizardStartingDescription')}</p></div><button type="button" aria-label={t('wizardClose')} onClick={onClose}>×</button></div>
 
         <div className="wizard-content">
           {step === 1 && <div className="wizard-fields">
@@ -124,7 +125,7 @@ export function NewContractWizard({ onClose, onCreated, workspace }: NewContract
 
           {step === 2 && <div className="question-editor">
             {questions.map((question, questionIndex) => <section className="surface-row question-draft" key={question.id}>
-              <div className="question-number"><span>{t('wizardQuestionNumber', { number: String(questionIndex + 1).padStart(2, '0') }).toLocaleUpperCase()}</span>{questions.length > 1 && <button type="button" onClick={() => removeQuestion(question.id)}>{t('commonRemove')}</button>}</div>
+              <div className="question-number"><span>{t('wizardQuestionNumber', { number: String(questionIndex + 1).padStart(2, '0') })}</span>{questions.length > 1 && <button type="button" onClick={() => removeQuestion(question.id)}>{t('commonRemove')}</button>}</div>
               <label>{t('wizardDecisionQuestion')}<input autoFocus={questionIndex === 0} required value={question.question} onChange={(event) => updateQuestion(question.id, { question: event.target.value })} placeholder={t('wizardDecisionQuestionPlaceholder')} /></label>
               <label>{t('wizardAnswerShape')}<textarea required value={question.expectedAnswerShape} onChange={(event) => updateQuestion(question.id, { expectedAnswerShape: event.target.value })} placeholder={t('wizardAnswerShapePlaceholder')} /></label>
               <label>{t('wizardDecisionImpact')}<select value={question.impact} onChange={(event) => updateQuestion(question.id, { impact: event.target.value as ImpactLevel })}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
@@ -142,7 +143,7 @@ export function NewContractWizard({ onClose, onCreated, workspace }: NewContract
         <footer className="wizard-footer"><button className="ghost" type="button" onClick={step === 1 ? onClose : () => setStep((current) => current - 1)}>{step === 1 ? t('commonCancel') : `← ${t('commonBack')}`}</button><div><span>{step === 1 ? t('wizardNextQuestions') : step === 2 ? t('wizardNextStarting') : t('wizardStarterSelected', { name: workspace?.ontology.name ?? starters.find((option) => option.id === starter)?.name ?? '' })}</span><button className="release" type="submit" disabled={submitting || (step === 1 && !basicsValid) || (step === 2 && !questionsValid) || (step === 3 && Boolean(workspace) && conceptScope.length === 0)}>{submitting ? t('wizardCreating') : step < 3 ? t('wizardContinue') : t('wizardCreateContract')}</button></div></footer>
       </form>
     </section>
-  </div>
+  </Overlay>
 }
 
 function recommendedScope(workspace?: IndustryWorkspace): string[] {

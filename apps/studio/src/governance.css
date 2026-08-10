@@ -11,7 +11,7 @@
   .gov-panel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); padding: var(--space-4); border-bottom: 1px solid var(--border-subtle); }
   .gov-panel > header h3 { margin: var(--space-1) 0 0; font: 600 var(--text-subtitle) var(--font-display); letter-spacing: -.2px; color: var(--fg-default); }
   .gov-panel > header p { margin: var(--space-1) 0 0; max-width: 78ch; color: var(--fg-secondary); font-size: var(--text-support); line-height: 1.55; }
-  .gov-kicker { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .8px; text-transform: uppercase; }
+  .gov-kicker { color: var(--fg-muted); font: 500 var(--text-support) var(--font-sans); letter-spacing: normal; }
   .gov-note { display: flex; align-items: flex-start; gap: var(--space-2); margin: 0; padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border-subtle); color: var(--fg-muted); font-size: var(--text-meta); line-height: 1.55; }
   .gov-note svg { flex-shrink: 0; margin-top: 1px; }
   .gov-meta { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .4px; }
@@ -28,12 +28,12 @@
   .gov-button.danger { border-color: var(--status-danger-fg); background: var(--status-danger-bg); color: var(--status-danger-fg); }
   .gov-dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); margin: 0; padding: var(--space-4); }
   .gov-dl > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .gov-dl dt { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; text-transform: uppercase; }
+  .gov-dl dt { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; }
   .gov-dl dd { margin: 0; color: var(--fg-default); font-size: var(--text-support); overflow-wrap: anywhere; }
   .gov-warning { display: flex; align-items: flex-start; gap: var(--space-2); margin: 0 var(--space-4) var(--space-4); padding: var(--space-3); border: 1px solid var(--status-warning-fg); border-radius: var(--radius-md); background: var(--status-warning-bg); color: var(--status-warning-fg); font-size: var(--text-meta); line-height: 1.55; }
   .gov-form { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); border-top: 1px solid var(--border-subtle); background: var(--bg-raised); }
   .gov-field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-  .gov-field > span { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; text-transform: uppercase; }
+  .gov-field > span { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; }
   .gov-field input, .gov-field select, .gov-field textarea { width: 100%; border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--fg-default); padding: var(--space-2); font: 400 var(--text-support) var(--font-display); }
   .gov-field textarea { min-height: 68px; resize: vertical; }
   .gov-field input:focus-visible, .gov-field select:focus-visible, .gov-field textarea:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
@@ -68,7 +68,7 @@
   .eligibility-matrix { width: 100%; border-collapse: collapse; }
   .eligibility-matrix caption { padding: var(--space-3) var(--space-4) 0; color: var(--fg-muted); font-size: var(--text-meta); text-align: left; }
   .eligibility-matrix th, .eligibility-matrix td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-subtle); text-align: left; vertical-align: middle; }
-  .eligibility-matrix thead th { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; text-transform: uppercase; white-space: nowrap; }
+  .eligibility-matrix thead th { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; white-space: nowrap; }
   .eligibility-matrix tbody th { color: var(--fg-default); font: 500 var(--text-support) var(--font-display); white-space: nowrap; }
   .eligibility-cell { display: flex; align-items: center; gap: var(--space-1); width: 100%; padding: var(--space-1) var(--space-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--bg-hover); color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .3px; cursor: pointer; }
   .eligibility-cell:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -87,7 +87,7 @@
   .eligibility-axes > button[aria-expanded="true"] svg { transform: rotate(180deg); }
   .eligibility-axis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-3); margin: 0 0 var(--space-3); }
   .eligibility-axis-grid > div { padding: var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-raised); }
-  .eligibility-axis-grid dt { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; text-transform: uppercase; }
+  .eligibility-axis-grid dt { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; }
   .eligibility-axis-grid dd { margin: var(--space-1) 0 0; color: var(--fg-default); font: 600 var(--text-support) var(--font-display); }
   @media (prefers-reduced-motion: reduce) { .eligibility-axes > button svg { transition: none; } }
 
@@ -141,7 +141,7 @@
   .negative-row footer { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
   .negative-detail blockquote { margin: 0; padding: var(--space-4); border-left: 3px solid var(--status-governance-fg); color: var(--fg-secondary); font-size: var(--text-support); line-height: 1.6; }
   .negative-exceptions { display: flex; flex-direction: column; gap: var(--space-2); padding: 0 var(--space-4) var(--space-4); }
-  .negative-exceptions h5 { margin: 0; color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; text-transform: uppercase; }
+  .negative-exceptions h5 { margin: 0; color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; }
   .negative-exceptions article { padding: var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-raised); }
   .negative-exceptions article p { margin: 0; color: var(--fg-default); font-size: var(--text-support); line-height: 1.5; }
   .negative-exceptions article footer { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
@@ -180,7 +180,7 @@
   .drift-change footer { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
   .drift-source-table { width: 100%; border-collapse: collapse; }
   .drift-source-table th, .drift-source-table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-subtle); text-align: left; white-space: nowrap; }
-  .drift-source-table thead th { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; text-transform: uppercase; }
+  .drift-source-table thead th { color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: .7px; }
   .drift-source-table td { color: var(--fg-default); font-size: var(--text-support); }
   .drift-empty-inline { margin: 0; padding: var(--space-4); color: var(--fg-muted); font-size: var(--text-support); }
   .drift-layout > aside { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }

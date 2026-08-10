@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { Overlay } from './Overlay'
 import type { ContextContract, ImpactLevel } from '@lattice/contracts'
 import { useMessages } from './i18n/messages'
 import {
@@ -74,11 +75,11 @@ export function QuestionImportDialog({ contract, onClose, onApply }: QuestionImp
     }))
   }
 
-  return <div className="modal-backdrop question-import-backdrop" role="presentation">
+  return <Overlay variant="dialog" bare dismissOnBackdrop={false} onClose={onClose}>
     <section className="question-import-dialog" role="dialog" aria-modal="true" aria-labelledby="question-import-title">
       <header>
         <div>
-          <span className="panel-kicker">{t('questionImportKicker').toLocaleUpperCase()}</span>
+          <span className="panel-kicker">{t('questionImportKicker')}</span>
           <h1 id="question-import-title">{t('questionImportTitle')}</h1>
           <p>{t('questionImportDescription')}</p>
         </div>
@@ -110,7 +111,7 @@ export function QuestionImportDialog({ contract, onClose, onApply }: QuestionImp
         {proposal.warnings.length > 0 && <div className="question-import-warnings">{proposal.warnings.map((warning) => <p key={warning}>! {warning}</p>)}</div>}
 
         {proposal.operations.length > 0 && <section className="question-import-operations">
-          <div className="question-import-section-heading"><div><span className="panel-kicker">{t('questionImportOperationProposals').toLocaleUpperCase()}</span><h2>{t('questionImportOperationCount', { count: proposal.operations.length })}</h2></div><p>{t('questionImportDeclaredWarning')}</p></div>
+          <div className="question-import-section-heading"><div><span className="panel-kicker">{t('questionImportOperationProposals')}</span><h2>{t('questionImportOperationCount', { count: proposal.operations.length })}</h2></div><p>{t('questionImportDeclaredWarning')}</p></div>
           {proposal.operations.map((item, index) => <label className={`question-import-operation ${item.selected ? 'selected' : ''}`} key={`${item.operation.id}-${item.sourceRow}`}>
             <input type="checkbox" checked={item.selected || item.existing} disabled={item.existing} onChange={(event) => toggleOperation(index, event.target.checked)} />
             <span><b>{item.operation.label}</b><code>{item.operation.id}</code><small>{item.existing ? t('questionImportExistingOperation') : item.operation.sourceBindingIds.length > 0 ? t('questionImportBoundOperation') : t('questionImportDeclaredOperation')}</small></span>
@@ -120,7 +121,7 @@ export function QuestionImportDialog({ contract, onClose, onApply }: QuestionImp
         </section>}
 
         <section className="question-import-questions">
-          <div className="question-import-section-heading"><div><span className="panel-kicker">{t('questionImportQuestionProposals').toLocaleUpperCase()}</span><h2>{t('questionImportQuestionCount', { count: proposal.questions.length })}</h2></div><p>{t('questionImportReviewHint')}</p></div>
+          <div className="question-import-section-heading"><div><span className="panel-kicker">{t('questionImportQuestionProposals')}</span><h2>{t('questionImportQuestionCount', { count: proposal.questions.length })}</h2></div><p>{t('questionImportReviewHint')}</p></div>
           {proposal.questions.map((item, index) => {
             const issues = liveQuestionIssues(item)
             return <article className={`question-import-question ${item.selected ? 'selected' : ''}`} key={`${item.question.id}-${item.sourceRow}`}>
@@ -149,7 +150,7 @@ export function QuestionImportDialog({ contract, onClose, onApply }: QuestionImp
         <div><button className="ghost" type="button" onClick={onClose}>{t('commonCancel')}</button>{proposal && <button className="release" type="button" disabled={selectedQuestionCount === 0} onClick={applyImport}>{t('questionImportApply', { count: selectedQuestionCount })}</button>}</div>
       </footer>
     </section>
-  </div>
+  </Overlay>
 }
 
 function liveQuestionIssues(item: QuestionImportItem): string[] {
