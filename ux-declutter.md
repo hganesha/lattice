@@ -218,6 +218,18 @@ Phases 2–4 are independent and can land in any order after Phase 1.
 
 *Verification:* `tsc -b` clean · 78/78 unit tests pass · UX burn-down metrics all within budget (0 shadowed-by-overrides) · browser smoke of the drawer, two dialogs, and the shell in light mode.
 
+**Phase 3 — Light theme.**
+- **Third foreground tier.** `--fg-secondary` and `--fg-muted` both resolved to `neutral-11` — supporting prose and incidental meta read as one flat grey. `--fg-secondary` now steps darker (a `color-mix` toward `neutral-12`) so it sits clearly above muted. Muted stays `neutral-11`: the suite enforces WCAG AA via axe-core, and `neutral-10` fails 4.5:1 on the 12px meta labels muted carries — the doc's original `muted→neutral-10` idea is not viable here. The mix only darkens, so the axe run stayed green.
+- **Hero tint resolved.** The 10% radial wash (a faint dirty stain on the light canvas) is gone; `.surface-hero` is a clean neutral surface. A surface with a real semantic role now carries its hue as a quiet 3px left edge (`tint-info`/`-warning`/`-governance`); the default brand hero is fully neutral. Verified on the Evidence registry (info) hero in light mode.
+- **Two-hue discipline** was already largely in place (categorical chips are outline-only outside the graph); left as-is.
+
+**Phase 4 — Density & nav.**
+- **Zero badges suppressed.** Per-item nav counts rendered `0` because `item.count` (the kind) is always truthy; now a badge shows only when the value is > 0. Group aggregate badges already suppressed zero. Groups already default to closed-except-active, so no change there.
+- **Metric grids** (`.surface-metrics`, App-shell `.summary-grid`) fall back from four columns to two under 1280px instead of crushing.
+- **Resting density** nudged from `1` to `1.1` — loosens the surrounding chrome without reflowing the fixed-size graph canvas; `compact` (0.75) and `comfortable` (1.25) remain the explicit modes.
+
+*Verification:* `tsc -b` clean · 78/78 unit tests · UX metrics within budget · **6/6 e2e** including the axe WCAG A/AA pass (no contrast regression) and the four ontology visual baselines regenerated for light/dark × desktop/ultrawide · browser smoke of the light-mode shell, the info-tinted hero, and zero-badge suppression.
+
 > Found in passing (not mine, left for the owner to confirm): the working tree carried an uncommitted, unwired `IntroDeck.tsx` plus duplicate keys in `messages.ts` (a second `introClose` resolving to `'Close'`). The duplicates broke an intro test and emitted build warnings, so they were de-duplicated and the three genuinely-new keys given Spanish translations.
 
 ---

@@ -1,0 +1,259 @@
+{
+  "schemaVersion": "1.0",
+  "principals": [
+    {
+      "id": "principal_human_lindqvist",
+      "displayName": "Ingrid Lindqvist",
+      "kind": "HUMAN",
+      "roles": [
+        "Semantic owner",
+        "Contract owner"
+      ],
+      "workspaceIds": [
+        "workspace-financial-services",
+        "workspace-energy",
+        "workspace-healthcare",
+        "workspace-manufacturing",
+        "workspace-legal",
+        "workspace-insurance",
+        "workspace-real-estate",
+        "workspace-core",
+        "workspace-airline",
+        "workspace-telecommunications"
+      ],
+      "email": "ingrid.lindqvist@lattice.internal",
+      "authentication": {
+        "method": "OIDC",
+        "issuer": "https://id.lattice.internal",
+        "assuranceLevel": "AAL2"
+      },
+      "status": "ACTIVE",
+      "createdAt": "2026-07-20T09:00:00.000Z",
+      "artifactDigest": "sha256:27a53adbbac6ee4bbfe74e61560719dccbf9c6b39eb7cececd9b8cb53a4e030d",
+      "chain": {
+        "sequence": 0,
+        "previousDigest": "sha256:genesis",
+        "chainDigest": "sha256:093f784d07983e39d8bf32e3fc8e74e653df3aa59b29cc7d95915c6fd3d56daf"
+      }
+    },
+    {
+      "id": "principal_human_okafor",
+      "displayName": "Chidi Okafor",
+      "kind": "HUMAN",
+      "roles": [
+        "Data steward"
+      ],
+      "workspaceIds": [
+        "workspace-financial-services",
+        "workspace-energy",
+        "workspace-healthcare",
+        "workspace-manufacturing",
+        "workspace-legal",
+        "workspace-insurance",
+        "workspace-real-estate",
+        "workspace-core",
+        "workspace-airline",
+        "workspace-telecommunications"
+      ],
+      "email": "chidi.okafor@lattice.internal",
+      "authentication": {
+        "method": "OIDC",
+        "issuer": "https://id.lattice.internal",
+        "assuranceLevel": "AAL2"
+      },
+      "status": "ACTIVE",
+      "createdAt": "2026-07-20T09:00:00.000Z",
+      "artifactDigest": "sha256:4a2731d5869bd210b8e9fb39bcdcc140ffcada53d3094cf48952b7de1ce540cd",
+      "chain": {
+        "sequence": 1,
+        "previousDigest": "sha256:093f784d07983e39d8bf32e3fc8e74e653df3aa59b29cc7d95915c6fd3d56daf",
+        "chainDigest": "sha256:5ef6b1a93b94c6c370b1b5efad2c0d9f5f28dedd2ee32c5214af8854a421a83a"
+      }
+    },
+    {
+      "id": "principal_human_navarro",
+      "displayName": "Elena Navarro",
+      "kind": "HUMAN",
+      "roles": [
+        "Risk & compliance",
+        "Governance lead"
+      ],
+      "workspaceIds": [
+        "workspace-financial-services",
+        "workspace-energy",
+        "workspace-healthcare",
+        "workspace-manufacturing",
+        "workspace-legal",
+        "workspace-insurance",
+        "workspace-real-estate",
+        "workspace-core",
+        "workspace-airline",
+        "workspace-telecommunications"
+      ],
+      "email": "elena.navarro@lattice.internal",
+      "authentication": {
+        "method": "OIDC",
+        "issuer": "https://id.lattice.internal",
+        "assuranceLevel": "AAL2"
+      },
+      "status": "ACTIVE",
+      "createdAt": "2026-07-20T09:00:00.000Z",
+      "artifactDigest": "sha256:08ac3cdc7bbc21f6d9be943879be3f08bf6724a7675a3c6580808c57b9bd808a",
+      "chain": {
+        "sequence": 2,
+        "previousDigest": "sha256:5ef6b1a93b94c6c370b1b5efad2c0d9f5f28dedd2ee32c5214af8854a421a83a",
+        "chainDigest": "sha256:048676c3646c6a70af5e70c87da73414f547821c4ec7e61f06ea8d017b042c6a"
+      }
+    },
+    {
+      "id": "principal_human_bakshi",
+      "displayName": "Ravi Bakshi",
+      "kind": "HUMAN",
+      "roles": [
+        "Platform engineer"
+      ],
+      "workspaceIds": [
+        "workspace-financial-services",
+        "workspace-energy",
+        "workspace-healthcare",
+        "workspace-manufacturing",
+        "workspace-legal",
+        "workspace-insurance",
+        "workspace-real-estate",
+        "workspace-core",
+        "workspace-airline",
+        "workspace-telecommunications"
+      ],
+      "email": "ravi.bakshi@lattice.internal",
+      "authentication": {
+        "method": "OIDC",
+        "issuer": "https://id.lattice.internal",
+        "assuranceLevel": "AAL2"
+      },
+      "status": "ACTIVE",
+      "createdAt": "2026-07-20T09:00:00.000Z",
+      "artifactDigest": "sha256:cb1ff477b735e9d8373a921b0a0da8ec642e80ef7f1b20a1eb090bcb009ad6b6",
+      "chain": {
+        "sequence": 3,
+        "previousDigest": "sha256:048676c3646c6a70af5e70c87da73414f547821c4ec7e61f06ea8d017b042c6a",
+        "chainDigest": "sha256:1c59780741de3d43ea49b39f9410947b5fc2f1131b70691990cdff1e0e6c8e88"
+      }
+    },
+    {
+      "id": "principal_agent_exposure_analyst",
+      "displayName": "Exposure Analyst Agent",
+      "kind": "AGENT",
+      "roles": [
+        "Agent · analysis"
+      ],
+      "workspaceIds": [
+        "workspace-financial-services",
+        "workspace-energy",
+        "workspace-healthcare",
+        "workspace-manufacturing",
+        "workspace-legal",
+        "workspace-insurance",
+        "workspace-real-estate",
+        "workspace-core",
+        "workspace-airline",
+        "workspace-telecommunications"
+      ],
+      "authentication": {
+        "method": "MTLS",
+        "issuer": "spiffe://lattice.internal",
+        "assuranceLevel": "AAL2"
+      },
+      "workloadIdentity": {
+        "platform": "kubernetes",
+        "identifier": "spiffe://lattice.internal/ns/agents/sa/exposure-analyst"
+      },
+      "autonomyTier": "A1",
+      "ownerPrincipalId": "principal_human_lindqvist",
+      "status": "ACTIVE",
+      "createdAt": "2026-07-20T09:00:00.000Z",
+      "artifactDigest": "sha256:5ef35afdee360827ad8bb7fed63c4a534fa8b3207f81f8274b355c0e5e36daac",
+      "chain": {
+        "sequence": 4,
+        "previousDigest": "sha256:1c59780741de3d43ea49b39f9410947b5fc2f1131b70691990cdff1e0e6c8e88",
+        "chainDigest": "sha256:6daea2feb2fc7c1d16faca152797441a9a39c6dababea4d90c3ba258ad3fc4e0"
+      }
+    },
+    {
+      "id": "principal_agent_limit_monitor",
+      "displayName": "Limit Monitor Agent",
+      "kind": "AGENT",
+      "roles": [
+        "Agent · monitoring"
+      ],
+      "workspaceIds": [
+        "workspace-financial-services",
+        "workspace-energy",
+        "workspace-healthcare",
+        "workspace-manufacturing",
+        "workspace-legal",
+        "workspace-insurance",
+        "workspace-real-estate",
+        "workspace-core",
+        "workspace-airline",
+        "workspace-telecommunications"
+      ],
+      "authentication": {
+        "method": "MTLS",
+        "issuer": "spiffe://lattice.internal",
+        "assuranceLevel": "AAL3"
+      },
+      "workloadIdentity": {
+        "platform": "kubernetes",
+        "identifier": "spiffe://lattice.internal/ns/agents/sa/limit-monitor"
+      },
+      "autonomyTier": "A2",
+      "ownerPrincipalId": "principal_human_navarro",
+      "status": "ACTIVE",
+      "createdAt": "2026-07-20T09:00:00.000Z",
+      "artifactDigest": "sha256:ee2edc84043f696a6e8d916d286281da61d5f85a756c6eb7baf8b9457f754374",
+      "chain": {
+        "sequence": 5,
+        "previousDigest": "sha256:6daea2feb2fc7c1d16faca152797441a9a39c6dababea4d90c3ba258ad3fc4e0",
+        "chainDigest": "sha256:74f72590cf8af66d1cc55e59f467a60f37db90d10a3d564222dac39b9048e02e"
+      }
+    },
+    {
+      "id": "principal_service_studio",
+      "displayName": "Lattice Studio",
+      "kind": "SERVICE",
+      "roles": [
+        "Service account"
+      ],
+      "workspaceIds": [
+        "workspace-financial-services",
+        "workspace-energy",
+        "workspace-healthcare",
+        "workspace-manufacturing",
+        "workspace-legal",
+        "workspace-insurance",
+        "workspace-real-estate",
+        "workspace-core",
+        "workspace-airline",
+        "workspace-telecommunications"
+      ],
+      "authentication": {
+        "method": "API_TOKEN",
+        "issuer": "lattice-context-api",
+        "assuranceLevel": "AAL1"
+      },
+      "workloadIdentity": {
+        "platform": "lattice",
+        "identifier": "service/lattice-studio"
+      },
+      "ownerPrincipalId": "principal_human_bakshi",
+      "status": "ACTIVE",
+      "createdAt": "2026-07-20T09:00:00.000Z",
+      "artifactDigest": "sha256:6ed5d936b19b711b3b483b496ee614086a10c29e4c81e8c0bbfa144d947c7154",
+      "chain": {
+        "sequence": 6,
+        "previousDigest": "sha256:74f72590cf8af66d1cc55e59f467a60f37db90d10a3d564222dac39b9048e02e",
+        "chainDigest": "sha256:96a81a0eba464a7ad1c84cc904202244ed19fbf07d5e6bcc0b692c2db43c52b2"
+      }
+    }
+  ]
+}

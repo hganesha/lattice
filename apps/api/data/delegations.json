@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "1.0",
+  "grants": [
+    {
+      "id": "grant_6130544cf5cfb7ddfc27",
+      "fromPrincipalId": "principal_human_lindqvist",
+      "toPrincipalId": "principal_agent_exposure_analyst",
+      "scope": [
+        "risk.exposure.read"
+      ],
+      "purposeIds": [
+        "situational_awareness",
+        "internal_analysis"
+      ],
+      "audience": "INTERNAL",
+      "issuedAt": "2026-07-20T09:00:00.000Z",
+      "expiresAt": "2026-10-20T09:00:00.000Z",
+      "maximumActions": 500,
+      "consumedActions": 0,
+      "riskTierCeiling": "ANALYTICAL",
+      "contractIds": [
+        "contract-counterparty-risk",
+        "contract-grid-outage-response",
+        "contract-general-business",
+        "contract-airline-dispatch-release",
+        "contract-airline-airworthiness-release",
+        "contract-airline-passenger-protection",
+        "contract-telco-number-port-readiness",
+        "contract-telco-outage-911-reporting",
+        "contract-telco-cpni-access"
+      ],
+      "status": "ACTIVE",
+      "artifactDigest": "sha256:4464969679d91cc413ee555879e7af37e993fc0c6193f3b840f922a716f4eab1",
+      "chain": {
+        "sequence": 0,
+        "previousDigest": "sha256:genesis",
+        "chainDigest": "sha256:7933e013fab67f4624468a2c30e59f8690f78d0542cd667bd78b3f013c559fb0"
+      }
+    },
+    {
+      "id": "grant_5aabba7cbbf4bd299b23",
+      "fromPrincipalId": "principal_human_navarro",
+      "toPrincipalId": "principal_agent_limit_monitor",
+      "scope": [
+        "risk.exposure.read",
+        "risk.collateral.read"
+      ],
+      "purposeIds": [
+        "risk_limit_decision"
+      ],
+      "audience": "INTERNAL",
+      "issuedAt": "2026-07-20T09:00:00.000Z",
+      "expiresAt": "2026-10-20T09:00:00.000Z",
+      "maximumActions": 100,
+      "consumedActions": 0,
+      "riskTierCeiling": "PLANNING_DECISION",
+      "contractIds": [
+        "contract-counterparty-risk",
+        "contract-grid-outage-response",
+        "contract-general-business",
+        "contract-airline-dispatch-release",
+        "contract-airline-airworthiness-release",
+        "contract-airline-passenger-protection",
+        "contract-telco-number-port-readiness",
+        "contract-telco-outage-911-reporting",
+        "contract-telco-cpni-access"
+      ],
+      "status": "ACTIVE",
+      "artifactDigest": "sha256:95ba99b3dd047861834aab27487ecbe98ab3b321c08719c1a7ca1d271d4bf9d0",
+      "chain": {
+        "sequence": 1,
+        "previousDigest": "sha256:7933e013fab67f4624468a2c30e59f8690f78d0542cd667bd78b3f013c559fb0",
+        "chainDigest": "sha256:5695769c568e93aaeb3d6a334fd6ccf2b893b23b91806e54646fb16e18992db6"
+      }
+    }
+  ]
+}
