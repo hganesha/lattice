@@ -182,12 +182,13 @@ function localStores(): Promise<LocalStores> {
 /**
  * The evolution and evaluation ledgers.
  *
- * Opened lazily and only if a route reads them, exactly like `localStores()`. These are
- * file-backed on every path, including the deployed one: unlike the five governance ledgers there
- * are no Supabase tables for dispositions, attestations, case sets, evaluation runs, negative
- * decisions, drift events, principals or emergency grants yet. On a serverless platform that means
- * they live for one invocation. Adding them to `supabaseGovernanceLedger.ts` and
- * `supabase/migrations/` is the outstanding work to make these surfaces durable in production.
+ * Opened lazily and only if a route reads them, exactly like `localStores()`. Each store is a
+ * `LedgerStorage` seam: this file path binds it to a JSON file for local development, and
+ * `evolutionLedgers()` binds the same eight stores to Postgres per request when Supabase is
+ * configured, so the deployed API persists dispositions, attestations, case sets, evaluation runs,
+ * negative decisions, drift events, principals and emergency grants the same way the five
+ * governance ledgers do. The `governed_artifacts` table already carries every one of these kinds
+ * (migration `20260808120000_evolution_governance_artifacts.sql`).
  */
 interface EvolutionStores {
   attestation: AttestationStore
