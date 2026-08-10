@@ -535,7 +535,7 @@ export function App() {
                 <span className="nav-group-chevron" aria-hidden="true"><IconChevronDown /></span>
               </button>
               <div className="nav-group-items" id={`nav-group-${group.label}`} hidden={!open}>
-                {group.items.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count ? String(navigationCounts[item.count]) : undefined} active={surface === item.surface} onClick={() => navigateTo(item.surface)} key={item.surface} />)}
+                {group.items.map((item) => <NavItem icon={item.icon} label={t(item.label)} count={item.count && navigationCounts[item.count] > 0 ? String(navigationCounts[item.count]) : undefined} active={surface === item.surface} onClick={() => navigateTo(item.surface)} key={item.surface} />)}
                 {group.label === 'navGroupBuild' && <>
                   <NavItem icon={<IconDownload />} label={t('ontologyImportSchema')} onClick={() => setImportOpen(true)} />
                   <NavItem icon={<IconPlus />} label={t('navNewContextContract')} onClick={() => setWizardOpen(true)} />

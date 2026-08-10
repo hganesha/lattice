@@ -19,6 +19,11 @@
    * Tint is a modifier, not a new class: `--hero-tint` names the semantic role
    * the surface belongs to, so a governance page reads as governance without
    * anyone re-authoring the layout. */
+  /* The 10% radial tint read as a faint dirty wash on the light canvas — not
+   * enough to signal a surface's role, just enough to look unclean. The hero is
+   * now a clean neutral surface; a surface with a genuine semantic role carries
+   * its hue as a quiet 3px left edge instead of a background stain. The default
+   * (brand) hero is left fully neutral — background colour is reserved for state. */
   .surface-hero {
     --hero-tint: var(--brand-fill);
     display: flex;
@@ -29,14 +34,17 @@
     margin-bottom: var(--space-4);
     border: var(--border-width) solid var(--border-default);
     border-radius: var(--radius-lg);
-    background:
-      radial-gradient(circle at 6% 0, color-mix(in oklab, var(--hero-tint) 10%, transparent), transparent 28%),
-      var(--bg-surface);
+    background: var(--bg-surface);
   }
   .surface-hero.tint-governance { --hero-tint: var(--status-governance-solid); }
   .surface-hero.tint-info { --hero-tint: var(--status-info-solid); }
   .surface-hero.tint-warning { --hero-tint: var(--status-warning-solid); }
   .surface-hero.tint-none { --hero-tint: transparent; }
+  .surface-hero.tint-governance,
+  .surface-hero.tint-info,
+  .surface-hero.tint-warning {
+    border-left: 3px solid var(--hero-tint);
+  }
 
   .surface-hero > div:first-child { min-width: 0; }
   .surface-hero h2 {
@@ -82,6 +90,8 @@
   }
 
   .surface-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
+  /* Four columns crush below ~1280px — fall back to two rather than shrink each. */
+  @media (max-width: 1280px) { .surface-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .surface-metric { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-4); border: var(--border-width) solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-surface); text-align: left; }
   .surface-metric > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
   .surface-metric span { color: var(--fg-muted); font: var(--weight-medium) var(--text-support) var(--font-sans); letter-spacing: normal; }

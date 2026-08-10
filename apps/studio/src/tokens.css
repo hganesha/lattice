@@ -248,7 +248,13 @@
 
     /* --- Foregrounds -------------------------------------------------- */
     --fg-default: var(--neutral-12);
-    --fg-secondary: var(--neutral-11);
+    /* Three visible tiers, not two. secondary and muted both used to resolve to
+     * neutral-11, so supporting prose and incidental meta read as the same flat
+     * grey. secondary now steps darker (toward 12) to sit clearly above muted;
+     * muted stays at neutral-11 because the app enforces WCAG AA via axe and
+     * neutral-10 fails 4.5:1 on the 12px meta labels muted is mostly used for.
+     * The mix only darkens, so contrast can only improve. */
+    --fg-secondary: color-mix(in oklab, var(--neutral-12) 32%, var(--neutral-11));
     --fg-muted: var(--neutral-11);      /* NOT neutral-10: 10 fails 4.5:1 */
     --fg-on-solid: var(--neutral-1);
     --fg-link: var(--interactive-11);
@@ -391,7 +397,11 @@
      * setting it can't see. Here the step values are constant and --density
      * multiplies them, which keeps ratios intact at every density.
      */
-    --density: 1;
+    /* Resting rhythm nudged up from 1: the studio's default read as packed. The
+     * graph canvas uses fixed pixel sizes, so this loosens the surrounding chrome
+     * (sidebar, toolbars, metric strips, page margins) without reflowing nodes.
+     * compact (0.75) and comfortable (1.25) remain the explicit opt-in modes. */
+    --density: 1.1;
     --space-1: calc(4px * var(--density));
     --space-2: calc(8px * var(--density));
     --space-3: calc(12px * var(--density));
