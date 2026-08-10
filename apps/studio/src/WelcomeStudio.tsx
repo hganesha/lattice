@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Overlay } from './Overlay'
 import type { CompileResponse, ContractRegistryEntry, ContractSummary } from '@lattice/contracts'
 import { API_URL, apiAuthHeaders } from './api'
 import { EnterpriseUseCaseCarousel } from './EnterpriseUseCaseCarousel'
@@ -38,10 +39,10 @@ export function WelcomeStudio({ contracts, onClose, onExplore, onCreate }: Welco
     }
   }
 
-  return <div className="modal-backdrop welcome-backdrop" role="presentation">
+  return <Overlay variant="dialog" bare onClose={onClose}>
     <section className="welcome-studio" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
       <button className="welcome-close" aria-label={t('welcomeClose')} onClick={onClose}>×</button>
-      <span className="panel-kicker">{t('welcomeKicker').toLocaleUpperCase()}</span>
+      <span className="panel-kicker">{t('welcomeKicker')}</span>
       <h1 id="welcome-title">{t('welcomeTitle')}</h1>
       <p className="welcome-lead">{t('welcomeDescription')}</p>
       <ol className="welcome-flow">
@@ -52,7 +53,7 @@ export function WelcomeStudio({ contracts, onClose, onExplore, onCreate }: Welco
       </ol>
       <EnterpriseUseCaseCarousel />
       <div className="welcome-examples">
-        <div><span className="panel-kicker">{t('welcomeTryNow').toLocaleUpperCase()}</span><h2>{t('welcomePublishedExamples')}</h2></div>
+        <div><span className="panel-kicker">{t('welcomeTryNow')}</span><h2>{t('welcomePublishedExamples')}</h2></div>
         {published.map((example) => <button onClick={() => void tryExample(example.contractId)} disabled={Boolean(tryingId)} key={example.contractId}><span>✦</span><div><b>{example.name}</b><small>{example.domain.replaceAll('_', ' ')} · v{example.latestRelease?.version ?? example.draftVersion}</small></div><em>{tryingId === example.contractId ? t('runtimeCompiling') : t('welcomeCompileExample')} →</em></button>)}
         {published.length === 0 && <p>{t('welcomeNoExamples')}</p>}
         {result && <div className="welcome-result"><span>✓</span><div><b>{t('welcomeCompileResult', { decision: result.decision.replaceAll('_', ' ') })}</b><small>{t('welcomeCompileResultDetail')}</small></div><button className="ghost" onClick={() => onExplore(result.contractId)}>{t('welcomeOpenCompiler')} →</button></div>}
@@ -60,5 +61,5 @@ export function WelcomeStudio({ contracts, onClose, onExplore, onCreate }: Welco
       </div>
       <footer><button className="ghost" onClick={onClose}>{t('welcomeExploreOntology')}</button><button className="release" onClick={onCreate}>{t('welcomeCreateContract')} →</button></footer>
     </section>
-  </div>
+  </Overlay>
 }

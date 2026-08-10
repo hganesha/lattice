@@ -111,11 +111,11 @@ export function IdentitiesStudio({ workspaceId, detailId, onNavigate, onNavigate
   }
 
   return <section className="identity-page">
-    <SurfaceHero kicker={t('identityKicker').toLocaleUpperCase()} title={t('identityTitle')} description={t('identityDescription')}><button className="release" onClick={() => setIssueOpen((open) => !open)}><IconPlus /> {issueOpen ? t('identityIssueCancel') : t('identityIssue')}</button></SurfaceHero>
+    <SurfaceHero kicker={t('identityKicker')} title={t('identityTitle')} description={t('identityDescription')}><button className="release" onClick={() => setIssueOpen((open) => !open)}><IconPlus /> {issueOpen ? t('identityIssueCancel') : t('identityIssue')}</button></SurfaceHero>
 
     {notice && <Toast message={notice} closeLabel={t('commonClose')} onDismiss={() => setNotice('')} tone={noticeTone} durationMs={6000} />}
 
-    <div className="surface-metrics"><MetricTile label={t('identityMetricPrincipals').toLocaleUpperCase()} value={formatNumber(principals.length)} meta={t('identityMetricPrincipalsMeta', { humans, agents, services })} tone="info" /><MetricTile label={t('identityMetricAgents').toLocaleUpperCase()} value={formatNumber(tieredAgents)} meta={t('identityMetricAgentsMeta', { untiered: agents - tieredAgents })} tone="brand" /><MetricTile label={t('identityMetricActiveGrants').toLocaleUpperCase()} value={formatNumber(activeGrants)} meta={t('identityMetricActiveGrantsMeta', { inactive: grants.length - activeGrants })} tone="success" /><MetricTile label={t('identityMetricDepth').toLocaleUpperCase()} value={formatNumber(depth)} meta={t('identityMetricDepthMeta')} tone="governance" /></div>
+    <div className="surface-metrics"><MetricTile label={t('identityMetricPrincipals')} value={formatNumber(principals.length)} meta={t('identityMetricPrincipalsMeta', { humans, agents, services })} tone="info" /><MetricTile label={t('identityMetricAgents')} value={formatNumber(tieredAgents)} meta={t('identityMetricAgentsMeta', { untiered: agents - tieredAgents })} tone="brand" /><MetricTile label={t('identityMetricActiveGrants')} value={formatNumber(activeGrants)} meta={t('identityMetricActiveGrantsMeta', { inactive: grants.length - activeGrants })} tone="success" /><MetricTile label={t('identityMetricDepth')} value={formatNumber(depth)} meta={t('identityMetricDepthMeta')} tone="governance" /></div>
 
     <SessionPanel resource={session} />
 
@@ -127,7 +127,7 @@ export function IdentitiesStudio({ workspaceId, detailId, onNavigate, onNavigate
 
     {principals.length > 0 && <div className="identity-layout">
       <section className="panel identity-graph-panel">
-        <header className="identity-panel-head"><div><span className="panel-kicker">{t('identityGraphKicker').toLocaleUpperCase()}</span><h2>{t('identityGraphTitle')}</h2></div>{selectedPrincipal && <button className="ghost" onClick={() => selectPrincipal(selectedPrincipal.id)}><IconX /> {t('identityGraphClear')}</button>}</header>
+        <header className="identity-panel-head"><div><span className="panel-kicker">{t('identityGraphKicker')}</span><h2>{t('identityGraphTitle')}</h2></div>{selectedPrincipal && <button className="ghost" onClick={() => selectPrincipal(selectedPrincipal.id)}><IconX /> {t('identityGraphClear')}</button>}</header>
         <p className="identity-hint">{t('identityGraphHint')}</p>
         {selectedPrincipal && <p className="identity-hint selected" role="status">{t('identityGraphSelected', { name: selectedPrincipal.displayName })}</p>}
         <DelegationGraph layout={layout} selectedId={selectedId} onSelect={selectPrincipal} onClear={() => { if (selectedId) selectPrincipal(selectedId) }} />
@@ -135,7 +135,7 @@ export function IdentitiesStudio({ workspaceId, detailId, onNavigate, onNavigate
       </section>
 
       <section className="panel identity-directory-panel">
-        <header className="identity-panel-head"><div><span className="panel-kicker">{t('identityDirectoryKicker').toLocaleUpperCase()}</span><h2>{t('identityDirectoryTitle')}</h2></div></header>
+        <header className="identity-panel-head"><div><span className="panel-kicker">{t('identityDirectoryKicker')}</span><h2>{t('identityDirectoryTitle')}</h2></div></header>
         <div className="surface-filters" role="group" aria-label={t('identityDirectoryKicker')}>
           <label>{t('identityFilterKind')}<select value={kind} onChange={(event) => setKind(event.target.value as PrincipalKind | '')}><option value="">{t('identityFilterAll')}</option>{kindOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
           <label>{t('identityFilterStatus')}<select value={status} onChange={(event) => setStatus(event.target.value as Principal['status'] | '')}><option value="">{t('identityFilterAll')}</option>{statusOptions.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>
@@ -148,7 +148,7 @@ export function IdentitiesStudio({ workspaceId, detailId, onNavigate, onNavigate
     </div>}
 
     {principals.length > 0 && <section className="panel identity-grants-panel">
-      <header className="identity-panel-head"><div><span className="panel-kicker">{t('identityGrantsKicker').toLocaleUpperCase()}</span><h2>{selectedPrincipal ? t('identityGrantsFor', { name: selectedPrincipal.displayName }) : t('identityGrantsAll')}</h2></div><span className="identity-count">{formatNumber(scopedGrants.length)}</span></header>
+      <header className="identity-panel-head"><div><span className="panel-kicker">{t('identityGrantsKicker')}</span><h2>{selectedPrincipal ? t('identityGrantsFor', { name: selectedPrincipal.displayName }) : t('identityGrantsAll')}</h2></div><span className="identity-count">{formatNumber(scopedGrants.length)}</span></header>
       {scopedGrants.length === 0 ? <EmptyState title={t('identityGrantsEmptyTitle')} description={t('identityGrantsEmptyDescription')} icon={<IconLink />} actionLabel={t('identityIssue')} onAction={() => setIssueOpen(true)} /> : <ul className="grant-list">{visibleGrants.map((grant) => <li key={grant.id}><GrantCard
         grant={grant}
         principals={principals}
@@ -174,7 +174,7 @@ function SessionPanel({ resource }: { resource: Resource<SessionResponse> }) {
   const { principal, chain } = resource.data
   const Glyph = kindGlyph(principal.kind)
   return <div className="panel identity-session">
-    <div className="identity-session-head"><span className="principal-glyph" aria-hidden="true"><Glyph /></span><div><span className="panel-kicker">{t('identitySessionKicker').toLocaleUpperCase()}</span><h2>{principal.displayName}</h2><p>{(principal.roles ?? []).join(' · ') || t('commonNone')}</p></div><span className={`identity-chip ${principal.status === 'ACTIVE' ? 'success' : 'neutral'}`}>{principal.status}</span></div>
+    <div className="identity-session-head"><span className="principal-glyph" aria-hidden="true"><Glyph /></span><div><span className="panel-kicker">{t('identitySessionKicker')}</span><h2>{principal.displayName}</h2><p>{(principal.roles ?? []).join(' · ') || t('commonNone')}</p></div><span className={`identity-chip ${principal.status === 'ACTIVE' ? 'success' : 'neutral'}`}>{principal.status}</span></div>
     <dl className="identity-facts">
       <div><dt>{t('identityAuthMethod')}</dt><dd><code>{principal.authentication.method}</code></dd></div>
       <div><dt>{t('identityAuthIssuer')}</dt><dd>{principal.authentication.issuer}</dd></div>
@@ -387,7 +387,7 @@ function IssueGrantForm({ principals, defaultFromId, onCancel, onIssued, onFaile
   }
 
   return <form className="panel issue-form" onSubmit={(event) => { event.preventDefault(); void issue() }}>
-    <header><div><span className="panel-kicker">{t('identityIssue').toLocaleUpperCase()}</span><h2>{t('identityIssueTitle')}</h2><p>{t('identityIssueDescription')}</p></div></header>
+    <header><div><span className="panel-kicker">{t('identityIssue')}</span><h2>{t('identityIssueTitle')}</h2><p>{t('identityIssueDescription')}</p></div></header>
     <div className="issue-grid">
       <label>{t('identityIssueFrom')}<select value={fromId} onChange={(event) => setFromId(event.target.value)}>{principals.map((principal) => <option value={principal.id} key={principal.id}>{principal.displayName}</option>)}</select></label>
       <label>{t('identityIssueTo')}<select value={toId} onChange={(event) => setToId(event.target.value)} required><option value="">{t('identityFilterAll')}</option>{principals.filter((principal) => principal.id !== fromId).map((principal) => <option value={principal.id} key={principal.id}>{principal.displayName}</option>)}</select></label>

@@ -56,7 +56,7 @@ describe('CompileResolution', () => {
 
     render(<LatticeI18nProvider><CompileResolution result={result} onChoose={vi.fn()} /></LatticeI18nProvider>)
 
-    expect(screen.getByText('◔ SAMPLE DATA')).toBeVisible()
+    expect(screen.getByText('◔ Sample data')).toBeVisible()
     expect(screen.getByText(/not live source reads/)).toBeVisible()
   })
 

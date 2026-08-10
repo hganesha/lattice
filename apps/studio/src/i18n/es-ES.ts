@@ -42,6 +42,7 @@ export const spanishMessages = {
   ontologyIconClose: 'Listo',
   ontologyDomainGroups: 'Grupos de dominio',
   introOpen: 'Introducción', introKicker: 'Presentación de Lattice', introTitle: 'Introducción a Lattice', introClose: 'Cerrar introducción', introFrameTitle: 'Introducción a Lattice',
+  introEyebrow: 'Resumen', introOpenInTab: 'Abrir en una pestaña nueva', introHint: 'Usa ← y → para avanzar por la presentación, G para el índice de diapositivas, P para imprimir. Escape vuelve al estudio.',
   welcomeEnterpriseKicker: 'Patrones empresariales',
   welcomeEnterpriseTitle: 'Dónde encaja Lattice en la empresa',
   welcomeEnterpriseDescription: 'Problemas operativos documentados, no afirmaciones de clientes. Cada ejemplo muestra cómo el contexto gobernado puede conectar sistemas fragmentados con una decisión explicable.',

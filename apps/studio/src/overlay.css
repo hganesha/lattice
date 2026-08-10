@@ -1,0 +1,159 @@
+/* The one overlay system — see Overlay.tsx for the grammar.
+ *
+ * Everything lives in `primitives`: the drawer/dialog geometry needs no override
+ * because the migrated panels are `.overlay-panel`, not a legacy wrapper, and no
+ * surfaces-layer rule targets `.overlay-*`. Keeping it in one layer keeps the
+ * design-system burn-down honest (nothing is shadowed by `overrides`). */
+
+@layer primitives {
+  .overlay-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    background: color-mix(in oklab, var(--bg-canvas) 74%, transparent);
+    backdrop-filter: blur(5px);
+  }
+  /* Where the panel lands is the whole point of the grammar. */
+  .overlay-backdrop.dialog { display: grid; place-items: center; padding: var(--space-5); }
+  .overlay-backdrop.command { display: grid; justify-items: center; align-items: start; padding: 12vh var(--space-5) var(--space-5); }
+  .overlay-backdrop.drawer { display: flex; justify-content: flex-end; align-items: stretch; }
+
+  .overlay-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border: var(--border-width) solid var(--border-default);
+    background: var(--bg-surface);
+    color: var(--fg-default);
+    box-shadow: var(--shadow-overlay);
+  }
+  .overlay-panel.dialog {
+    width: min(560px, calc(100vw - 2 * var(--space-5)));
+    max-height: calc(100vh - 2 * var(--space-5));
+    border-radius: var(--radius-lg);
+    animation: overlay-dialog-in var(--motion-base) var(--ease-out);
+  }
+  .overlay-panel.command {
+    width: min(640px, calc(100vw - 2 * var(--space-5)));
+    max-height: 70vh;
+    border-radius: var(--radius-lg);
+    animation: overlay-dialog-in var(--motion-base) var(--ease-out);
+  }
+  .overlay-panel.drawer {
+    width: min(460px, 100vw);
+    height: 100vh;
+    border-top: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-radius: 0;
+    animation: overlay-drawer-in var(--motion-base) var(--ease-out);
+  }
+
+  @keyframes overlay-dialog-in {
+    from { opacity: 0; transform: translateY(8px) scale(.99); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes overlay-drawer-in {
+    from { transform: translateX(24px); opacity: .6; }
+    to { transform: none; opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .overlay-panel.dialog, .overlay-panel.command, .overlay-panel.drawer { animation: none; }
+  }
+}
+
+@layer primitives {
+  .overlay-header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5);
+    border-bottom: var(--border-width) solid var(--border-subtle);
+  }
+  .overlay-heading { flex: 1; min-width: 0; }
+  .overlay-eyebrow {
+    display: block;
+    margin-bottom: var(--space-1);
+    color: var(--fg-muted);
+    font: var(--weight-medium) var(--text-support) var(--font-sans);
+  }
+  .overlay-title {
+    margin: 0;
+    font: var(--weight-semibold) var(--text-subtitle) / var(--leading-tight) var(--font-display);
+    letter-spacing: var(--tracking-tight);
+    color: var(--fg-default);
+  }
+  .overlay-close {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    border: var(--border-width) solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--fg-secondary);
+    cursor: pointer;
+    transition: background var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out);
+  }
+  .overlay-close:hover { background: var(--bg-hover); color: var(--fg-default); }
+  .overlay-close:focus-visible { outline: var(--focus-ring-width) solid var(--focus-ring); outline-offset: 1px; }
+  .overlay-close svg { width: 17px; height: 17px; }
+
+  .overlay-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--space-5);
+  }
+
+  .overlay-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-top: var(--border-width) solid var(--border-subtle);
+  }
+
+  /* Form controls inside an overlay body, so a migrated editor gets consistent
+   * fields without carrying its old wrapper-scoped rules. Mirrors the shared
+   * .type-form / .builder-modal treatment. */
+  .overlay-body label { display: block; margin-bottom: var(--space-3); color: var(--fg-secondary); font: var(--weight-medium) var(--text-support) var(--font-sans); }
+  .overlay-body input:not([type="checkbox"]):not([type="radio"]),
+  .overlay-body textarea,
+  .overlay-body select {
+    display: block;
+    width: 100%;
+    margin-top: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid var(--border-control);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--fg-default);
+    font: var(--text-support) var(--font-sans);
+    outline: none;
+  }
+  .overlay-body textarea { min-height: 72px; resize: vertical; line-height: var(--leading-snug); }
+  .overlay-body input:focus-visible,
+  .overlay-body textarea:focus-visible,
+  .overlay-body select:focus-visible {
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--focus-ring) 20%, transparent);
+  }
+  .overlay-body .form-split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+  .overlay-body > p, .overlay-body .confirm-copy { color: var(--fg-secondary); font-size: var(--text-support); line-height: var(--leading-body); }
+
+  /* A form that fills a drawer and pins its actions to the bottom edge. In a
+   * dialog (content-height body) the same actions simply follow the fields. */
+  .overlay-panel.drawer .overlay-body { display: flex; flex-direction: column; }
+  .overlay-form { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .overlay-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: auto;
+    padding-top: var(--space-4);
+  }
+}

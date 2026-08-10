@@ -107,7 +107,7 @@ export function NegativeDecisionStudio({ workspaceId, contract, detailId, onNavi
   }
 
   return <section className="negative-page">
-    <SurfaceHero kicker={t('negativeKicker').toLocaleUpperCase()} title={t('negativeTitle')} description={t('negativeDescription')}><button className="ghost" onClick={() => onNavigate('reviews')}>{t('negativeOriginReview')}</button></SurfaceHero>
+    <SurfaceHero kicker={t('negativeKicker')} title={t('negativeTitle')} description={t('negativeDescription')}><button className="ghost" onClick={() => onNavigate('reviews')}>{t('negativeOriginReview')}</button></SurfaceHero>
     {notice && <Toast message={notice} closeLabel={t('negativeClose')} onDismiss={() => setNotice('')} tone="success" />}
     <div className="surface-metrics">
       <MetricTile label={t('negativeMetricActive')} value={formatNumber(activeCount)} meta={t('negativeMetricActiveMeta')} tone="danger" onClick={() => setStatus('ACTIVE')} />

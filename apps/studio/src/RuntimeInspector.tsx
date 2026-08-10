@@ -17,11 +17,11 @@ export function RuntimeInspector({ entity, contract }: RuntimeInspectorProps) {
     <div className="badges"><span className="badge approved">{t('runtimeGoverned')}</span><span className="badge critical">{t('runtimeImpact', { impact: type?.impact ?? 'MEDIUM' })}</span></div>
     <p>{type?.description}</p>
     <dl>
-      <div><dt>{t('runtimeEvidenceStrength').toLocaleUpperCase()}</dt><dd><span className="strength-bars"><i/><i/><i/><i/></span>{entity.evidenceStrength}</dd></div>
-      <div><dt>{t('runtimeValidFrom').toLocaleUpperCase()}</dt><dd>{formatDate(entity.validFrom, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</dd></div>
-      <div><dt>{t('runtimeRelationships').toLocaleUpperCase()}</dt><dd>{t('runtimeGovernedLinks', { count: relationshipCount })}</dd></div>
+      <div><dt>{t('runtimeEvidenceStrength')}</dt><dd><span className="strength-bars"><i/><i/><i/><i/></span>{entity.evidenceStrength}</dd></div>
+      <div><dt>{t('runtimeValidFrom')}</dt><dd>{formatDate(entity.validFrom, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</dd></div>
+      <div><dt>{t('runtimeRelationships')}</dt><dd>{t('runtimeGovernedLinks', { count: relationshipCount })}</dd></div>
       {Object.entries(entity.properties).slice(0, 5).map(([key, value]) => <div key={key}><dt>{key.replaceAll('_', ' ').toUpperCase()}</dt><dd>{String(value)}</dd></div>)}
     </dl>
-    <div className="evidence-block"><div className="evidence-heading"><span>{t('runtimeEvidence').toLocaleUpperCase()}</span><b>{entity.evidenceRefs.length}</b></div>{entity.evidenceRefs.map((id) => { const evidence = contract.evidence.find((item) => item.id === id); return <div className="surface-row evidence-item" key={id}><span>⌁</span><div><b>{evidence?.title ?? id}</b><small>{evidence?.source} · {evidence?.status.replaceAll('_', ' ')}</small></div><span className="verified">✓</span></div> })}</div>
+    <div className="evidence-block"><div className="evidence-heading"><span>{t('runtimeEvidence')}</span><b>{entity.evidenceRefs.length}</b></div>{entity.evidenceRefs.map((id) => { const evidence = contract.evidence.find((item) => item.id === id); return <div className="surface-row evidence-item" key={id}><span>⌁</span><div><b>{evidence?.title ?? id}</b><small>{evidence?.source} · {evidence?.status.replaceAll('_', ' ')}</small></div><span className="verified">✓</span></div> })}</div>
   </div>
 }

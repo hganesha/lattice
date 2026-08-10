@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
+import { Overlay } from './Overlay'
 import { useMessages } from './i18n/messages'
 
 interface IntroDialogProps {
@@ -33,11 +34,11 @@ export function IntroDialog({ onClose }: IntroDialogProps) {
     iframeRef.current?.contentWindow?.addEventListener('keydown', closeOnEscape)
   }
 
-  return <div className="modal-backdrop intro-backdrop" role="presentation">
+  return <Overlay variant="dialog" bare onClose={onClose}>
     <section className="intro-dialog" role="dialog" aria-modal="true" aria-labelledby="intro-title">
       <header className="intro-dialog-header">
         <div>
-          <span className="panel-kicker">{t('introKicker').toLocaleUpperCase()}</span>
+          <span className="panel-kicker">{t('introKicker')}</span>
           <h2 id="intro-title">{t('introTitle')}</h2>
         </div>
         <button ref={closeButtonRef} type="button" aria-label={t('introClose')} onClick={onClose}>×</button>
@@ -49,5 +50,5 @@ export function IntroDialog({ onClose }: IntroDialogProps) {
         onLoad={handleFrameLoad}
       />
     </section>
-  </div>
+  </Overlay>
 }

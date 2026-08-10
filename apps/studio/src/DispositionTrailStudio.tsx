@@ -113,12 +113,12 @@ export function DispositionTrailStudio({ contract, workspaceId, detailId, onNavi
   const purposeOptions = purposes.data ?? []
 
   return <section className="disposition-page">
-    <SurfaceHero kicker={t('dispositionKicker').toLocaleUpperCase()} title={t('dispositionTitle')} description={t('dispositionDescription')}><button className="ghost" onClick={() => onNavigate('compiler')}>{t('dispositionEmptyAction')}</button></SurfaceHero>
-    <div className="surface-metrics"><MetricTile label={t('dispositionMetricTotal').toLocaleUpperCase()} value={formatNumber(total)} meta={t('dispositionMetricTotalMeta')} tone="info" /><MetricTile label={t('dispositionMetricAuthorizing').toLocaleUpperCase()} value={formatNumber(authorizingCount)} meta={t('dispositionMetricAuthorizingMeta')} tone="success" /><MetricTile label={t('dispositionMetricDryRun').toLocaleUpperCase()} value={formatNumber(dryRunCount)} meta={t('dispositionMetricDryRunMeta')} tone="warning" /><MetricTile label={t('dispositionMetricApproval').toLocaleUpperCase()} value={formatNumber(approvalCount)} meta={t('dispositionMetricApprovalMeta')} tone="governance" /></div>
+    <SurfaceHero kicker={t('dispositionKicker')} title={t('dispositionTitle')} description={t('dispositionDescription')}><button className="ghost" onClick={() => onNavigate('compiler')}>{t('dispositionEmptyAction')}</button></SurfaceHero>
+    <div className="surface-metrics"><MetricTile label={t('dispositionMetricTotal')} value={formatNumber(total)} meta={t('dispositionMetricTotalMeta')} tone="info" /><MetricTile label={t('dispositionMetricAuthorizing')} value={formatNumber(authorizingCount)} meta={t('dispositionMetricAuthorizingMeta')} tone="success" /><MetricTile label={t('dispositionMetricDryRun')} value={formatNumber(dryRunCount)} meta={t('dispositionMetricDryRunMeta')} tone="warning" /><MetricTile label={t('dispositionMetricApproval')} value={formatNumber(approvalCount)} meta={t('dispositionMetricApprovalMeta')} tone="governance" /></div>
 
     <div className="disposition-layout">
       <main className="disposition-list-panel panel">
-        <header className="disposition-list-header"><div><span className="panel-kicker">{t('dispositionListHeading').toLocaleUpperCase()}</span><h2>{scope === 'CONTRACT' ? contract.name : t('dispositionFilterWorkspace')}</h2></div></header>
+        <header className="disposition-list-header"><div><span className="panel-kicker">{t('dispositionListHeading')}</span><h2>{scope === 'CONTRACT' ? contract.name : t('dispositionFilterWorkspace')}</h2></div></header>
         <div className="surface-filters" role="group" aria-label={t('dispositionFiltersLabel')}>
           <label>{t('dispositionFilterScope')}<select value={scope} onChange={(event) => setScope(event.target.value === 'WORKSPACE' ? 'WORKSPACE' : 'CONTRACT')} disabled={!workspaceId}><option value="CONTRACT">{t('dispositionFilterThisContract')}</option><option value="WORKSPACE">{t('dispositionFilterWorkspace')}</option></select></label>
           <label>{t('dispositionFilterVerdict')}<select value={decision} onChange={(event) => setDecision(event.target.value as RuntimeDecision | '')}><option value="">{t('dispositionFilterAll')}</option>{decisionOptions.map((option) => <option value={option} key={option}>{t(decisionMessageKeys[option])}</option>)}</select></label>
@@ -167,7 +167,7 @@ function DispositionDetail({ record, onNavigatePath }: { record: DispositionReco
   const bannerBody = record.mode === 'DRY_RUN' ? 'dispositionModeBannerDryRunBody' : record.authorizing ? 'dispositionModeBannerAuthorizedBody' : 'dispositionModeBannerRevokedBody'
 
   return <article className="disposition-detail">
-    <header className="disposition-detail-head"><div><span className="panel-kicker">{t('dispositionSectionRecord').toLocaleUpperCase()}</span><h2><code>{record.id}</code></h2></div><span className={`disposition-chip ${decisionTone(record.decision)} large`}>{t(decisionMessageKeys[record.decision])}</span></header>
+    <header className="disposition-detail-head"><div><span className="panel-kicker">{t('dispositionSectionRecord')}</span><h2><code>{record.id}</code></h2></div><span className={`disposition-chip ${decisionTone(record.decision)} large`}>{t(decisionMessageKeys[record.decision])}</span></header>
 
     <div className={`disposition-banner ${bannerTone}`} role="status" aria-live="polite"><span aria-hidden="true">{record.mode === 'DRY_RUN' ? <IconFlask /> : record.authorizing ? <IconShieldCheck /> : <IconAlertTriangle />}</span><div><b>{t(bannerTitle)}</b><p>{t(bannerBody)}</p></div></div>
 

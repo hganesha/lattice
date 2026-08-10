@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Overlay } from './Overlay'
 import type { CaseSet, CaseSetSummary, ContextContract, CreateEvalRunRequest, DispositionMode, EvalRun } from '@lattice/contracts'
 import { apiFetch } from './api'
 import { useResource } from './useResource'
@@ -117,7 +118,7 @@ export function NewEvalWizard({ contract, workspaceId, baselineOptions, onClose,
     }
   }
 
-  return <div className="eval-modal-backdrop" role="presentation">
+  return <Overlay variant="dialog" bare dismissOnBackdrop={false} onClose={onClose}>
     <section className="eval-wizard" role="dialog" aria-modal="true" aria-label={t('evalWizardTitle')}>
       <header className="eval-modal-head"><div><span className="eval-kicker">{t('evalRunKicker')}</span><h2>{t('evalWizardTitle')}</h2><p>{t('evalWizardDescription')}</p></div><button className="eval-modal-close" type="button" aria-label={t('evalWizardClose')} onClick={onClose}><IconX /></button></header>
 
@@ -212,5 +213,5 @@ export function NewEvalWizard({ contract, workspaceId, baselineOptions, onClose,
         </div>
       </footer>
     </section>
-  </div>
+  </Overlay>
 }

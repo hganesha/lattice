@@ -41,15 +41,12 @@
   .policy-principle > span { color: var(--status-governance-fg); }
   .policy-principle b { font-size: var(--text-support); color: var(--fg-default); }
   .policy-principle p { margin-top: 4px; color: var(--fg-secondary); font-size: var(--text-meta); line-height: 1.45; }
-  .policy-editor { width: 560px; }
-  .policy-editor form > label, .policy-editor .form-split label { display: block; margin-bottom: 12px; color: var(--fg-secondary); font: var(--text-meta) var(--font-mono); letter-spacing: .5px; }
   .policy-approval-toggle { display: flex; align-items: flex-start; gap: 9px; padding: 11px; border: 1px solid var(--border-default); border-radius: 7px; background: var(--bg-raised); cursor: pointer; }
   .policy-approval-toggle input { width: auto; margin: 1px 0 0; accent-color: var(--interactive-fill); }
   .policy-approval-toggle b, .policy-approval-toggle small { display: block; }
   .policy-approval-toggle b { color: var(--fg-default); font: var(--text-support) var(--font-sans); }
   .policy-approval-toggle small { margin-top: 4px; color: var(--fg-muted); font: var(--text-meta) var(--font-sans); }
-  .policy-edit-warning { padding: 9px 11px; border: 1px solid var(--status-warning-fg); border-radius: 6px; background: var(--status-warning-bg); color: var(--status-warning-fg); font-size: var(--text-meta); }
-  .policy-editor .modal-actions { margin-top: 13px; }
+  .policy-edit-warning { margin-top: var(--space-2); padding: 9px 11px; border: 1px solid var(--status-warning-fg); border-radius: 6px; background: var(--status-warning-bg); color: var(--status-warning-fg); font-size: var(--text-meta); }
 
   @media (max-width: 1250px) {
     .policy-layout { grid-template-columns: minmax(0, 1fr) 250px; }

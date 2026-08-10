@@ -49,8 +49,8 @@ export function ExecutionsStudio({ contract, onNavigate, onNavigatePath }: Execu
   const failed = records.filter((receipt) => receipt.status === 'FAILED').length
 
   return <section className="execution-page">
-    <SurfaceHero kicker={t('executionKicker').toLocaleUpperCase()} title={t('executionTitle')} description={t('executionDescription')}><button className="ghost" onClick={() => onNavigate('dispositions')}>{t('compilerViewTrail')}</button></SurfaceHero>
-    <div className="surface-metrics"><MetricTile label={t('executionTitle').toLocaleUpperCase()} value={formatNumber(records.length)} meta={contract.name} tone="info" /><MetricTile label={t('executionStatusSuccess').toLocaleUpperCase()} value={formatNumber(succeeded)} meta={t('executionCompleted')} tone="success" /><MetricTile label={t('executionStatusFailed').toLocaleUpperCase()} value={formatNumber(failed)} meta={t('executionBindingResults')} tone="danger" /><MetricTile label={t('executionStatusDenied').toLocaleUpperCase()} value={formatNumber(denied)} meta={t('executionPermissions')} tone="warning" /></div>
+    <SurfaceHero kicker={t('executionKicker')} title={t('executionTitle')} description={t('executionDescription')}><button className="ghost" onClick={() => onNavigate('dispositions')}>{t('compilerViewTrail')}</button></SurfaceHero>
+    <div className="surface-metrics"><MetricTile label={t('executionTitle')} value={formatNumber(records.length)} meta={contract.name} tone="info" /><MetricTile label={t('executionStatusSuccess')} value={formatNumber(succeeded)} meta={t('executionCompleted')} tone="success" /><MetricTile label={t('executionStatusFailed')} value={formatNumber(failed)} meta={t('executionBindingResults')} tone="danger" /><MetricTile label={t('executionStatusDenied')} value={formatNumber(denied)} meta={t('executionPermissions')} tone="warning" /></div>
 
     <main className="panel execution-panel">
       {receipts.status === 'LOADING' && <LoadingState label={t('executionLoading')} />}

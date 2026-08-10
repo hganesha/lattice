@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import type { EvidenceStrength, GuardrailPolicy, RiskTier } from '@lattice/contracts'
 import { useMessages } from './i18n/messages'
+import { Overlay } from './Overlay'
 
 interface PolicyEditorProps {
   policy?: GuardrailPolicy | undefined
@@ -22,14 +23,6 @@ export function PolicyEditor({ policy, existingIds, onClose, onSave }: PolicyEdi
   const [approvalRequired, setApprovalRequired] = useState(policy?.approvalRequired ?? false)
   const [owner, setOwner] = useState(policy?.owner ?? '')
 
-  useEffect(() => {
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [onClose])
-
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const baseId = `policy-${slugify(label) || riskTier.toLocaleLowerCase()}`
@@ -48,20 +41,17 @@ export function PolicyEditor({ policy, existingIds, onClose, onSave }: PolicyEdi
     })
   }
 
-  return <div className="modal-backdrop policy-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <section className="builder-modal policy-editor" role="dialog" aria-modal="true" aria-labelledby="policy-editor-title">
-      <header className="modal-header"><div><span className="panel-kicker">{t('policyEditorKicker').toLocaleUpperCase()}</span><h2 id="policy-editor-title">{policy ? t('policyEditorEdit') : t('policyEditorCreate')}</h2></div><button aria-label={t('policyEditorClose')} onClick={onClose}>×</button></header>
-      <form onSubmit={submit}>
-        <label>{t('policyEditorName').toLocaleUpperCase()}<input value={label} onChange={(event) => setLabel(event.target.value)} placeholder={t('policyEditorNamePlaceholder')} required autoFocus /></label>
-        <label>{t('policyEditorDescription').toLocaleUpperCase()}<textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t('policyEditorDescriptionPlaceholder')} required /></label>
-        <div className="form-split"><label>{t('policyEditorRiskTier').toLocaleUpperCase()}<select value={riskTier} onChange={(event) => setRiskTier(event.target.value as RiskTier)}>{riskTiers.map((tier) => <option value={tier} key={tier}>{tier.replaceAll('_', ' ')}</option>)}</select></label><label>{t('policyEditorMinimumEvidence').toLocaleUpperCase()}<select value={minimumEvidenceStrength} onChange={(event) => setMinimumEvidenceStrength(event.target.value as EvidenceStrength)}>{evidenceStrengths.map((strength) => <option value={strength} key={strength}>{strength}</option>)}</select></label></div>
-        <div className="form-split"><label>{t('policyEditorMaximumAge').toLocaleUpperCase()}<input type="number" min="1" value={maximumEvidenceAgeMinutes} onChange={(event) => setMaximumEvidenceAgeMinutes(Number(event.target.value))} required /></label><label>{t('policyEditorOwner').toLocaleUpperCase()}<input value={owner} onChange={(event) => setOwner(event.target.value)} placeholder={t('policyEditorOwnerPlaceholder')} required /></label></div>
-        <label className="policy-approval-toggle"><input type="checkbox" checked={approvalRequired} onChange={(event) => setApprovalRequired(event.target.checked)} /><span><b>{t('policyEditorRequireApproval')}</b><small>{t('policyEditorRequireApprovalDescription')}</small></span></label>
-        <div className="policy-edit-warning">{t('policyEditorWarning')}</div>
-        <footer className="modal-actions"><button type="button" className="ghost" onClick={onClose}>{t('commonCancel')}</button><button type="submit" className="release">{policy ? t('policyEditorStageUpdate') : t('policyEditorCreateAction')} →</button></footer>
-      </form>
-    </section>
-  </div>
+  return <Overlay variant="drawer" title={policy ? t('policyEditorEdit') : t('policyEditorCreate')} closeLabel={t('policyEditorClose')} onClose={onClose} dismissOnBackdrop={false}>
+    <form onSubmit={submit} className="overlay-form">
+      <label>{t('policyEditorName')}<input value={label} onChange={(event) => setLabel(event.target.value)} placeholder={t('policyEditorNamePlaceholder')} required autoFocus /></label>
+      <label>{t('policyEditorDescription')}<textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t('policyEditorDescriptionPlaceholder')} required /></label>
+      <div className="form-split"><label>{t('policyEditorRiskTier')}<select value={riskTier} onChange={(event) => setRiskTier(event.target.value as RiskTier)}>{riskTiers.map((tier) => <option value={tier} key={tier}>{tier.replaceAll('_', ' ')}</option>)}</select></label><label>{t('policyEditorMinimumEvidence')}<select value={minimumEvidenceStrength} onChange={(event) => setMinimumEvidenceStrength(event.target.value as EvidenceStrength)}>{evidenceStrengths.map((strength) => <option value={strength} key={strength}>{strength}</option>)}</select></label></div>
+      <div className="form-split"><label>{t('policyEditorMaximumAge')}<input type="number" min="1" value={maximumEvidenceAgeMinutes} onChange={(event) => setMaximumEvidenceAgeMinutes(Number(event.target.value))} required /></label><label>{t('policyEditorOwner')}<input value={owner} onChange={(event) => setOwner(event.target.value)} placeholder={t('policyEditorOwnerPlaceholder')} required /></label></div>
+      <label className="policy-approval-toggle"><input type="checkbox" checked={approvalRequired} onChange={(event) => setApprovalRequired(event.target.checked)} /><span><b>{t('policyEditorRequireApproval')}</b><small>{t('policyEditorRequireApprovalDescription')}</small></span></label>
+      <div className="policy-edit-warning">{t('policyEditorWarning')}</div>
+      <div className="overlay-actions"><button type="button" className="ghost" onClick={onClose}>{t('commonCancel')}</button><button type="submit" className="release">{policy ? t('policyEditorStageUpdate') : t('policyEditorCreateAction')} →</button></div>
+    </form>
+  </Overlay>
 }
 
 function slugify(value: string): string {

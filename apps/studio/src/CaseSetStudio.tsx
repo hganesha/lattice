@@ -105,8 +105,8 @@ export function CaseSetStudio({ contract, workspaceId, detailId, onNavigate, onN
   const typesPresent = typeCounts.filter((entry) => entry.count > 0).length
 
   return <section className="case-set-page">
-    <SurfaceHero kicker={t('caseSetKicker').toLocaleUpperCase()} title={t('caseSetTitle')} description={t('caseSetDescription')}><button className="release" onClick={() => setCreatingSet(true)}><IconPlus /> {t('caseSetNew')}</button></SurfaceHero>
-    <div className="surface-metrics"><MetricTile label={t('caseSetMetricSets').toLocaleUpperCase()} value={formatNumber(summaries.length)} meta={t('caseSetMetricSetsMeta')} tone="info" /><MetricTile label={t('caseSetMetricCases').toLocaleUpperCase()} value={formatNumber(cases.length)} meta={t('caseSetMetricCasesMeta')} tone="success" /><MetricTile label={t('caseSetMetricTypes').toLocaleUpperCase()} value={`${typesPresent}/${caseTypeOrder.length}`} meta={t('caseSetMetricTypesMeta')} tone="governance" /><MetricTile label={t('caseSetMetricReviewers').toLocaleUpperCase()} value={formatNumber(reviewers.size)} meta={t('caseSetMetricReviewersMeta')} tone="brand" /></div>
+    <SurfaceHero kicker={t('caseSetKicker')} title={t('caseSetTitle')} description={t('caseSetDescription')}><button className="release" onClick={() => setCreatingSet(true)}><IconPlus /> {t('caseSetNew')}</button></SurfaceHero>
+    <div className="surface-metrics"><MetricTile label={t('caseSetMetricSets')} value={formatNumber(summaries.length)} meta={t('caseSetMetricSetsMeta')} tone="info" /><MetricTile label={t('caseSetMetricCases')} value={formatNumber(cases.length)} meta={t('caseSetMetricCasesMeta')} tone="success" /><MetricTile label={t('caseSetMetricTypes')} value={`${typesPresent}/${caseTypeOrder.length}`} meta={t('caseSetMetricTypesMeta')} tone="governance" /><MetricTile label={t('caseSetMetricReviewers')} value={formatNumber(reviewers.size)} meta={t('caseSetMetricReviewersMeta')} tone="brand" /></div>
 
     {notice && <p className="eval-notice" role="status">{notice}</p>}
 

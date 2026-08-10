@@ -65,9 +65,8 @@
   .surface-hero-facts > div { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
   .surface-hero-facts dt {
     color: var(--fg-muted);
-    font: var(--weight-medium) var(--text-meta) var(--font-mono);
-    letter-spacing: var(--tracking-wide);
-    text-transform: uppercase;
+    font: var(--weight-medium) var(--text-support) var(--font-sans);
+    letter-spacing: normal;
   }
   .surface-hero-facts dd {
     display: flex;
@@ -85,7 +84,7 @@
   .surface-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
   .surface-metric { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-4); border: var(--border-width) solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-surface); text-align: left; }
   .surface-metric > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-  .surface-metric span { color: var(--fg-muted); font: var(--weight-medium) var(--text-meta) var(--font-mono); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+  .surface-metric span { color: var(--fg-muted); font: var(--weight-medium) var(--text-support) var(--font-sans); letter-spacing: normal; }
   .surface-metric b { font: var(--weight-semibold) var(--text-display) var(--font-display); letter-spacing: var(--tracking-display); }
   .surface-metric small { color: var(--fg-secondary); font-size: var(--text-meta); }
   .surface-metric.actionable { cursor: pointer; transition: border-color var(--motion-fast) var(--ease-out), background var(--motion-fast) var(--ease-out); }
@@ -206,7 +205,7 @@
   .surface-chip.cat-8 { border-color: var(--cat-8); color: var(--cat-8); }
 
   .surface-filters { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: var(--border-width) solid var(--border-subtle); }
-  .surface-filters label { display: flex; align-items: center; gap: var(--space-2); color: var(--fg-muted); font: var(--weight-medium) var(--text-meta) var(--font-mono); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
+  .surface-filters label { display: flex; align-items: center; gap: var(--space-2); color: var(--fg-muted); font: var(--weight-medium) var(--text-support) var(--font-sans); letter-spacing: normal; }
   /* --border-control, not --border-default: on a form control the border is
    * the affordance, so WCAG 1.4.11's 3:1 applies. It previously sat at 2.5:1. */
   .surface-filters select, .surface-filters input { border: var(--border-width) solid var(--border-control); border-radius: var(--radius-sm); background: var(--bg-raised); color: var(--fg-default); padding: var(--space-1) var(--space-2); font-size: var(--text-support); }

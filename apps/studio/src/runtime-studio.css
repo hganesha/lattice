@@ -40,7 +40,7 @@
   .compiler-bar { flex-wrap: wrap; row-gap: var(--space-3)}
   .compiler-bar .question-field { flex: 1 1 320px}
   .purpose-field { flex: 0 1 230px; min-width: 180px}
-  .purpose-field label { display: block; margin-bottom: var(--space-1); color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: 1.1px; text-transform: uppercase}
+  .purpose-field label { display: block; margin-bottom: var(--space-1); color: var(--fg-muted); font: 500 var(--text-meta) var(--font-mono); letter-spacing: 1.1px}
   .purpose-field select { width: 100%; padding: var(--space-1) var(--space-2); border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--bg-raised); color: var(--fg-default); font-size: var(--text-support)}
   .purpose-field select:invalid, .purpose-field select[value=''] { color: var(--fg-muted)}
   .purpose-field select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px}

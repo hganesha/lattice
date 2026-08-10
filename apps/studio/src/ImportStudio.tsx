@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { Overlay } from './Overlay'
 import type {
   ContextContract,
   EntityTypeDefinition,
@@ -132,7 +133,7 @@ export function ImportStudio({ contract, onClose, onApply }: ImportStudioProps) 
     onApply(result.contract, result.summary)
   }
 
-  return <div className="modal-backdrop import-backdrop" role="presentation">
+  return <Overlay variant="dialog" bare dismissOnBackdrop={false} onClose={onClose}>
     <section className="import-studio" role="complementary" aria-labelledby="import-studio-title">
       <header className="import-header">
         <div><span className="panel-kicker">{t('importKicker')}</span><h1 id="import-studio-title">{t('importTitle')}</h1><p>{t('importDescription')}</p></div>
@@ -171,7 +172,7 @@ export function ImportStudio({ contract, onClose, onApply }: ImportStudioProps) 
 
       <footer className="import-footer"><div><button className="ghost" onClick={proposal ? () => setProposal(undefined) : onClose}>{proposal ? t('importBackSource') : t('commonCancel')}</button><span>{proposal ? t('importReviewLocal') : t('importPayloadLimit')}</span></div>{proposal ? <button className="release" onClick={applyImport} disabled={selectionSummary.types + selectionSummary.merges === 0}>{t('importApplyDraft')}</button> : <button className="release" onClick={() => void preview()} disabled={loading || !sourceName.trim() || !sourceText.trim()}>{loading ? t('importAnalyzing') : t('importAnalyze')}</button>}</footer>
     </section>
-  </div>
+  </Overlay>
 }
 
 interface EntityProposalRowProps {
@@ -191,7 +192,7 @@ function EntityProposalRow({ item, selected, resolution, edit, onSelected, onRes
     <div className="proposal-content">
       <div className="proposal-title"><div><input aria-label={`Label for ${item.sourceId}`} value={edit.label} onChange={(event) => onEdit({ ...edit, label: event.target.value })} /><code>{item.type.id}</code></div><span>{t('importPropertiesCount', { count: item.type.properties.length })}</span></div>
       <p>{item.type.description}</p>
-      <div className="proposal-meta"><label>{t('importGroup').toLocaleUpperCase()} <input value={edit.group} onChange={(event) => onEdit({ ...edit, group: event.target.value })} /></label>{item.type.properties.slice(0, 4).map((property) => <span key={property.id}>{property.name} · {property.dataType}</span>)}{item.type.properties.length > 4 && <span>{t('importMore', { count: item.type.properties.length - 4 })}</span>}</div>
+      <div className="proposal-meta"><label>{t('importGroup')} <input value={edit.group} onChange={(event) => onEdit({ ...edit, group: event.target.value })} /></label>{item.type.properties.slice(0, 4).map((property) => <span key={property.id}>{property.name} · {property.dataType}</span>)}{item.type.properties.length > 4 && <span>{t('importMore', { count: item.type.properties.length - 4 })}</span>}</div>
       {item.warnings.map((warning) => <small className="import-warning" key={warning}>! {warning}</small>)}
       {item.collision && <div className="collision-row"><div><b>{t('importCollision', { label: item.collision.existingLabel })}</b><small>{t('importInContract', { match: item.collision.match === 'EXACT_ID' ? t('importSameIdentifier') : t('importMatchingLabel') })}</small></div><select aria-label={`Collision resolution for ${item.sourceId}`} value={resolution} onChange={(event) => onResolution(event.target.value as CollisionResolution)}><option value="MERGE">{t('importMergeProperties')}</option><option value="CREATE">{t('importCreateSeparate')}</option><option value="SKIP">{t('importSkipType')}</option></select></div>}
     </div>

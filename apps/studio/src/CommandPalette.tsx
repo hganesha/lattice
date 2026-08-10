@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ContractSummary, SearchResult, SearchResultKind } from '@lattice/contracts'
 import { apiFetch } from './api'
+import { Overlay } from './Overlay'
 import { IconLoader, IconSearch } from './icons'
 import { searchKindMessageKeys, searchKindOrder, useIdentityMessages } from './i18n/messages.identity'
 
@@ -76,7 +77,7 @@ export function CommandPalette({ open, onClose, workspaceId, contracts, onNaviga
 
   const activeId = flat[activeIndex] ? `palette-option-${flat[activeIndex].id}` : undefined
 
-  return <div className="modal-backdrop palette-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+  return <Overlay variant="command" bare onClose={onClose}>
     <section className="command-palette" role="dialog" aria-modal="true" aria-label={t('paletteLabel')} onKeyDown={onKeyDown}>
       <div className="palette-input">
         <span aria-hidden="true">{status === 'SEARCHING' ? <IconLoader /> : <IconSearch />}</span>
@@ -100,5 +101,5 @@ export function CommandPalette({ open, onClose, workspaceId, contracts, onNaviga
 
       <footer className="palette-footer"><span>{t('paletteHint')}</span>{status === 'SEARCHING' ? <span>{t('paletteSearching')}</span> : status === 'READY' ? <span>{t('paletteResultCount', { count: flat.length })}</span> : null}</footer>
     </section>
-  </div>
+  </Overlay>
 }

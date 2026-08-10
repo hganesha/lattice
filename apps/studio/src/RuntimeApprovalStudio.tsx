@@ -119,7 +119,7 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
 
   return <section className="runtime-approval-studio">
     <SurfaceHero
-      kicker={t('approvalCheckpoint').toLocaleUpperCase()}
+      kicker={t('approvalCheckpoint')}
       title={contract.name}
       description={t('approvalDescription')}
       facts={[releaseFact(t, contract)]}
@@ -129,7 +129,7 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
     </SurfaceHero>
 
     {!governedPolicy && canLoadGridOutageExample(contract) && <section className="approval-setup panel">
-      <div><span className="panel-kicker">{t('approvalDemoBaseline').toLocaleUpperCase()}</span><h3>{t('approvalGovernOutage')}</h3><p>{t('approvalDemoDescription')}</p></div>
+      <div><span className="panel-kicker">{t('approvalDemoBaseline')}</span><h3>{t('approvalGovernOutage')}</h3><p>{t('approvalDemoDescription')}</p></div>
       <button className="release" onClick={configureApprovalExample}>{t('approvalStageBaseline')} →</button>
     </section>}
 
@@ -143,7 +143,7 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
 
     <div className="approval-layout">
       <section className="approval-queue panel">
-        <div className="panel-header"><div><span className="panel-kicker">{t('approvalQueue').toLocaleUpperCase()}</span><h2>{t('approvalRuntimeIntents')}</h2></div><button className="ghost" onClick={() => void refresh()}>{t('commonRefresh')}</button></div>
+        <div className="panel-header"><div><span className="panel-kicker">{t('approvalQueue')}</span><h2>{t('approvalRuntimeIntents')}</h2></div><button className="ghost" onClick={() => void refresh()}>{t('commonRefresh')}</button></div>
         {approvals.length === 0 ? <div className="runtime-empty compact"><span>◴</span><h3>{t('approvalEmptyTitle')}</h3><p>{t('approvalEmptyDescription')}</p></div> : approvals.map((approval) => <article className="surface-row runtime-approval-card" key={approval.id}>
           <div className="approval-card-heading"><div><span>{approval.riskTier.replaceAll('_', ' ')}</span><h3>{approval.operationId}</h3></div><span className={`runtime-status-pill ${approval.status.toLocaleLowerCase()}`}>{approval.status}</span></div>
           <p>{approval.id}</p>
@@ -155,7 +155,7 @@ export function RuntimeApprovalStudio({ contract, onChange, onDirtyChange, onOpe
         </article>)}
       </section>
       <section className="execution-ledger panel">
-        <div className="panel-header"><div><span className="panel-kicker">{t('approvalExecutionLedger').toLocaleUpperCase()}</span><h2>{t('approvalAdapterReceipts')}</h2></div></div>
+        <div className="panel-header"><div><span className="panel-kicker">{t('approvalExecutionLedger')}</span><h2>{t('approvalAdapterReceipts')}</h2></div></div>
         {receipts.length === 0 ? <div className="runtime-empty compact"><span>⌁</span><h3>{t('approvalNoPlans')}</h3><p>{t('approvalNoPlansDescription')}</p></div> : receipts.map((receipt) => <ExecutionReceiptCard receipt={receipt} key={receipt.id} />)}
       </section>
     </div>

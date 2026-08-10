@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { Overlay } from './Overlay'
 
 interface ConfirmDialogProps {
   title: string
@@ -10,11 +10,20 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({ title, description, cancelLabel, confirmLabel, onCancel, onConfirm }: ConfirmDialogProps) {
-  useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onCancel() }
-    document.addEventListener('keydown', closeOnEscape)
-    return () => document.removeEventListener('keydown', closeOnEscape)
-  }, [onCancel])
-
-  return <div className="modal-backdrop confirm-backdrop" role="presentation"><section className="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-description"><span aria-hidden="true">!</span><h2 id="confirm-title">{title}</h2><p id="confirm-description">{description}</p><footer><button className="ghost" autoFocus onClick={onCancel}>{cancelLabel}</button><button className="danger-ghost" onClick={onConfirm}>{confirmLabel}</button></footer></section></div>
+  return (
+    <Overlay
+      variant="dialog"
+      role="alertdialog"
+      width="min(430px, calc(100vw - 2 * var(--space-5)))"
+      title={title}
+      closeLabel={cancelLabel}
+      onClose={onCancel}
+      footer={<>
+        <button className="ghost" autoFocus onClick={onCancel}>{cancelLabel}</button>
+        <button className="ghost danger" onClick={onConfirm}>{confirmLabel}</button>
+      </>}
+    >
+      <p className="confirm-copy">{description}</p>
+    </Overlay>
+  )
 }
