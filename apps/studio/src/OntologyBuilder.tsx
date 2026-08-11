@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import {
   Background,
   Controls,
@@ -9,6 +9,7 @@ import {
   type Connection,
   type Edge,
   type Node,
+  type ReactFlowInstance,
 } from '@xyflow/react'
 import type {
   ContextContract,
@@ -24,20 +25,21 @@ import { ImportStudio } from './ImportStudio'
 import { useMessages } from './i18n/messages'
 import { OntologyLaneNode, type OntologyLaneNodeType } from './OntologyLaneNode'
 import { OntologyEntityNode } from './OntologyEntityNode'
-import { buildOntologyIsometricLayout, buildOntologyLaneLayout } from './ontologyLaneLayout'
+import { buildOntologyIsometricLayout, buildOntologyLaneLayout, type OntologyLaneLayout } from './ontologyLaneLayout'
+import { buildOntologyLayeredLayout } from './ontologyLayeredLayout'
 import { colorFrom, domainGroupPalette } from './domainGroupColors'
 import { Toast } from './Toast'
 import { DomainGroupField } from './DomainGroupField'
 import { EntityIconPicker } from './EntityIconPicker'
 import { EntityIcon, DEFAULT_ENTITY_ICON } from './entityIcons'
 import { downloadJson, downloadOntology } from './jsonExport'
-import { IconAutoLayout, IconDownload, IconIsometric, IconLink, IconPlus, IconRows } from './icons'
+import { IconAutoLayout, IconDownload, IconIsometric, IconLayered, IconLink, IconPlus, IconRows } from './icons'
 import { PanelCollapseButton, usePersistentCollapsed } from './PanelCollapseButton'
 
 const ontologyNodeTypes = { ontologyLane: OntologyLaneNode, ontologyEntity: OntologyEntityNode }
 
 type BuilderDialog = 'entity' | 'relationship' | 'property' | 'publish' | null
-type OntologyLayoutMode = 'lanes' | 'isometric'
+type OntologyLayoutMode = 'lanes' | 'isometric' | 'layered'
 
 interface OntologyBuilderProps {
   contract: ContextContract
@@ -62,6 +64,9 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   const [layoutMode, setLayoutMode] = useState<OntologyLayoutMode>('lanes')
   const [autoLayoutEnabled, setAutoLayoutEnabled] = useState(true)
   const [manualLayout, setManualLayout] = useState<NonNullable<ContextContract['schemaLayout']>>(contract.schemaLayout ?? {})
+  const [layeredLayout, setLayeredLayout] = useState<OntologyLaneLayout>()
+  const [layeredPending, setLayeredPending] = useState(false)
+  const flowRef = useRef<ReactFlowInstance | null>(null)
 
   const selectedType = contract.entityTypes.find((type) => type.id === selectedTypeId)
   const selectedRelationships = useMemo(() => contract.relationshipTypes.filter((relationship) =>
@@ -72,14 +77,31 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   const domainGroups = useMemo(() => uniqueDomainGroups(contract.entityTypes), [contract.entityTypes])
   const laneLayout = useMemo(() => buildOntologyLaneLayout(contract.entityTypes), [contract.entityTypes])
   const isometricLayout = useMemo(() => buildOntologyIsometricLayout(contract.entityTypes), [contract.entityTypes])
-  const displayLayout = layoutMode === 'isometric' ? isometricLayout : laneLayout
+  // ELK owns the layered view's geometry, but it resolves asynchronously; until it lands we
+  // fall back to the lane layout so every node still has a position and the canvas never blanks.
+  const displayLayout = layoutMode === 'isometric' ? isometricLayout
+    : layoutMode === 'layered' ? (layeredLayout ?? laneLayout)
+    : laneLayout
   const lanePositions = useMemo(() => autoLayoutEnabled
     ? laneLayout.positions
     : { ...laneLayout.positions, ...manualLayout }, [autoLayoutEnabled, laneLayout.positions, manualLayout])
-  const resolvedPositions = layoutMode === 'isometric' ? isometricLayout.positions : lanePositions
+  // Memoised so its identity is stable between renders — otherwise `derivedNodes` (which
+  // depends on it) would rebuild every render, and the constant node churn would stop React
+  // Flow from ever settling handle measurements, leaving every edge unrendered. Lane
+  // positions sit underneath so a node added since the last ELK pass still has a coordinate;
+  // ELK's positions win wherever they exist.
+  const layeredPositions = useMemo(
+    () => ({ ...laneLayout.positions, ...layeredLayout?.positions }),
+    [laneLayout.positions, layeredLayout],
+  )
+  const resolvedPositions = layoutMode === 'isometric' ? isometricLayout.positions
+    : layoutMode === 'layered' ? layeredPositions
+    : lanePositions
   const groupPalette = useMemo(() => domainGroupPalette(displayLayout.lanes.map((lane) => lane.label)), [displayLayout.lanes])
   const derivedNodes = useMemo<Node[]>(() => [
-    ...displayLayout.lanes.map((lane): OntologyLaneNodeType => ({
+    // The layered view is a pure connectivity map — it draws no swimlane frames; groups
+    // survive only as the accent colour on each card and in the legend.
+    ...(layoutMode === 'layered' ? [] : displayLayout.lanes.map((lane): OntologyLaneNodeType => ({
       id: `__lane_${lane.id}`,
       type: 'ontologyLane',
       position: lane.position,
@@ -91,7 +113,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
       connectable: false,
       focusable: false,
       zIndex: -1,
-    })),
+    }))),
     ...contract.entityTypes.map((type) => ({
       id: type.id,
       type: 'ontologyEntity',
@@ -102,7 +124,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
       className: `ontology-flow-node ${type.approvalStatus === 'APPROVED' ? 'approved' : 'draft'} ${selectedTypeId === type.id ? 'selected' : ''}`,
       zIndex: 2,
     })),
-  ], [contract.entityTypes, displayLayout.lanes, groupPalette, propsLabel, resolvedPositions, selectedTypeId])
+  ], [contract.entityTypes, displayLayout.lanes, groupPalette, layoutMode, propsLabel, resolvedPositions, selectedTypeId])
   const [graphNodes, setGraphNodes, onNodesChange] = useNodesState(derivedNodes)
   const graphEdges = useMemo<Edge[]>(() => contract.relationshipTypes.map((relationship) => ({
     id: relationship.id,
@@ -110,7 +132,8 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
     target: relationship.targetTypeId,
     label: relationship.label,
     type: layoutMode === 'isometric' ? 'straight' : 'smoothstep',
-    ...(layoutMode === 'lanes' ? { pathOptions: { offset: 44, borderRadius: 8 } } : {}),
+    ...(layoutMode === 'lanes' ? { pathOptions: { offset: 44, borderRadius: 8 } }
+      : layoutMode === 'layered' ? { pathOptions: { offset: 20, borderRadius: 14 } } : {}),
     labelShowBg: true,
     labelBgPadding: [6, 4],
     labelBgBorderRadius: 4,
@@ -145,6 +168,27 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
   useEffect(() => {
     setGraphNodes(derivedNodes)
   }, [derivedNodes, setGraphNodes])
+
+  // Recompute the ELK layered layout whenever the layered view is active and the graph
+  // changes. It's async and off the main thread; the fallback lane positions hold the fort
+  // until it resolves. `cancelled` drops a stale result if the graph changes mid-computation.
+  useEffect(() => {
+    if (layoutMode !== 'layered') return
+    let cancelled = false
+    setLayeredPending(true)
+    void buildOntologyLayeredLayout(contract.entityTypes, contract.relationshipTypes)
+      .then((result) => { if (!cancelled) { setLayeredLayout(result); setLayeredPending(false) } })
+      .catch(() => { if (!cancelled) setLayeredPending(false) })
+    return () => { cancelled = true }
+  }, [layoutMode, contract.entityTypes, contract.relationshipTypes])
+
+  // Once ELK's positions have flowed into the nodes, animate the viewport to frame the final
+  // layout. Deferred a frame so React Flow has committed the new node positions first.
+  useEffect(() => {
+    if (layoutMode !== 'layered' || !layeredLayout) return
+    const frame = requestAnimationFrame(() => flowRef.current?.fitView({ padding: 0.18, duration: 420 }))
+    return () => cancelAnimationFrame(frame)
+  }, [layoutMode, layeredLayout])
 
   function commit(next: ContextContract) {
     onChange(next)
@@ -319,12 +363,14 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
             <div className="canvas-layout-controls">
               <div className="layout-view-selector" role="group" aria-label={t('ontologyLayoutView')}>
                 <button type="button" aria-label={t('ontologyLayoutLanes')} title={t('ontologyLayoutLanes')} aria-pressed={layoutMode === 'lanes'} className={layoutMode === 'lanes' ? 'selected' : ''} onClick={() => setLayoutMode('lanes')}><IconRows /></button>
+                <button type="button" aria-label={t('ontologyLayoutLayered')} title={t('ontologyLayoutLayered')} aria-pressed={layoutMode === 'layered'} className={layoutMode === 'layered' ? 'selected' : ''} onClick={() => setLayoutMode('layered')}><IconLayered /></button>
                 <button type="button" aria-label={t('ontologyLayoutIsometric')} title={t('ontologyLayoutIsometric')} aria-pressed={layoutMode === 'isometric'} className={layoutMode === 'isometric' ? 'selected' : ''} onClick={() => setLayoutMode('isometric')}><IconIsometric /></button>
               </div>
-              <button className={`ghost layout-toggle ${autoLayoutEnabled ? 'active' : ''}`} aria-label={t('ontologyAutoLayout')} title={t('ontologyAutoLayout')} aria-pressed={autoLayoutEnabled} disabled={layoutMode === 'isometric'} onClick={toggleAutoLayout}><IconAutoLayout /></button>
+              <button className={`ghost layout-toggle ${autoLayoutEnabled ? 'active' : ''}`} aria-label={t('ontologyAutoLayout')} title={t('ontologyAutoLayout')} aria-pressed={autoLayoutEnabled} disabled={layoutMode !== 'lanes'} onClick={toggleAutoLayout}><IconAutoLayout /></button>
             </div>
             <ReactFlow
               key={layoutMode}
+              onInit={(instance) => { flowRef.current = instance }}
               nodes={graphNodes}
               edges={graphEdges}
               onNodesChange={onNodesChange}
@@ -346,6 +392,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
               <Controls showInteractive={false} />
             </ReactFlow>
             {contract.entityTypes.length === 0 && <div className="empty-canvas"><span>◇</span><h3>{t('ontologyEmptyTitle')}</h3><p>{t('ontologyEmptyDescription')}</p><button className="release" onClick={() => setDialog('entity')}>{t('ontologyCreateFirstType')}</button></div>}
+            {layoutMode === 'layered' && layeredPending && <div className="canvas-computing" role="status"><i aria-hidden="true" /><span>{t('ontologyLayoutOptimizing')}</span></div>}
             <div className="canvas-hint"><span>{t('ontologyConnectNodes')}</span></div>
             {/* Colour alone would be a private joke; the legend is what makes it readable. */}
             <div className="canvas-legend" aria-label={t('ontologyDomainGroups')}>

@@ -26,6 +26,12 @@ vi.mock('./jsonExport', () => ({
   downloadOntology: vi.fn(),
 }))
 
+// Keep ELK out of jsdom (it wants a web worker); the builder only needs a resolved layout.
+const { buildOntologyLayeredLayout } = vi.hoisted(() => ({
+  buildOntologyLayeredLayout: vi.fn(async () => ({ positions: {}, lanes: [], width: 0, height: 0 })),
+}))
+vi.mock('./ontologyLayeredLayout', () => ({ buildOntologyLayeredLayout }))
+
 describe('OntologyBuilder inspector', () => {
   beforeEach(() => localStorage.removeItem('lattice:inspector-collapsed'))
 
@@ -78,6 +84,20 @@ describe('OntologyBuilder inspector', () => {
     expect(isometric).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: /Auto-layout/ })).toBeDisabled()
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('computes an ELK layered layout when the layered view is selected', async () => {
+    render(<LatticeI18nProvider><OntologyBuilder contract={counterpartyRiskContract} mode="workspace" onChange={() => undefined} onDirtyChange={() => undefined} /></LatticeI18nProvider>)
+
+    const layered = screen.getByRole('button', { name: 'Layered' })
+    expect(layered).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(layered)
+
+    expect(layered).toHaveAttribute('aria-pressed', 'true')
+    // Auto-layout is a lanes-only affordance; the layered view owns its own geometry.
+    expect(screen.getByRole('button', { name: /Auto-layout/ })).toBeDisabled()
+    expect(buildOntologyLayeredLayout).toHaveBeenCalledWith(counterpartyRiskContract.entityTypes, counterpartyRiskContract.relationshipTypes)
   })
 
   it('collapses the inspector without losing its selected tab', () => {

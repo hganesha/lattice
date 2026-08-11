@@ -329,6 +329,8 @@ export const messages = defineMessages({
   ontologyLayoutView: { id: 'ontology.layout.view', defaultMessage: 'Canvas layout' },
   ontologyLayoutLanes: { id: 'ontology.layout.lanes', defaultMessage: 'Lanes' },
   ontologyLayoutIsometric: { id: 'ontology.layout.isometric', defaultMessage: 'Isometric' },
+  ontologyLayoutLayered: { id: 'ontology.layout.layered', defaultMessage: 'Layered' },
+  ontologyLayoutOptimizing: { id: 'ontology.layout.optimizing', defaultMessage: 'Optimizing layout…' },
   ontologyAutoLayout: { id: 'ontology.autoLayout', defaultMessage: 'Auto-layout' },
   ontologyPublishRelease: { id: 'ontology.publishRelease', defaultMessage: 'Publish release ↗' },
   ontologySaveFoundation: { id: 'ontology.saveFoundation', defaultMessage: 'Save ontology' },
