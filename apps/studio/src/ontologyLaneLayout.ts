@@ -4,15 +4,13 @@ export const ONTOLOGY_NODE_WIDTH = 220
 export const ONTOLOGY_NODE_HEIGHT = 64
 export const ONTOLOGY_LANE_WIDTH = 252
 
-// Wide connector corridors keep relationship labels clear of both lane borders and entity cards.
-const LANE_GAP = 96
-const LANE_ROW_GAP = 56
+// Each domain group is its own vertical lane; all lanes sit in a single row, so a group owns
+// its column and the corridor between columns keeps relationship labels clear of the cards.
+const LANE_GAP = 88
 const LANE_HEADER_HEIGHT = 34
 const LANE_PADDING = 16
 const NODE_GAP = 24
-const LANE_STAGGER = 28
 const CANVAS_PADDING = 28
-const MAX_LANES_PER_ROW = 4
 
 // Isometric mode keeps cards upright while arranging them on diagonal semantic planes.
 const ISOMETRIC_LANES_PER_ROW = 3
@@ -38,36 +36,27 @@ export interface OntologyLaneLayout {
   height: number
 }
 
-/** Builds stable left-to-right semantic lanes from each entity type's domain group. */
+/**
+ * Builds one vertical lane per domain group, arranged side by side in a single row. Each lane
+ * holds a single group and stacks its entity cards top to bottom, so a group owns its column
+ * and no two groups ever share a lane.
+ */
 export function buildOntologyLaneLayout(entityTypes: EntityTypeDefinition[]): OntologyLaneLayout {
-  const grouped = new Map<string, { label: string; types: EntityTypeDefinition[] }>()
-  for (const entityType of entityTypes) {
-    const group = entityType.group.trim() || 'Ungrouped'
-    const key = group.toLocaleLowerCase()
-    const existing = grouped.get(key)
-    grouped.set(key, existing
-      ? { ...existing, types: [...existing.types, entityType] }
-      : { label: group, types: [entityType] })
-  }
-
-  const groups = [...grouped.values()].map(({ label, types }) => [label, types] as const)
+  const groups = groupEntityTypes(entityTypes)
   const positions: OntologyLaneLayout['positions'] = {}
-  const rows = chunk(groups, MAX_LANES_PER_ROW)
-  const rowHeights = rows.map((row) => laneHeightFor(Math.max(1, ...row.map(([, types]) => types.length)), row.length))
-  const rowOffsets = rowHeights.map((_, rowIndex) => CANVAS_PADDING
-    + rowHeights.slice(0, rowIndex).reduce((sum, height) => sum + height + LANE_ROW_GAP, 0))
+  let tallestLane = 0
 
   const lanes = groups.map(([label, types], laneIndex): OntologyLane => {
-    const rowIndex = Math.floor(laneIndex / MAX_LANES_PER_ROW)
-    const columnIndex = laneIndex % MAX_LANES_PER_ROW
-    const x = CANVAS_PADDING + columnIndex * (ONTOLOGY_LANE_WIDTH + LANE_GAP)
-    const y = rowOffsets[rowIndex]!
-    const stagger = columnIndex % 2 === 0 ? 0 : LANE_STAGGER
+    const count = Math.max(1, types.length)
+    const laneHeight = LANE_HEADER_HEIGHT + LANE_PADDING * 2
+      + count * ONTOLOGY_NODE_HEIGHT + (count - 1) * NODE_GAP
+    tallestLane = Math.max(tallestLane, laneHeight)
+    const x = CANVAS_PADDING + laneIndex * (ONTOLOGY_LANE_WIDTH + LANE_GAP)
+    const y = CANVAS_PADDING
     types.forEach((type, nodeIndex) => {
       positions[type.id] = {
         x: x + LANE_PADDING,
-        y: y + LANE_HEADER_HEIGHT + LANE_PADDING + stagger
-          + nodeIndex * (ONTOLOGY_NODE_HEIGHT + NODE_GAP),
+        y: y + LANE_HEADER_HEIGHT + LANE_PADDING + nodeIndex * (ONTOLOGY_NODE_HEIGHT + NODE_GAP),
       }
     })
     return {
@@ -76,7 +65,7 @@ export function buildOntologyLaneLayout(entityTypes: EntityTypeDefinition[]): On
       entityTypeIds: types.map((type) => type.id),
       position: { x, y },
       width: ONTOLOGY_LANE_WIDTH,
-      height: rowHeights[rowIndex]!,
+      height: laneHeight,
     }
   })
 
@@ -84,11 +73,9 @@ export function buildOntologyLaneLayout(entityTypes: EntityTypeDefinition[]): On
     positions,
     lanes,
     width: groups.length === 0 ? 0 : CANVAS_PADDING * 2
-      + Math.min(groups.length, MAX_LANES_PER_ROW) * ONTOLOGY_LANE_WIDTH
-      + Math.max(0, Math.min(groups.length, MAX_LANES_PER_ROW) - 1) * LANE_GAP,
-    height: groups.length === 0 ? 0 : CANVAS_PADDING * 2
-      + rowHeights.reduce((sum, height) => sum + height, 0)
-      + Math.max(0, rows.length - 1) * LANE_ROW_GAP,
+      + groups.length * ONTOLOGY_LANE_WIDTH
+      + Math.max(0, groups.length - 1) * LANE_GAP,
+    height: groups.length === 0 ? 0 : CANVAS_PADDING * 2 + tallestLane,
   }
 }
 
@@ -164,13 +151,6 @@ function isometricLaneHeight(nodeCount: number): number {
   return LANE_HEADER_HEIGHT + LANE_PADDING * 2
     + nodeCount * ONTOLOGY_NODE_HEIGHT
     + Math.max(0, nodeCount - 1) * ISOMETRIC_NODE_GAP
-}
-
-function laneHeightFor(nodeCount: number, laneCount: number): number {
-  return LANE_HEADER_HEIGHT + LANE_PADDING * 2
-    + nodeCount * ONTOLOGY_NODE_HEIGHT
-    + Math.max(0, nodeCount - 1) * NODE_GAP
-    + (laneCount > 1 ? LANE_STAGGER : 0)
 }
 
 function chunk<T>(items: T[], size: number): T[][] {
