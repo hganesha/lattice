@@ -629,6 +629,52 @@
     stroke-width: 1.5;
   }
 
+  /* Layered (ELK) view: a connectivity-first map with no swimlane frames. The canvas gets a
+     calmer dot grid so the orthogonal edge routes read as the primary structure. */
+  .ontology-canvas-layered .react-flow {
+    background-color: var(--bg-canvas);
+    background-image: radial-gradient(color-mix(in oklab,var(--graph-grid) 70%,transparent) .8px,transparent .8px);
+    background-size: 22px 22px;
+  }
+  .ontology-canvas-layered .ontology-flow-edge .react-flow__edge-path {
+    stroke: color-mix(in oklab,var(--interactive-text) 22%,var(--fg-muted));
+    stroke-width: 1.5;
+  }
+  .ontology-canvas-layered .ontology-flow-node { box-shadow: var(--shadow-raised); }
+  /* "Optimizing layout…" badge while ELK computes off the main thread. */
+  .canvas-computing {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 11px;
+    border: 1px solid color-mix(in oklab,var(--border-default) 86%,transparent);
+    border-radius: 999px;
+    background: color-mix(in oklab,var(--bg-surface) 90%,transparent);
+    box-shadow: var(--shadow-raised);
+    backdrop-filter: blur(10px);
+    color: var(--fg-secondary);
+    font: 500 var(--text-meta) var(--font-mono);
+    letter-spacing: .3px;
+    pointer-events: none;
+  }
+  .canvas-computing i {
+    width: 12px;
+    height: 12px;
+    flex: none;
+    border-radius: 50%;
+    border: 2px solid color-mix(in oklab,var(--interactive-fill) 30%,transparent);
+    border-top-color: var(--interactive-fill);
+    animation: canvas-computing-spin .7s linear infinite;
+  }
+  @keyframes canvas-computing-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .canvas-computing i { animation: none; }
+  }
+
   /* Keyboard-shortcut hint on the compile button. */
   .compile-button .kbd-hint { display: inline-block; margin-left: 9px; padding: 1px 5px; border-radius: 4px; color: color-mix(in oklab,currentColor 62%,transparent); background: color-mix(in oklab,currentColor 12%,transparent); font: 500 var(--text-meta) var(--font-mono); }
 
