@@ -41,17 +41,25 @@ describe('ontology lane layout', () => {
     }
   })
 
-  it('gives each domain group its own vertical lane in a single row', () => {
+  it('packs small domain groups into shared columns without overlapping', () => {
     const entities = ['One', 'Two', 'Three', 'Four', 'Five'].map((group) => entity(group.toLowerCase(), group))
     const layout = buildOntologyLaneLayout(entities)
 
     expect(layout.lanes).toHaveLength(5)
-    // No two groups share a lane: every lane sits to the right of the previous one, same row.
-    for (let index = 1; index < layout.lanes.length; index += 1) {
-      expect(layout.lanes[index]!.position.y).toBe(layout.lanes[0]!.position.y)
-      expect(layout.lanes[index]!.position.x).toBeGreaterThanOrEqual(
-        layout.lanes[index - 1]!.position.x + layout.lanes[index - 1]!.width,
-      )
+    // Small single-entity groups share columns, so there are fewer distinct x positions than lanes.
+    const columnXs = new Set(layout.lanes.map((lane) => lane.position.x))
+    expect(columnXs.size).toBeLessThan(layout.lanes.length)
+
+    // Lanes stacked in the same column never overlap vertically.
+    for (const columnX of columnXs) {
+      const stacked = layout.lanes
+        .filter((lane) => lane.position.x === columnX)
+        .sort((a, b) => a.position.y - b.position.y)
+      for (let index = 1; index < stacked.length; index += 1) {
+        expect(stacked[index]!.position.y).toBeGreaterThanOrEqual(
+          stacked[index - 1]!.position.y + stacked[index - 1]!.height,
+        )
+      }
     }
   })
 
