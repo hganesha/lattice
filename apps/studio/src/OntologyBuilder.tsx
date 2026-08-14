@@ -379,7 +379,7 @@ export function OntologyBuilder({ contract, onChange, onDirtyChange, mode = 'con
               onConnect={handleConnect}
               fitView
               fitViewOptions={{ padding: 0.18 }}
-              minZoom={0.35}
+              minZoom={0.2}
               maxZoom={1.8}
               snapToGrid
               snapGrid={[15, 15]}

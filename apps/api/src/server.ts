@@ -93,6 +93,7 @@ import { AttestationStore, predicateForSubject, type StoredAttestation } from '.
 import { buildDisposition, DispositionStore } from './dispositionStore.js'
 import { CaseSetStore, summarize, type CaseSetArtifact } from './caseSetStore.js'
 import { counterpartyGoldCaseSet } from './seedCaseSets.js'
+import { airlineDispatchGoldCaseSet } from './seedAirlineDispatchCaseSet.js'
 import { EvalRunStore } from './evalStore.js'
 import { buildCompilationRecord, diffEvalRuns, runEvaluation } from './evalHarness.js'
 import { consultNegativeDecisions, NegativeDecisionStore } from './negativeDecisionStore.js'
@@ -213,7 +214,10 @@ let evolutionStoresPromise: Promise<EvolutionStores> | undefined
 function evolutionStores(registry: ContractRegistry): Promise<EvolutionStores> {
   evolutionStoresPromise ??= (async () => {
     const caseSet = await CaseSetStore.open(join(dataDirectory, 'case-sets.json'))
-    if ((await caseSet.all(undefined)).length === 0) await caseSet.seed(counterpartyGoldCaseSet, undefined)
+    if ((await caseSet.all(undefined)).length === 0) {
+      await caseSet.seed(counterpartyGoldCaseSet, undefined)
+      await caseSet.seed(airlineDispatchGoldCaseSet, undefined)
+    }
     return {
       attestation: await AttestationStore.open(join(dataDirectory, 'attestations.json'), planSigner),
       disposition: await DispositionStore.open(join(dataDirectory, 'dispositions.json')),

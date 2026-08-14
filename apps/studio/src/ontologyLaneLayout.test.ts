@@ -41,13 +41,38 @@ describe('ontology lane layout', () => {
     }
   })
 
-  it('wraps wide ontologies into rows instead of shrinking every node', () => {
+  it('packs small domain groups into shared columns without overlapping', () => {
     const entities = ['One', 'Two', 'Three', 'Four', 'Five'].map((group) => entity(group.toLowerCase(), group))
     const layout = buildOntologyLaneLayout(entities)
 
-    expect(layout.lanes[0]!.position.y).toBe(layout.lanes[3]!.position.y)
-    expect(layout.lanes[4]!.position.y).toBeGreaterThan(layout.lanes[0]!.position.y + layout.lanes[0]!.height)
-    expect(layout.width).toBeLessThan(1_400)
+    expect(layout.lanes).toHaveLength(5)
+    // Small single-entity groups share columns, so there are fewer distinct x positions than lanes.
+    const columnXs = new Set(layout.lanes.map((lane) => lane.position.x))
+    expect(columnXs.size).toBeLessThan(layout.lanes.length)
+
+    // Lanes stacked in the same column never overlap vertically.
+    for (const columnX of columnXs) {
+      const stacked = layout.lanes
+        .filter((lane) => lane.position.x === columnX)
+        .sort((a, b) => a.position.y - b.position.y)
+      for (let index = 1; index < stacked.length; index += 1) {
+        expect(stacked[index]!.position.y).toBeGreaterThanOrEqual(
+          stacked[index - 1]!.position.y + stacked[index - 1]!.height,
+        )
+      }
+    }
+  })
+
+  it('stacks a lane\'s entities vertically rather than side by side', () => {
+    const layout = buildOntologyLaneLayout([
+      entity('alpha', 'Group'), entity('beta', 'Group'), entity('gamma', 'Group'),
+    ])
+    const at = (id: string) => layout.positions[id]!
+
+    expect(at('beta').y).toBeGreaterThan(at('alpha').y)
+    expect(at('gamma').y).toBeGreaterThan(at('beta').y)
+    expect(at('alpha').x).toBe(at('beta').x)
+    expect(at('beta').x).toBe(at('gamma').x)
   })
 
   it('treats domain group names as case-insensitive lane identities', () => {

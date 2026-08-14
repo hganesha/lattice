@@ -154,7 +154,7 @@ test('seeds valid airline regulatory reference contracts into the airline worksp
   assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'dispatch_release'))
   assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'airworthiness_release'))
   assert.ok(workspace.ontology.entityTypes.some((type) => type.id === 'consumer_remedy'))
-  assert.deepEqual(workspace.contractIds.sort(), airlineExampleContracts.map((contract) => contract.id).sort())
+  assert.deepEqual(workspace.contractIds.sort(), [...airlineExampleContracts.map((contract) => contract.id), 'contract-airline-dispatch'].sort())
   for (const contract of airlineExampleContracts) {
     const seeded = registry.get(contract.id)
     assert.equal(seeded?.runtimeStatus, 'ACTIVE')
@@ -216,7 +216,7 @@ test('hydrates every new reference workspace when an older persisted registry al
   for (const contract of [...airlineExampleContracts, ...telecommunicationsExampleContracts]) {
     assert.deepEqual(validateContract(registry.get(contract.id)!.draft), [], contract.id)
   }
-  assert.deepEqual(registry.getWorkspace('workspace-airline')!.contractIds.sort(), airlineExampleContracts.map((contract) => contract.id).sort())
+  assert.deepEqual(registry.getWorkspace('workspace-airline')!.contractIds.sort(), [...airlineExampleContracts.map((contract) => contract.id), 'contract-airline-dispatch'].sort())
   assert.deepEqual(registry.getWorkspace('workspace-telecommunications')!.contractIds.sort(), telecommunicationsExampleContracts.map((contract) => contract.id).sort())
   assert.ok(persisted)
 })
