@@ -115,13 +115,19 @@ export const counterpartyRiskContract: ContextContract = {
     { id: 'ev-regulatory-catalog', type: 'TEMPLATE', title: 'Regulatory report applicability map', source: 'Financial Services Pack', locator: 'reports/ffiec-009', checksum: 'sha256:report', observedAt: '2026-07-01T00:00:00.000Z', validFrom: '2026-01-01T00:00:00.000Z', status: 'TEMPLATE_DERIVED' },
   ],
   bindings: [
-    { id: 'binding-risk-warehouse@1', sourceSystem: 'Risk Warehouse', operationId: 'risk.counterparty_exposure_assessment', environment: 'production', freshnessMinutes: 1440, requiredPermissions: ['risk.exposure.read'], expectedResultSchema: 'counterparty_exposure_assessment@1', version: '1.0.0', approvalStatus: approved, adapterType: 'OPENAPI', endpoint: 'https://risk.internal/v1/counterparty-exposure', method: 'GET', healthStatus: 'VALID', parameters: [
-      // The warehouse keys on the LEI, not on Lattice's own CP-0103 identifier.
+    // A live, read-only connector over the shared `lattice_demo` Postgres schema. The warehouse
+    // keys on the LEI, not on Lattice's own CP-0103 identifier. The declared endpoint carries host
+    // and port only; the credential (and the database it is scoped to) resolves from the
+    // environment, and validatePostgresScope pins the binding to that one database. Set the endpoint
+    // host to your Supabase host to enable live execution; compile and evaluation are unaffected.
+    { id: 'binding-risk-warehouse@1', sourceSystem: 'Risk Warehouse (demo)', operationId: 'risk.counterparty_exposure_assessment', environment: 'demo', freshnessMinutes: 1440, requiredPermissions: ['risk.exposure.read'], expectedResultSchema: 'counterparty_exposure_assessment@1', version: '1.0.0', approvalStatus: approved, adapterType: 'DATABASE', executionMode: 'CONNECTOR', endpoint: 'postgres://db.replace-with-supabase-ref.supabase.co:5432', method: 'READ', healthStatus: 'NOT_TESTED', connector: {
+      provider: 'POSTGRESQL', transport: 'POSTGRES_WIRE', credentialRef: 'env:LATTICE_DEMO_POSTGRES_URL', resource: { database: 'postgres', schema: 'lattice_demo', object: 'counterparty_exposure' }, queryTemplate: 'SELECT counterparty_lei, counterparty_rating, sector, net_current_exposure, approved_limit, position_notional, currency, observed_at FROM lattice_demo.counterparty_exposure WHERE counterparty_lei = $1', parameterStyle: 'POSITIONAL', parameterOrder: ['counterparty_lei'], readOnly: true, maximumRows: 50,
+    }, parameters: [
       { name: 'counterparty_lei', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.lei' },
     ], mappings: [
-      { sourcePath: '$.counterparty.lei', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.lei', sourceDataType: 'string', confidence: 'EXACT' },
-      { sourcePath: '$.counterparty.rating', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.rating', sourceDataType: 'string', confidence: 'EXACT' },
-      { sourcePath: '$.position.notional', targetTypeId: 'position', targetPropertyId: 'position.notional', sourceDataType: 'number', confidence: 'EXACT' },
+      { sourcePath: '$.counterparty_lei', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.lei', sourceDataType: 'string', confidence: 'EXACT' },
+      { sourcePath: '$.counterparty_rating', targetTypeId: 'counterparty', targetPropertyId: 'counterparty.rating', sourceDataType: 'string', confidence: 'EXACT' },
+      { sourcePath: '$.position_notional', targetTypeId: 'position', targetPropertyId: 'position.notional', sourceDataType: 'number', confidence: 'EXACT' },
     ] },
     { id: 'binding-collateral@1', sourceSystem: 'Collateral Platform', operationId: 'risk.counterparty_exposure_assessment', environment: 'production', freshnessMinutes: 60, requiredPermissions: ['risk.collateral.read'], expectedResultSchema: 'collateral_balance@1', version: '1.0.0', approvalStatus: approved, adapterType: 'OPENAPI', endpoint: 'https://collateral.internal/v1/current-balances', method: 'GET', healthStatus: 'VALID', mappings: [
       { sourcePath: '$.marketValue', targetTypeId: 'collateral', targetPropertyId: 'collateral.market_value', sourceDataType: 'number', confidence: 'EXACT' },

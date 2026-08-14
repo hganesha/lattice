@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import {
+  airlineDispatchDemoContract,
   connectorTemplate,
   coreOntology,
   generatedIndustryOntologyCatalog,
@@ -57,6 +58,7 @@ export class ContractRegistry {
       if (!entry.activeReleaseDigest && latestDigest) entry.activeReleaseDigest = latestDigest
     }
     seedReferenceContracts(document.entries)
+    seedStandaloneDemoContracts(document.entries)
     document.workspaces = hydrateWorkspaces(document.entries, document.workspaces)
     document.workspaces = seedGeneratedOntologies(document.workspaces)
     repairGeneratedContractScopes(document.entries, document.workspaces)
@@ -387,6 +389,32 @@ function seedReferenceContracts(entries: Record<string, ContractRegistryEntry>):
     if (draftTracksCanonicalRelease) existing.draft = structuredClone(contract)
     if (activeTracksCanonicalRelease) existing.activeReleaseDigest = release.digest
     existing.runtimeStatus ??= 'ACTIVE'
+  }
+}
+
+/**
+ * Seeds the fully-populated demo contracts — the ones that carry a real entity graph and back a
+ * gold case set, rather than materializing a synthetic world from sample payloads. They are seeded
+ * only when absent, so a tenant that has since edited its own draft is never overwritten.
+ */
+function seedStandaloneDemoContracts(entries: Record<string, ContractRegistryEntry>): void {
+  for (const contract of [airlineDispatchDemoContract]) {
+    if (entries[contract.id]) continue
+    const release: ContractRelease = {
+      version: contract.version,
+      digest: contract.digest,
+      publishedAt: '2026-07-27T20:00:00.000Z',
+      notes: `Initial ${contract.domain} decision-support demo environment.`,
+      contract: structuredClone(contract),
+    }
+    entries[contract.id] = {
+      contractId: contract.id,
+      draft: structuredClone(contract),
+      updatedAt: release.publishedAt,
+      releases: [release],
+      runtimeStatus: 'ACTIVE',
+      activeReleaseDigest: release.digest,
+    }
   }
 }
 
