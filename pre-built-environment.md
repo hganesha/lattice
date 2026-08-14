@@ -173,16 +173,21 @@ create table lattice_demo.dispatch_release_context (
 
 `observed_at` is written by a small refresh at seed time (or a scheduled `update ... set observed_at = now()`), so freshness-window cases behave predictably against the binding's 15-minute limit.
 
-### 3.4 Credential wiring
+### 3.4 Credential wiring (same-environment deploy)
 
-The demo connection string is provided by environment, resolved through the existing `env:` path:
+The demo runs **inside an existing Lattice environment against the same Supabase database**, isolated by the separate `lattice_demo` schema. So the demo binding reuses the connection the platform is already given — set `LATTICE_DEMO_POSTGRES_URL` to the **same value as `POSTGRES_URL_NON_POOLING`** (database `postgres`; the pooler URL works too):
 
 ```
-# .env / Vercel — a synthetic, read-only demo DB URL, database `postgres`
-LATTICE_DEMO_POSTGRES_URL=postgresql://lattice_demo_reader:<pw>@db.<ref>.supabase.co:5432/postgres
+# .env / Vercel — resolved through the existing env: credential path
+LATTICE_DEMO_POSTGRES_URL=<same value as POSTGRES_URL_NON_POOLING>
 ```
 
-Use `POSTGRES_URL_NON_POOLING`'s host (direct, `:5432`) for the demo binding — session-based `BEGIN READ ONLY` txns are simplest there; the pooler host works too. Add `LATTICE_DEMO_POSTGRES_URL` to [`.env.supabase.example`](.env.supabase.example) with a `replace_me` placeholder.
+Two things make this zero-edit per environment:
+
+- **Endpoint auto-derived.** `alignDemoBindingsToCredential` (in [`registry.ts`](apps/api/src/registry.ts)) rewrites each demo binding's `endpoint` host/port and `resource.database` from `LATTICE_DEMO_POSTGRES_URL` at startup, so `validatePostgresScope`'s host/port/database pin always matches — no matter which Supabase host or pooler you point it at. The endpoint stays credential-free (host/port only).
+- **No dedicated role.** The binding reads as whatever role that URL authenticates as (the injected one already reaches `lattice_demo`). Read-only is still enforced twice at runtime — the connector's `BEGIN READ ONLY … ROLLBACK` and the single-`SELECT` guard. To tighten to least privilege later, provision a `LOGIN` role granted `SELECT` only on `lattice_demo` and point `LATTICE_DEMO_POSTGRES_URL` at it.
+
+Leave the variable unset to keep the demo offline: compile, evaluation, and the studio all work without it; only `/execute` reaches the database.
 
 ---
 
@@ -357,11 +362,11 @@ All three phases landed together. The full workspace test suite is green (contra
 | Live binding credential | `LATTICE_DEMO_POSTGRES_URL` in [`.env.supabase.example`](.env.supabase.example) |
 | Counterparty warehouse binding flipped to live `POSTGRESQL` connector | [`packages/contracts/src/counterpartyContract.ts`](packages/contracts/src/counterpartyContract.ts) |
 
-**To make the live reads execute** (optional — everything above works offline; only `/execute` needs the DB):
+**To deploy the live reads into an existing Lattice environment** (optional — everything above works offline; only `/execute` needs the DB):
 
-1. Apply the migration and seed the source:
+1. Apply the migration and seed the source (same database Lattice already uses):
    ```bash
-   supabase db reset --local   # or apply the migration to your project
-   psql "$LATTICE_DEMO_POSTGRES_URL" -f scripts/seed-demo-source.sql
+   supabase db push          # or apply the migration to your project
+   psql "$POSTGRES_URL_NON_POOLING" -f scripts/seed-demo-source.sql
    ```
-2. Set `LATTICE_DEMO_POSTGRES_URL` and edit each demo binding's `endpoint` host to match your Supabase host (the endpoint carries host/port only; `validatePostgresScope` pins host, port, and database `postgres`).
+2. Set `LATTICE_DEMO_POSTGRES_URL` to the same value as `POSTGRES_URL_NON_POOLING` and redeploy. No code edits: the binding endpoint and database scope are derived from that URL at startup, so `validatePostgresScope` passes whichever Supabase host/pooler it names.

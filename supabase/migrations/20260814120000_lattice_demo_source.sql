@@ -13,25 +13,19 @@
 -- counterparties, people, or PII.
 --
 -- The synthetic rows themselves are loaded by `scripts/seed-demo-source.sql`, which is safe to run
--- repeatedly. This migration only creates the schema, the read-only role, and the tables.
+-- repeatedly. This migration only creates the schema and the tables.
+--
+-- The demo bindings read as the database role their credential authenticates as. In an existing
+-- Lattice deployment that is the injected POSTGRES_URL role, which already reaches this schema, so
+-- no dedicated login role is provisioned here. Read-only is still guaranteed twice by the runtime:
+-- the connector wraps every read in BEGIN READ ONLY ... ROLLBACK, and only a single SELECT is
+-- allowed to reach the database at all. To tighten to least privilege later, create a LOGIN role
+-- granted SELECT only on `lattice_demo` and point LATTICE_DEMO_POSTGRES_URL at it.
 
 create schema if not exists lattice_demo;
 
--- A read-only role the governed bindings authenticate as. This is belt-and-braces on top of the
--- connector's own BEGIN READ ONLY transaction and the single-SELECT query guard: even if a query
--- slipped past those, the role has no privilege to change anything.
-do $$
-begin
-  if not exists (select 1 from pg_roles where rolname = 'lattice_demo_reader') then
-    create role lattice_demo_reader nologin;
-  end if;
-end
-$$;
-
-grant usage on schema lattice_demo to lattice_demo_reader;
-alter default privileges in schema lattice_demo grant select on tables to lattice_demo_reader;
-
--- Never expose demo source rows through the Data API roles.
+-- Never expose demo source rows through the Data API roles; they are reachable only over the
+-- Postgres wire protocol by a governed binding.
 revoke all on schema lattice_demo from anon, authenticated;
 
 -- ---------------------------------------------------------------------------
@@ -74,5 +68,3 @@ create table if not exists lattice_demo.dispatch_release_context (
   regulation_citations  text        not null,
   observed_at           timestamptz not null
 );
-
-grant select on all tables in schema lattice_demo to lattice_demo_reader;

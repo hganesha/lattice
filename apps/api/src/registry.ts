@@ -64,6 +64,7 @@ export class ContractRegistry {
     repairGeneratedContractScopes(document.entries, document.workspaces)
     document.schemaVersion = '1.1'
     attachOntologyReferences(document.entries, document.workspaces)
+    alignDemoBindingsToCredential(document.entries)
     const registry = new ContractRegistry(storage, document)
     if (options.persistOnOpen !== false) await registry.persist()
     return registry
@@ -415,6 +416,45 @@ function seedStandaloneDemoContracts(entries: Record<string, ContractRegistryEnt
       runtimeStatus: 'ACTIVE',
       activeReleaseDigest: release.digest,
     }
+  }
+}
+
+const DEMO_CREDENTIAL_REF = 'env:LATTICE_DEMO_POSTGRES_URL'
+
+/**
+ * Aligns the demo bindings' declared endpoint and database scope to the credential they read with,
+ * so deploying the demo into an existing Lattice environment needs no per-host code edits.
+ *
+ * `validatePostgresScope` pins a connector to the host, port, and database of its credential;
+ * deriving all three from `LATTICE_DEMO_POSTGRES_URL` here guarantees the match, whichever Supabase
+ * connection (pooled or direct) the operator points it at. The endpoint stays credential-free — only
+ * the host and port are copied, never the secret. When the variable is unset the bindings keep their
+ * placeholder and `/execute` never runs (the credential resolves to nothing), so compile, evaluation,
+ * and the studio remain offline-safe. Applied to the in-memory registry only; the runtime data file
+ * is git-ignored and per-environment.
+ */
+function alignDemoBindingsToCredential(entries: Record<string, ContractRegistryEntry>): void {
+  const connectionString = process.env.LATTICE_DEMO_POSTGRES_URL?.trim()
+  if (!connectionString) return
+  let url: URL
+  try {
+    url = new URL(connectionString)
+  } catch {
+    return
+  }
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)) return
+  const endpoint = `postgres://${url.hostname}:${url.port || '5432'}`
+  const database = decodeURIComponent(url.pathname.replace(/^\//, '')) || 'postgres'
+  const align = (contract: ContextContract): void => {
+    for (const binding of contract.bindings) {
+      if (binding.executionMode !== 'CONNECTOR' || binding.connector?.credentialRef !== DEMO_CREDENTIAL_REF) continue
+      binding.endpoint = endpoint
+      binding.connector.resource = { ...binding.connector.resource, database }
+    }
+  }
+  for (const entry of Object.values(entries)) {
+    align(entry.draft)
+    for (const release of entry.releases) align(release.contract)
   }
 }
 
